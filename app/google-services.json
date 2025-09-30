@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "820893471280",
+    "project_id": "studymanagementapp-bf4fb",
+    "storage_bucket": "studymanagementapp-bf4fb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:820893471280:android:9e5a472a40b48e423953f5",
+        "android_client_info": {
+          "package_name": "com.example.datn"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "820893471280-7unvoogv99br9nd8fr36h7vb0qqfihuq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkd2Ux8UMDJkk3LljJqEWP6Q2tD7sKfis"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "820893471280-7unvoogv99br9nd8fr36h7vb0qqfihuq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:820893471280:android:e21015281e4894203953f5",
+        "android_client_info": {
+          "package_name": "com.example.studymanagementapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "820893471280-7unvoogv99br9nd8fr36h7vb0qqfihuq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkd2Ux8UMDJkk3LljJqEWP6Q2tD7sKfis"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "820893471280-7unvoogv99br9nd8fr36h7vb0qqfihuq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -17,6 +17,7 @@ hilt = "2.57.1"
 navigationCommonKtx = "2.9.4"
 firebaseDatabaseKtx = "22.0.0"
 hiltCommon = "1.3.0"
+firebaseFirestore = "26.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -34,6 +35,7 @@ googleid = { group = "com.google.android.libraries.identity.googleid", name = "g
 androidx-navigation-common-ktx = { group = "androidx.navigation", name = "navigation-common-ktx", version.ref = "navigationCommonKtx" }
 firebase-database-ktx = { group = "com.google.firebase", name = "firebase-database-ktx", version.ref = "firebaseDatabaseKtx" }
 androidx-hilt-common = { group = "androidx.hilt", name = "hilt-common", version.ref = "hiltCommon" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore", version.ref = "firebaseFirestore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
