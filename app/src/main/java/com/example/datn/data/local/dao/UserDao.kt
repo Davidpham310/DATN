@@ -12,4 +12,10 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE id = :id")
     suspend fun getUser(id: String): UserEntity?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM users WHERE id = :id)")
+    suspend fun isUserExists(id: String): Boolean
+
+    @Query("SELECT * FROM users")
+    suspend fun getAllUsers(): List<UserEntity>
 }

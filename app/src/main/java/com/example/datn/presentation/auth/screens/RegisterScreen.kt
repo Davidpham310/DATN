@@ -20,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.presentation.auth.AuthViewModel
-import com.example.datn.presentation.common.AuthEvent
+import com.example.datn.presentation.common.auth.AuthEvent
 import com.example.datn.presentation.components.AuthPasswordField
 import com.example.datn.presentation.components.AuthTextField
 import com.example.datn.presentation.components.RoleSelector

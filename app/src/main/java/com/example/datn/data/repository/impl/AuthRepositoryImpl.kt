@@ -21,9 +21,12 @@ class AuthRepositoryImpl @Inject constructor(
     override fun login(email: String, password: String): Flow<Resource<User>> = flow {
         emit(Resource.Loading())
         val userId = firebaseAuthDataSource.login(email, password)
-        val user = User(userId, email, "Unknown", UserRole.STUDENT)
-        userDao.insertUser(user.toEntity()) // lưu local
-        emit(Resource.Success(user))
+        val remoteUser = firebaseAuthDataSource.getUserProfile(userId)
+
+        if(userDao.isUserExists(remoteUser.id)){
+            userDao.insertUser(remoteUser.toEntity())
+        }
+        emit(Resource.Success(remoteUser))
     }.catch { e -> emit(Resource.Error(e.message ?: "Login error")) }
 
     override fun register(
@@ -35,7 +38,9 @@ class AuthRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         val userId = firebaseAuthDataSource.register(email, password)
         val user = User(userId, email, name, UserRole.valueOf(role))
-        userDao.insertUser(user.toEntity())
+        if (!userDao.isUserExists(user.id)) {
+            userDao.insertUser(user.toEntity())
+        }
         emit(Resource.Success(user))
     }.catch { e -> emit(Resource.Error(e.message ?: "Register error")) }
 

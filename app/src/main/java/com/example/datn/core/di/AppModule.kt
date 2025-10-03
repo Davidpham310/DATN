@@ -7,7 +7,9 @@ import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.UserDao
 import com.example.datn.data.repository.impl.AuthRepositoryImpl
+import com.example.datn.data.repository.impl.SplashRepositoryImpl
 import com.example.datn.domain.repository.IAuthRepository
+import com.example.datn.domain.repository.ISplashRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -51,8 +53,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideFirebaseAuthDataSource(firebaseAuth: FirebaseAuth): FirebaseAuthDataSource =
-        FirebaseAuthDataSource(firebaseAuth)
+    fun provideFirebaseAuthDataSource(firebaseAuth: FirebaseAuth , firestore: FirebaseFirestore): FirebaseAuthDataSource =
+        FirebaseAuthDataSource(firebaseAuth , firestore)
 
     @Provides
     @Singleton
@@ -68,4 +70,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideNotificationManager(): NotificationManager = NotificationManager()
+
+    @Provides
+    @Singleton
+    fun provideSplashRepository(
+        userDao: UserDao,
+    ): ISplashRepository = SplashRepositoryImpl(userDao)
 }

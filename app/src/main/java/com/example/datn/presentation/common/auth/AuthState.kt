@@ -1,4 +1,4 @@
-package com.example.datn.presentation.common
+package com.example.datn.presentation.common.auth
 
 import com.example.datn.core.base.BaseState
 import com.example.datn.domain.models.User

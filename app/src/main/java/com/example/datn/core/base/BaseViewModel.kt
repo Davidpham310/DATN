@@ -7,8 +7,11 @@ import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.core.presentation.notifications.NotificationType
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,6 +29,9 @@ abstract class BaseViewModel<S : BaseState, E : BaseEvent>(
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<S> = _state
 
+    private val _eventFlow = MutableSharedFlow<E>()
+    val eventFlow: SharedFlow<E> = _eventFlow.asSharedFlow()
+
     @Inject
     lateinit var notificationManager: NotificationManager
 
@@ -35,6 +41,13 @@ abstract class BaseViewModel<S : BaseState, E : BaseEvent>(
     // Hàm cập nhật state an toàn
     protected fun setState(reducer: S.() -> S) {
         _state.value = _state.value.reducer()
+    }
+
+    // Hàm gửi event an toàn
+    protected fun sendEvent(event: E) {
+        viewModelScope.launch {
+            _eventFlow.emit(event)
+        }
     }
 
     // Handler bắt lỗi toàn cục

@@ -1,7 +1,6 @@
-package com.example.datn.presentation.common
+package com.example.datn.presentation.common.auth
 
 import com.example.datn.core.base.BaseEvent
-import com.example.datn.domain.models.User
 
 sealed class AuthEvent : BaseEvent {
     data class OnLogin(val email: String, val password: String) : AuthEvent()

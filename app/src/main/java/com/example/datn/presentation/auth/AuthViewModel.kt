@@ -12,8 +12,8 @@ import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.auth.ForgotPasswordParams
 import com.example.datn.domain.usecase.auth.LoginParams
 import com.example.datn.domain.usecase.auth.RegisterParams
-import com.example.datn.presentation.common.AuthEvent
-import com.example.datn.presentation.common.AuthState
+import com.example.datn.presentation.common.auth.AuthEvent
+import com.example.datn.presentation.common.auth.AuthState
 import com.example.datn.presentation.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
