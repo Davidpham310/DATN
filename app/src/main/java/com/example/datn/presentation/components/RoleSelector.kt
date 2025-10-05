@@ -8,12 +8,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.datn.domain.models.UserRole
 
 @Composable
 fun RoleSelector(
-    roles: List<String>,
-    selectedRole: String,
-    onRoleSelected: (String) -> Unit
+    roles: List<UserRole>,
+    selectedRole: UserRole,
+    onRoleSelected: (UserRole) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -31,11 +32,11 @@ fun RoleSelector(
                 modifier = Modifier.padding(vertical = 4.dp)
             ) {
                 RadioButton(
-                    selected = role == selectedRole,
+                    selected = selectedRole == role,
                     onClick = { onRoleSelected(role) }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = role)
+                Text(text = role.displayName)
             }
         }
     }

@@ -47,7 +47,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, "app_db").fallbackToDestructiveMigration() // xóa database cũ nếu version thay đổi
+        Room.databaseBuilder(context, AppDatabase::class.java, "app_db")
             .build()
 
 

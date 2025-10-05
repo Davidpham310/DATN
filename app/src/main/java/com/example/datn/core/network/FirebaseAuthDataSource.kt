@@ -15,50 +15,95 @@ class FirebaseAuthDataSource @Inject constructor(
 
     private val usersCollection = firestore.collection("users")
 
-    // Đăng nhập
-    suspend fun login(email: String, password: String): String {
+    // 🔹 Đăng nhập
+    suspend fun login(email: String, password: String, expectedRole: String): String {
         val result = auth.signInWithEmailAndPassword(email, password).await()
-        return result.user?.uid ?: throw Exception("Login failed")
-    }
+        val userId = result.user?.uid ?: throw Exception("Không thể đăng nhập.")
 
-    // Đăng ký
-    suspend fun register(email: String, password: String): String {
-        val result = auth.createUserWithEmailAndPassword(email, password).await()
-        return result.user?.uid ?: throw Exception("Register failed")
-    }
-
-    // Gửi email để đặt lại mật khẩu
-    suspend fun sendPasswordReset(email: String) {
-        auth.sendPasswordResetEmail(email).await()
-    }
-
-    // Lưu thông tin user vào Firestore
-    suspend fun saveUserProfile(user: User) {
-        usersCollection.document(user.id)
-            .set(
-                mapOf(
-                    "id" to user.id,
-                    "email" to user.email,
-                    "name" to user.name,
-                    "role" to user.role.name
-                )
-            ).await()
-    }
-
-    // Lấy thông tin user từ Firestore
-    suspend fun getUserProfile(userId: String): User {
+        // Lấy thông tin người dùng từ Firestore
         val snapshot = usersCollection.document(userId).get().await()
         if (!snapshot.exists()) {
-            throw Exception("User profile not found")
+            throw Exception("Không tìm thấy thông tin người dùng.")
         }
-        val data = snapshot.data ?: throw Exception("User profile is empty")
+
+        val actualRole = (snapshot.getString("role") ?: "").uppercase()
+
+        // Kiểm tra vai trò
+        if (actualRole != expectedRole.uppercase()) {
+            auth.signOut()
+            throw Exception("Bạn không có quyền đăng nhập với vai trò này.")
+        }
+
+        return userId
+    }
+
+    // 🔹 Đăng ký (kiểm tra tồn tại trước khi thêm)
+    suspend fun register(email: String, password: String, name: String, role: String): String {
+        // 1️⃣ Kiểm tra xem email đã tồn tại trong Firestore chưa
+        val existingUser = usersCollection
+            .whereEqualTo("email", email)
+            .get()
+            .await()
+
+        if (!existingUser.isEmpty) {
+            throw Exception("Email đã tồn tại trong hệ thống.")
+        }
+
+        // 2️⃣ Nếu chưa có thì tạo tài khoản trong Firebase Auth
+        val result = auth.createUserWithEmailAndPassword(email, password).await()
+        val userId = result.user?.uid ?: throw Exception("Không thể tạo tài khoản.")
+
+        // 3️⃣ Tạo dữ liệu người dùng để lưu vào Firestore
+        val userData = hashMapOf(
+            "id" to userId,
+            "email" to email,
+            "name" to name,
+            "role" to role.uppercase() // chuẩn hóa role
+        )
+
+        // 4️⃣ Lưu lên Firestore
+        usersCollection.document(userId).set(userData).await()
+
+        return userId
+    }
+
+    // 🔹 Lấy thông tin người dùng từ Firestore
+    suspend fun getUserProfile(userId: String): User {
+        val snapshot = usersCollection.document(userId).get().await()
+
+        if (!snapshot.exists()) {
+            throw Exception("Không tìm thấy thông tin người dùng.")
+        }
+
+        val data = snapshot.data ?: throw Exception("Dữ liệu người dùng bị lỗi.")
 
         return User(
             id = data["id"] as String,
             email = data["email"] as String,
             name = data["name"] as String,
-            role = UserRole.valueOf(data["role"] as String)
+            role = UserRole.valueOf((data["role"] as String).uppercase())
         )
     }
 
+    // 🔹 Gửi email reset mật khẩu
+    suspend fun sendPasswordReset(email: String) {
+        auth.sendPasswordResetEmail(email).await()
+    }
+
+    // 🔹 Lưu hồ sơ người dùng (nếu cần cập nhật)
+    suspend fun saveUserProfile(user: User) {
+        usersCollection.document(user.id).set(
+            mapOf(
+                "id" to user.id,
+                "email" to user.email,
+                "name" to user.name,
+                "role" to user.role.name
+            )
+        ).await()
+    }
+
+    // 🔹 Đăng xuất
+    fun signOut() {
+        auth.signOut()
+    }
 }

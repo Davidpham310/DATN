@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.datn.domain.models.UserRole
 import com.example.datn.presentation.auth.AuthViewModel
 import com.example.datn.presentation.common.auth.AuthEvent
 import com.example.datn.presentation.components.AuthTextField
@@ -28,7 +29,7 @@ fun ForgotPasswordScreen(
     viewModel: AuthViewModel = hiltViewModel(),
     onNavigateLogin: () -> Unit
 ) {
-    var selectedRole by remember { mutableStateOf("Giáo viên") }
+    var selectedRole by remember { mutableStateOf(UserRole.TEACHER) }
     var email by remember { mutableStateOf("") }
 
     Column(
@@ -42,7 +43,7 @@ fun ForgotPasswordScreen(
         Spacer(Modifier.height(16.dp))
 
         RoleSelector(
-            roles = listOf("Giáo viên", "Phụ huynh"),
+            roles = listOf(UserRole.TEACHER, UserRole.PARENT),
             selectedRole = selectedRole,
             onRoleSelected = { selectedRole = it }
         )

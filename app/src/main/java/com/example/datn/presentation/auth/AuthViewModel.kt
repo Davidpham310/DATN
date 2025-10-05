@@ -1,6 +1,8 @@
 package com.example.datn.presentation.auth
 
+import android.util.Log
 import com.example.datn.core.base.BaseViewModel
+import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.core.presentation.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.core.utils.validation.rules.EmailValidator
@@ -16,25 +18,26 @@ import com.example.datn.presentation.common.auth.AuthEvent
 import com.example.datn.presentation.common.auth.AuthState
 import com.example.datn.presentation.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authUseCases: AuthUseCases
 ) : BaseViewModel<AuthState, AuthEvent>(AuthState()) {
-
     private val emailValidator = EmailValidator()
     private val passwordValidator = PasswordValidator()
     private val usernameValidator = UsernameValidator()
     override fun onEvent(event: AuthEvent) {
         when (event) {
-            is AuthEvent.OnLogin -> login(event.email, event.password)
+            is AuthEvent.OnLogin -> login(event.email, event.password , event.role)
             is AuthEvent.OnRegister -> register(event.email, event.password, event.name, event.role)
             is AuthEvent.OnForgotPassword -> forgotPassword(event.email)
         }
     }
 
-    private fun login(email: String, password: String) {
+    private fun login(email: String, password: String , role : UserRole) {
         // Validation
         val emailResult = emailValidator.validate(email)
         val passwordResult = passwordValidator.validate(password)
@@ -49,13 +52,13 @@ class AuthViewModel @Inject constructor(
         }
 
         launch {
-            authUseCases.login(LoginParams(email, password)).collect { resource ->
+            authUseCases.login(LoginParams(email, password , role)).collect { resource ->
                 handleAuthResult(resource, successMessage = "Login successful")
             }
         }
     }
 
-    private fun register(email: String, password: String, name: String, role: String) {
+    private fun register(email: String, password: String, name: String, role: UserRole) {
 
         val emailResult = emailValidator.validate(email)
         val passwordResult = passwordValidator.validate(password)
@@ -76,7 +79,23 @@ class AuthViewModel @Inject constructor(
 
         launch {
             authUseCases.register(RegisterParams(email, password, name, role)).collect { resource ->
-                handleAuthResult(resource, successMessage = "Register successful")
+                when (resource) {
+                    is Resource.Loading -> {
+                        setState { copy(isLoading = true, error = null) }
+                    }
+
+                    is Resource.Success -> {
+                        setState { copy(isLoading = false, navigateTo = Screen.Login.route) }
+                        Log.d("AuthViewModel", "Đăng ký thành công")
+                        showNotification("Đăng ký thành công!", NotificationType.SUCCESS)
+                    }
+
+                    is Resource.Error -> {
+                        setState { copy(isLoading = false, error = resource.message) }
+                        Log.d("AuthViewModel", "Đăng ký thất bại: ${resource.message}")
+                        showNotification(resource.message ?: "Đăng ký thất bại", NotificationType.ERROR)
+                    }
+                }
             }
         }
     }
@@ -94,6 +113,7 @@ class AuthViewModel @Inject constructor(
                     is Resource.Loading -> setState { copy(isLoading = true, error = null) }
                     is Resource.Success -> {
                         setState { copy(isLoading = false, error = null) }
+                        Log.d("AuthViewModel" , "Password reset email sent")
                         showNotification(resource.data ?: "Password reset email sent", NotificationType.SUCCESS)
                     }
                     is Resource.Error -> {

@@ -12,6 +12,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,21 +21,39 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.datn.core.presentation.notifications.NotificationHost
+import com.example.datn.domain.models.UserRole
 import com.example.datn.presentation.auth.AuthViewModel
 import com.example.datn.presentation.common.auth.AuthEvent
 import com.example.datn.presentation.components.AuthPasswordField
 import com.example.datn.presentation.components.AuthTextField
 import com.example.datn.presentation.components.RoleSelector
+import kotlinx.coroutines.delay
 
 @Composable
 fun RegisterScreen(
     viewModel: AuthViewModel = hiltViewModel(),
     onNavigateLogin: () -> Unit
 ) {
-    var selectedRole by remember { mutableStateOf("Phụ huynh") }
+    val state = viewModel.state.collectAsState().value
+    var selectedRole by remember { mutableStateOf(UserRole.PARENT) }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
+
+    // Hiển thị snackbar từ NotificationHost
+    NotificationHost(viewModel.notificationManager)
+
+    LaunchedEffect(state.navigateTo) {
+        state.navigateTo?.let {
+            delay(2000)
+            onNavigateLogin()
+            viewModel.clearNavigation()
+        }
+    }
+
+    NotificationHost(viewModel.notificationManager)
 
     Column(
         modifier = Modifier
@@ -46,7 +66,7 @@ fun RegisterScreen(
         Spacer(Modifier.height(16.dp))
 
         RoleSelector(
-            roles = listOf("Giáo viên", "Phụ huynh"),
+            roles = listOf(UserRole.TEACHER, UserRole.PARENT),
             selectedRole = selectedRole,
             onRoleSelected = { selectedRole = it }
         )

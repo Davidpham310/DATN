@@ -3,6 +3,7 @@ package com.example.datn.domain.usecase.auth
 import com.example.datn.core.base.BaseUseCase
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.User
+import com.example.datn.domain.models.UserRole
 import com.example.datn.domain.repository.IAuthRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -11,7 +12,7 @@ data class RegisterParams(
     val email: String,
     val password: String,
     val name: String,
-    val role: String
+    val role : UserRole
 )
 
 class RegisterUseCase @Inject constructor(

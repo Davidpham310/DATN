@@ -16,14 +16,17 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.core.presentation.notifications.NotificationHost
+import com.example.datn.domain.models.UserRole
 import com.example.datn.presentation.auth.AuthViewModel
 import com.example.datn.presentation.common.auth.AuthEvent
 import com.example.datn.presentation.components.AuthPasswordField
@@ -40,7 +43,7 @@ fun LoginScreen(
     val state = viewModel.state.collectAsState().value
     val email = remember { mutableStateOf("") }
     val password = remember { mutableStateOf("") }
-    val selectedRole = remember { mutableStateOf("Học sinh") }
+    var selectedRole by remember { mutableStateOf(UserRole.STUDENT) }
 
     LaunchedEffect(state.navigateTo) {
         state.navigateTo?.let { route ->
@@ -74,9 +77,9 @@ fun LoginScreen(
 
         // Chọn vai trò
         RoleSelector(
-            roles = listOf("Giáo viên", "Phụ huynh", "Học sinh"),
-            selectedRole = selectedRole.value,
-            onRoleSelected = { selectedRole.value = it }
+            roles = listOf(UserRole.TEACHER, UserRole.PARENT , UserRole.STUDENT),
+            selectedRole = selectedRole,
+            onRoleSelected = { selectedRole = it }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -102,7 +105,7 @@ fun LoginScreen(
         // Login button
         Button(
             onClick = {
-                viewModel.onEvent(AuthEvent.OnLogin(email.value, password.value))
+                viewModel.onEvent(AuthEvent.OnLogin(email.value, password.value , selectedRole ))
             },
             modifier = Modifier.fillMaxWidth()
         ) {
