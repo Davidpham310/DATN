@@ -58,7 +58,12 @@ class FirebaseAuthDataSource @Inject constructor(
             "id" to userId,
             "email" to email,
             "name" to name,
-            "role" to role.uppercase() // chuẩn hóa role
+            "role" to role.uppercase(),
+            "avatarUrl" to "",
+            "phone" to "",
+            "createdAt" to System.currentTimeMillis(),
+            "updatedAt" to System.currentTimeMillis(),
+            "isActive" to true
         )
 
         // 4️⃣ Lưu lên Firestore
@@ -81,7 +86,11 @@ class FirebaseAuthDataSource @Inject constructor(
             id = data["id"] as String,
             email = data["email"] as String,
             name = data["name"] as String,
-            role = UserRole.valueOf((data["role"] as String).uppercase())
+            role = UserRole.valueOf((data["role"] as String).uppercase()),
+            avatarUrl = data["avatarUrl"] as String?,
+            phone = data["phone"] as String?,
+            createdAt = data["createdAt"] as Long?,
+            updatedAt = data["updatedAt"] as Long?
         )
     }
 
@@ -97,7 +106,11 @@ class FirebaseAuthDataSource @Inject constructor(
                 "id" to user.id,
                 "email" to user.email,
                 "name" to user.name,
-                "role" to user.role.name
+                "role" to user.role.name,
+                "avatarUrl" to user.avatarUrl,
+                "phone" to user.phone,
+                "createdAt" to user.createdAt,
+                "updatedAt" to user.updatedAt
             )
         ).await()
     }

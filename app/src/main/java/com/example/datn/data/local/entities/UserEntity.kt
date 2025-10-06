@@ -8,5 +8,9 @@ data class UserEntity(
     @PrimaryKey val id: String,
     val name: String,
     val email: String,
-    val role: String
+    val role: String,
+    val avatarUrl: String? = null,
+    val phone: String? = null,
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
 )

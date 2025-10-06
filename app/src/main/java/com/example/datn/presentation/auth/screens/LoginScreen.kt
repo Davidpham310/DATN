@@ -51,6 +51,7 @@ fun LoginScreen(
             viewModel.clearNavigation()
         }
     }
+    NotificationHost(viewModel.notificationManager)
 
     Column(
         modifier = Modifier
@@ -62,11 +63,11 @@ fun LoginScreen(
             CircularProgressIndicator()
         }
 
-        // Error message
-        state.error?.let {
-            Text("Error: $it", color = Color.Red)
-            Log.d("LoginScreen", "Error: $it")
-        }
+//        // Error message
+//        state.error?.let {
+//            Text("Error: $it", color = Color.Red)
+//            Log.d("LoginScreen", "Error: $it")
+//        }
 
         Text(
             text = "Đăng nhập",

@@ -53,8 +53,6 @@ fun RegisterScreen(
         }
     }
 
-    NotificationHost(viewModel.notificationManager)
-
     Column(
         modifier = Modifier
             .fillMaxSize()
