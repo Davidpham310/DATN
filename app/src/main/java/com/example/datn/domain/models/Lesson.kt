@@ -1,13 +1,15 @@
 package com.example.datn.domain.models
 
+import java.time.Instant
+
 data class Lesson(
     val id: String,
+    val teacherId: String,
     val classId: String,
     val title: String,
-    val description: String?,
-    val videoUrl: String?,
-    val documentUrl: String?,
-    val isPublished: Boolean = false,
-    val orderIndex: Int = 0,
-    val createdAt: Long? = null
+    val description: String? = null,
+    val contentLink: String? = null,
+    val order: Int,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )

@@ -11,7 +11,7 @@ import com.example.datn.presentation.auth.screens.RegisterScreen
 import com.example.datn.presentation.parent.home.ParentHomeScreen
 import com.example.datn.presentation.splash.screen.SplashScreen
 import com.example.datn.presentation.student.home.StudentHomeScreen
-import com.example.datn.presentation.teacher.home.TeacherHomeScreen
+import com.example.datn.presentation.teacher.TeacherMainScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
@@ -75,7 +75,7 @@ fun AppNavGraph(navController: NavHostController) {
 
 
         // Teacher
-        composable(Screen.TeacherHome.route) { TeacherHomeScreen() }
+        composable(Screen.TeacherHome.route) { TeacherMainScreen() }
 
         // Parent
         composable(Screen.ParentHome.route) { ParentHomeScreen() }

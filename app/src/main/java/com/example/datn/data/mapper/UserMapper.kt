@@ -6,28 +6,24 @@ import com.example.datn.domain.models.User
 import com.example.datn.domain.models.UserRole
 
 
-fun UserEntity.toDomain(): User {
-    return User(
-        id = id,
-        name = name,
-        email = email,
-        role = UserRole.fromString(role) ?: UserRole.STUDENT,
-        avatarUrl = avatarUrl,
-        phone = phone,
-        createdAt = createdAt,
-        updatedAt = updatedAt
-    )
-}
+fun UserEntity.toDomain(): User = User(
+    id = id,
+    name = name,
+    email = email,
+    role = role,
+    avatarUrl = avatarUrl,
+    isActive = isActive,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
 
-fun User.toEntity(): UserEntity {
-    return UserEntity(
-        id = id,
-        name = name,
-        email = email,
-        role = role.name,
-        avatarUrl = avatarUrl,
-        phone = phone,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
-    )
-}
+fun User.toEntity(): UserEntity = UserEntity(
+    id = id,
+    name = name,
+    email = email,
+    role = role,
+    avatarUrl = avatarUrl,
+    isActive = isActive,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)

@@ -2,15 +2,18 @@ package com.example.datn.data.local.entities
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.datn.domain.models.UserRole
+import java.time.Instant
 
-@Entity(tableName = "users")
+@Entity(tableName = "user")
 data class UserEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey
+    val id: String,
     val name: String,
     val email: String,
-    val role: String,
+    val role: UserRole,
     val avatarUrl: String? = null,
-    val phone: String? = null,
-    val createdAt: Long? = null,
-    val updatedAt: Long? = null,
+    val isActive: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )

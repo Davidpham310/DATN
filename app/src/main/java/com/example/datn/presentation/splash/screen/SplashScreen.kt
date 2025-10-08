@@ -1,5 +1,6 @@
 package com.example.datn.presentation.splash.screen
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,6 +30,7 @@ fun SplashScreen(
     // Lắng nghe event từ ViewModel
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
+            Log.d("SplashViewModel", "Received event: ")
             when (event) {
                 is SplashEvent.NavigateToHome -> onNavigateToHome(event.role)
                 is SplashEvent.NavigateToLogin -> onNavigateToLogin()

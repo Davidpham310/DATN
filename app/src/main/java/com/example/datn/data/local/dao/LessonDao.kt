@@ -1,16 +1,12 @@
 package com.example.datn.data.local.dao
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Query
+import com.example.datn.core.base.BaseDao
 import com.example.datn.data.local.entities.LessonEntity
 
 @Dao
-interface LessonDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertLesson(lesson: LessonEntity)
-
-    @Query("SELECT * FROM lessons WHERE classId = :classId ORDER BY orderIndex ASC")
-    suspend fun getLessonsForClass(classId: String): List<LessonEntity>
-
-    @Delete
-    suspend fun deleteLesson(lesson: LessonEntity)
+interface LessonDao : BaseDao<LessonEntity> {
+    @Query("SELECT * FROM lesson WHERE classId = :classId ORDER BY 'order'")
+    suspend fun getLessonsByClass(classId: String): List<LessonEntity>
 }

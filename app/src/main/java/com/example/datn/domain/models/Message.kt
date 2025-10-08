@@ -1,11 +1,15 @@
 package com.example.datn.domain.models
 
+import java.time.Instant
+
 data class Message(
     val id: String,
     val senderId: String,
-    val receiverId: String?,
-    val classId: String?,
+    val recipientId: String,
     val content: String,
-    val sentAt: Long?,
-    val isRead: Boolean = false
+    val sentAt: Instant,
+    val isRead: Boolean,
+    val conversationId: String,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )

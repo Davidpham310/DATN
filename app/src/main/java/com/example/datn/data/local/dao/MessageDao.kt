@@ -1,13 +1,12 @@
 package com.example.datn.data.local.dao
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Query
+import com.example.datn.core.base.BaseDao
 import com.example.datn.data.local.entities.MessageEntity
 
 @Dao
-interface MessageDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(message: MessageEntity)
-
-    @Query("SELECT * FROM messages WHERE (senderId = :userId OR receiverId = :userId) ORDER BY sentAt DESC")
-    suspend fun getConversationForUser(userId: String): List<MessageEntity>
+interface MessageDao : BaseDao<MessageEntity> {
+    @Query("SELECT * FROM message WHERE conversationId = :conversationId ORDER BY sentAt DESC LIMIT 50")
+    suspend fun getMessagesByConversation(conversationId: String): List<MessageEntity>
 }

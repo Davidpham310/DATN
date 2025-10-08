@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -116,7 +117,11 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-
+    implementation(libs.kotlinx.serialization.json)
+    // ✅ Thêm Jackson Kotlin Module
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.1")
+    // Thêm Jackson Core (thường được pull theo, nhưng thêm cho chắc)
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     implementation("androidx.compose.material3:material3:1.2.0")
     implementation("androidx.compose.material:material-icons-extended")
 }

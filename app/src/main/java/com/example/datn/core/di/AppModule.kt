@@ -2,7 +2,7 @@ package com.example.datn.core.di
 
 import android.content.Context
 import androidx.room.Room
-import com.example.datn.core.network.FirebaseAuthDataSource
+import com.example.datn.core.network.datasource.FirebaseAuthDataSource
 import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.UserDao

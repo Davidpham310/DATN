@@ -1,28 +1,26 @@
 package com.example.datn.data.mapper
 
 import com.example.datn.data.local.entities.ClassEntity
-import com.example.datn.domain.models.Classroom
+import com.example.datn.domain.models.Class
 
-fun ClassEntity.toDomain() = Classroom(
+fun ClassEntity.toDomain(): Class = Class(
     id = id,
-    name = name,
-    description = description,
     teacherId = teacherId,
+    name = name,
+    classCode = classCode,
+    gradeLevel = gradeLevel,
     subject = subject,
-    inviteCode = inviteCode,
-    status = status,
     createdAt = createdAt,
     updatedAt = updatedAt
 )
 
-fun Classroom.toEntity() = ClassEntity(
+fun Class.toEntity(): ClassEntity = ClassEntity(
     id = id,
-    name = name,
-    description = description,
     teacherId = teacherId,
+    name = name,
+    classCode = classCode,
+    gradeLevel = gradeLevel,
     subject = subject,
-    inviteCode = inviteCode,
-    status = status ?: "OPEN",
     createdAt = createdAt,
     updatedAt = updatedAt
 )

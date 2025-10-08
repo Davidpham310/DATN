@@ -3,30 +3,26 @@ package com.example.datn.data.mapper
 import com.example.datn.data.local.entities.LessonEntity
 import com.example.datn.domain.models.Lesson
 
-fun LessonEntity.toDomain(): Lesson {
-    return Lesson(
-        id = id,
-        classId = classId,
-        title = title,
-        description = description,
-        videoUrl = videoUrl,
-        documentUrl = documentUrl,
-        isPublished = isPublished,
-        orderIndex = orderIndex,
-        createdAt = createdAt
-    )
-}
+fun LessonEntity.toDomain(): Lesson = Lesson(
+    id = id,
+    teacherId = teacherId,
+    classId = classId,
+    title = title,
+    description = description,
+    contentLink = contentLink,
+    order = order,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
 
-fun Lesson.toEntity(): LessonEntity {
-    return LessonEntity(
-        id = id,
-        classId = classId,
-        title = title,
-        description = description,
-        videoUrl = videoUrl,
-        documentUrl = documentUrl,
-        isPublished = isPublished,
-        orderIndex = orderIndex,
-        createdAt = createdAt
-    )
-}
+fun Lesson.toEntity(): LessonEntity = LessonEntity(
+    id = id,
+    teacherId = teacherId,
+    classId = classId,
+    title = title,
+    description = description,
+    contentLink = contentLink,
+    order = order,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)

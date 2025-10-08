@@ -2,16 +2,18 @@ package com.example.datn.data.local.entities
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.time.Instant
 
-@Entity(tableName = "lessons")
+@Entity(tableName = "lesson")
 data class LessonEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey
+    val id: String,
+    val teacherId: String,
     val classId: String,
     val title: String,
     val description: String? = null,
-    val videoUrl: String? = null,
-    val documentUrl: String? = null,
-    val isPublished: Boolean = false,
-    val orderIndex: Int = 0,
-    val createdAt: Long? = null
+    val contentLink: String? = null,
+    val order: Int,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )

@@ -12,6 +12,14 @@ sealed class Screen(val route: String) {
 
     // Home cho từng tác nhân
     object TeacherHome : Screen("teacher/home")
+    object TeacherClassManager : Screen("teacher/class_manager")
+    object TeacherStudentManager : Screen("teacher/student_manager")
+    object TeacherLessonManager : Screen("teacher/lesson_manager")
+    object TeacherAssignmentManager : Screen("teacher/assignment_manager")
+    object TeacherSubmissionReview : Screen("teacher/submission_review")
+    object TeacherNotification : Screen("teacher/notification")
+    object TeacherSchedule : Screen("teacher/schedule")
+
     object ParentHome : Screen("parent/home")
     object StudentHome : Screen("student/home")
 }

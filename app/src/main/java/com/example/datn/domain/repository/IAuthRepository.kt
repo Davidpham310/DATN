@@ -6,7 +6,11 @@ import com.example.datn.domain.models.UserRole
 import kotlinx.coroutines.flow.Flow
 
 interface IAuthRepository {
-    fun login(email: String, password: String , role : UserRole): Flow<Resource<User>>
-    fun register(email: String, password: String, name: String, role: UserRole): Flow<Resource<User>>
-    fun forgotPassword(email: String): Flow<Resource<String>>
+    // Authentication
+    fun login(email: String, password: String , role: UserRole): Flow<Resource<User>>
+    fun register(user: User, password: String): Flow<Resource<User>>
+    fun forgotPassword(email : String): Flow<Resource<String>>
+    fun signOut(): Flow<Resource<Unit>>
+    fun getCurrentUser(): Flow<Resource<User?>>
+    fun isUserLoggedIn(): Flow<Resource<Boolean>>
 }
