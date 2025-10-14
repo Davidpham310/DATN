@@ -3,17 +3,19 @@ package com.example.datn.core.di
 import android.content.Context
 import androidx.room.Room
 import com.example.datn.BuildConfig
-import com.example.datn.core.network.config.MinIOConfig
 import com.example.datn.core.network.datasource.FirebaseAuthDataSource
 import com.example.datn.core.network.datasource.FirebaseDataSource
+import com.example.datn.core.network.service.classroom.ClassService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.presentation.notifications.NotificationManager
-import com.example.datn.core.utils.network.NetworkChecker
 import com.example.datn.data.local.AppDatabase
+import com.example.datn.data.local.dao.ClassDao
 import com.example.datn.data.local.dao.UserDao
 import com.example.datn.data.repository.impl.AuthRepositoryImpl
+import com.example.datn.data.repository.impl.ClassRepositoryImpl
 import com.example.datn.data.repository.impl.UserRepositoryImpl
 import com.example.datn.domain.repository.IAuthRepository
+import com.example.datn.domain.repository.IClassRepository
 import com.example.datn.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -62,13 +64,6 @@ object AppModule {
     @Singleton
     fun provideMinioBucketName(): String = BuildConfig.MINIO_BUCKET
 
-    // Internet
-    @Provides
-    @Singleton
-    fun provideNetworkChecker(
-        @ApplicationContext context: Context,
-        notificationManager: NotificationManager
-    ): NetworkChecker = NetworkChecker(context, notificationManager)
 
     // Local Database
     @Provides
@@ -78,9 +73,19 @@ object AppModule {
             .fallbackToDestructiveMigration() // Cho phép reset nếu cấu trúc đổi
             .build()
 
+
+    // Notifications
+    @Provides
+    @Singleton
+    fun provideNotificationManager(): NotificationManager = NotificationManager()
+
     @Provides
     @Singleton
     fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
+
+    @Provides
+    @Singleton
+    fun provideClassDao(db: AppDatabase): ClassDao = db.classDao()
 
     // Firebase data sources
     @Provides
@@ -104,13 +109,21 @@ object AppModule {
         firebaseDataSource: FirebaseDataSource
     ): IUserRepository = UserRepositoryImpl(firebaseDataSource)
 
-    // Notifications
+
     @Provides
     @Singleton
-    fun provideNotificationManager(): NotificationManager = NotificationManager()
+    fun provideClassRepository(
+        firebaseDataSource: FirebaseDataSource,
+        classDao: ClassDao
+    ): IClassRepository = ClassRepositoryImpl(firebaseDataSource , classDao)
 
     // Services
     @Provides
     @Singleton
     fun provideUserService(): UserService = UserService()
+
+
+    @Provides
+    @Singleton
+    fun provideClassService(): ClassService = ClassService()
 }

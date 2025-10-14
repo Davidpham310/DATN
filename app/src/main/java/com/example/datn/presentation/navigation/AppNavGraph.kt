@@ -5,6 +5,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.datn.domain.models.UserRole
+import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.presentation.auth.screens.ForgotPasswordScreen
 import com.example.datn.presentation.auth.screens.LoginScreen
 import com.example.datn.presentation.auth.screens.RegisterScreen
@@ -14,7 +15,9 @@ import com.example.datn.presentation.student.home.StudentHomeScreen
 import com.example.datn.presentation.teacher.TeacherMainScreen
 
 @Composable
-fun AppNavGraph(navController: NavHostController) {
+fun AppNavGraph(
+    navController: NavHostController
+) {
     NavHost(navController, startDestination = Screen.Splash.route) {
 
         // Splash

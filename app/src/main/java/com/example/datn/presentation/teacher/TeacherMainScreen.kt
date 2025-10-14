@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.datn.presentation.navigation.Screen
 import com.example.datn.presentation.navigation.TeacherNavGraph
@@ -20,18 +21,17 @@ fun TeacherMainScreen() {
         Screen.TeacherSchedule,
         Screen.TeacherNotification
     )
-
     Scaffold(
         bottomBar = {
             NavigationBar {
-                val currentRoute =
-                    navController.currentBackStackEntryFlow.collectAsState(null).value?.destination?.route
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
                 items.forEach { screen ->
                     NavigationBarItem(
                         selected = currentRoute == screen.route,
                         onClick = {
                             navController.navigate(screen.route) {
-                                popUpTo(Screen.TeacherHome.route)
+                                popUpTo(Screen.TeacherHome.route){ inclusive = false }
                                 launchSingleTop = true
                             }
                         },

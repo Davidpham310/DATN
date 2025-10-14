@@ -5,5 +5,6 @@ import javax.inject.Inject
 data class AuthUseCases @Inject constructor(
     val login: LoginUseCase,
     val register: RegisterUseCase,
-    val forgotPassword: ForgotPasswordUseCase
+    val forgotPassword: ForgotPasswordUseCase,
+    val getCurrentIdUser: GetCurrentIdUseCase
 )

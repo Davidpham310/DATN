@@ -4,62 +4,87 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import com.example.datn.core.presentation.notifications.NotificationEvent
 import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.core.presentation.notifications.NotificationType
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.*
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class NetworkChecker(
-    private val context: Context,
+@Singleton
+class NetworkChecker @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val notificationManager: NotificationManager
 ) {
-    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+    private val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onLost(network: Network) {
             super.onLost(network)
-            CoroutineScope(Dispatchers.Main).launch {
-                notificationManager.onEvent(
-                    NotificationEvent.Show(
-                        message = "Không có kết nối mạng. Vui lòng bật Wi-Fi hoặc dữ liệu di động.",
-                        type = NotificationType.ERROR,
-                        duration = 5000L
-                    )
-                )
-            }
+            showNoNetworkNotification()
         }
 
         override fun onAvailable(network: Network) {
             super.onAvailable(network)
-            CoroutineScope(Dispatchers.Main).launch {
-                notificationManager.onEvent(NotificationEvent.Dismiss)
-            }
+            dismissNetworkNotification()
         }
     }
+
+    private var monitoringScope: CoroutineScope? = null
+    private var notificationJob: Job? = null
 
     fun startMonitoring() {
-        val request = NetworkRequest.Builder().build()
-        connectivityManager.registerNetworkCallback(request, networkCallback)
+        // Đăng ký NetworkCallback
+        connectivityManager.registerDefaultNetworkCallback(networkCallback)
 
-        val activeNetwork = connectivityManager.activeNetwork
-        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
-        if (capabilities == null || !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
-            CoroutineScope(Dispatchers.Main).launch {
-                notificationManager.onEvent(
-                    NotificationEvent.Show(
-                        message = "Không có kết nối mạng",
-                        type = NotificationType.ERROR
-                    )
-                )
+        // Coroutine liên tục check mạng
+        monitoringScope = CoroutineScope(Dispatchers.IO)
+        monitoringScope?.launch {
+            while (isActive) {
+                if (!isNetworkAvailable()) {
+                    showNoNetworkNotification()
+                } else {
+                    dismissNetworkNotification()
+                }
+                delay(3000L) // kiểm tra mỗi 3s
             }
         }
     }
-
 
     fun stopMonitoring() {
         connectivityManager.unregisterNetworkCallback(networkCallback)
+        monitoringScope?.cancel()
+        notificationJob?.cancel()
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    private fun showNoNetworkNotification() {
+        // Không tạo nhiều job trùng nhau
+        if (notificationJob?.isActive == true) return
+
+        notificationJob = CoroutineScope(Dispatchers.Main).launch {
+            notificationManager.onEvent(
+                NotificationEvent.Show(
+                    message = "Không có mạng. Vui lòng bật Wi-Fi hoặc 4G",
+                    type = NotificationType.ERROR,
+                    duration = 3000L // thông báo 3s nhưng sẽ update liên tục nếu vẫn offline
+                )
+            )
+        }
+    }
+
+    private fun dismissNetworkNotification() {
+        notificationJob?.cancel()
+        CoroutineScope(Dispatchers.Main).launch {
+            notificationManager.onEvent(NotificationEvent.Dismiss)
+        }
     }
 }

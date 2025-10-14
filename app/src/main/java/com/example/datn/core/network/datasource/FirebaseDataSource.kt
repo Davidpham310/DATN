@@ -1,13 +1,16 @@
 package com.example.datn.core.network.datasource
 
 import com.example.datn.core.base.BaseDataSource
+import com.example.datn.core.network.service.classroom.ClassService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.User
+import com.example.datn.domain.models.Class
 import javax.inject.Inject
 
 class FirebaseDataSource @Inject constructor(
-    private val userService: UserService
+    private val userService: UserService,
+    private val classService: ClassService
 ) : BaseDataSource() {
 
     suspend fun getUserById(userId: String): Resource<User?> = safeCallWithResult {
@@ -42,6 +45,46 @@ class FirebaseDataSource @Inject constructor(
     suspend fun updateAvatar(userId: String, avatarUrl: String): Resource<Unit> = safeCallWithResult {
         userService.updateAvatar(userId, avatarUrl)
     }.toResource()
+
+
+    // Class
+    suspend fun getAllClasses(): Resource<List<Class>> = safeCallWithResult {
+        classService.getAll()
+    }.toResource()
+    suspend fun getClassById(classId: String) = safeCallWithResult {
+        classService.getClassById(classId)
+    }.toResource()
+
+    suspend fun getClassesByTeacher(teacherId: String): Resource<List<Class>> = safeCallWithResult {
+        classService.getClassesByTeacher(teacherId)
+    }.toResource()
+
+    suspend fun getClassesByStudent(studentId: String) = safeCallWithResult {
+        classService.getClassesByStudent(studentId)
+    }.toResource()
+
+    suspend fun addClass(classObj: Class): Resource<Class> = safeCallWithResult {
+        classService.addClass(classObj)
+    }.toResource()
+
+    suspend fun updateClass(classId: String, classObj: Class) = safeCallWithResult {
+        classService.updateClass(classId, classObj)
+    }.toResource()
+
+    suspend fun deleteClass(classId: String) = safeCallWithResult {
+        classService.deleteClass(classId)
+    }.toResource()
+
+    suspend fun addStudentToClass(classId: String, studentId: String) = safeCallWithResult {
+        classService.addStudentToClass(classId, studentId)
+    }.toResource()
+
+    suspend fun removeStudentFromClass(classId: String, studentId: String) = safeCallWithResult {
+        classService.removeStudentFromClass(classId, studentId)
+    }.toResource()
+
+
+
 
     // Helper để chuyển Result<T> thành Resource<T>
     private fun <T> Result<T>.toResource(): Resource<T> {

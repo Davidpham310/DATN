@@ -10,6 +10,6 @@ import java.time.Instant
 data class ClassStudentEntity(
     val classId: String,
     val studentId: String,
-    val joinedAt: Instant,
-    val isLocked: Boolean
+    val joinedAt: Instant = Instant.now(),
+    val isLocked: Boolean = false
 )
