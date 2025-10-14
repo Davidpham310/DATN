@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -12,7 +14,10 @@ plugins {
 android {
     namespace = "com.example.datn"
     compileSdk = 36
-
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     defaultConfig {
         applicationId = "com.example.datn"
         minSdk = 26
@@ -20,7 +25,21 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        val localProps = Properties()
+        val localFile = rootProject.file("local.properties")
+        if (localFile.exists()) {
+            localProps.load(localFile.inputStream())
+        }
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val minioEndpoint = localProps.getProperty("MINIO_ENDPOINT") ?: ""
+        val minioAccessKey = localProps.getProperty("MINIO_ACCESS_KEY") ?: ""
+        val minioSecretKey = localProps.getProperty("MINIO_SECRET_KEY") ?: ""
+        val minioBucket = localProps.getProperty("MINIO_BUCKET") ?: ""
+        buildConfigField("String", "MINIO_ENDPOINT", "\"$minioEndpoint\"")
+        buildConfigField("String", "MINIO_ACCESS_KEY", "\"$minioAccessKey\"")
+        buildConfigField("String", "MINIO_SECRET_KEY", "\"$minioSecretKey\"")
+        buildConfigField("String", "MINIO_BUCKET", "\"$minioBucket\"")
     }
 
     buildTypes {
@@ -100,9 +119,10 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // XML parsing
-    implementation("javax.xml.stream:stax-api:1.0-2")
-    implementation("com.fasterxml:aalto-xml:1.3.2")
-
+    // Thư viện XML Stream API (bản tương thích Android)
+    implementation("stax:stax-api:1.0.1")
+    // Thư viện XML parser (Aalto — thay thế com.bea)
+    implementation("com.fasterxml:aalto-xml:1.2.2")
     // JmDNS
     implementation("org.jmdns:jmdns:3.5.9")
 

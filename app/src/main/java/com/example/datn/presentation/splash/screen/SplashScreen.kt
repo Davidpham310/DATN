@@ -30,7 +30,7 @@ fun SplashScreen(
     // Lắng nghe event từ ViewModel
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
-            Log.d("SplashViewModel", "Received event: ")
+//            Log.d("SplashViewModel", "Received event: ")
             when (event) {
                 is SplashEvent.NavigateToHome -> onNavigateToHome(event.role)
                 is SplashEvent.NavigateToLogin -> onNavigateToLogin()

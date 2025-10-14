@@ -3,16 +3,19 @@ package com.example.datn.core.di
 import android.content.Context
 import androidx.room.Room
 import com.example.datn.core.network.datasource.FirebaseAuthDataSource
+import com.example.datn.core.network.datasource.FirebaseDataSource
+import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.UserDao
 import com.example.datn.data.repository.impl.AuthRepositoryImpl
-import com.example.datn.data.repository.impl.SplashRepositoryImpl
+import com.example.datn.data.repository.impl.UserRepositoryImpl
 import com.example.datn.domain.repository.IAuthRepository
-import com.example.datn.domain.repository.ISplashRepository
+import com.example.datn.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -73,7 +76,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideSplashRepository(
-        userDao: UserDao,
-    ): ISplashRepository = SplashRepositoryImpl(userDao)
+    fun provideUserRepository(
+        firebaseDataSource: FirebaseDataSource
+    ): IUserRepository = UserRepositoryImpl(firebaseDataSource)
+    @Provides
+    @Singleton
+    fun provideUserService() : UserService = UserService()
 }
