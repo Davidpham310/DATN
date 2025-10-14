@@ -21,7 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.datn.core.presentation.notifications.NotificationHost
 import com.example.datn.domain.models.UserRole
 import com.example.datn.presentation.auth.AuthViewModel
 import com.example.datn.presentation.common.auth.AuthEvent
@@ -41,9 +40,6 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-
-    // Hiển thị snackbar từ NotificationHost
-    NotificationHost(viewModel.notificationManager)
 
     LaunchedEffect(state.navigateTo) {
         state.navigateTo?.let {

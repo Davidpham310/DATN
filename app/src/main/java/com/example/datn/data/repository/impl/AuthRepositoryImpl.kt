@@ -87,8 +87,9 @@ class AuthRepositoryImpl @Inject constructor(
     override fun getCurrentUser(): Flow<Resource<User?>> = flow {
         emit(Resource.Loading())
         try {
-            // Giả định phương thức này tồn tại trong DataSource
             val currentUserId = firebaseAuthDataSource.getCurrentUserId()
+            Log.d("AuthRepositoryImpl", "getCurrentUser() called")
+            Log.d("AuthRepositoryImpl", "Current user ID: $currentUserId")
 
             if (currentUserId.isNullOrEmpty()) {
                 emit(Resource.Success(null))

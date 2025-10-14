@@ -51,7 +51,6 @@ fun LoginScreen(
             viewModel.clearNavigation()
         }
     }
-    NotificationHost(viewModel.notificationManager)
 
     Column(
         modifier = Modifier
@@ -124,9 +123,6 @@ fun LoginScreen(
         TextButton(onClick = onNavigateRegister) {
             Text("Chưa có tài khoản? Đăng ký")
         }
-
-        // Notification host
-        NotificationHost(viewModel.notificationManager)
     }
 }
 

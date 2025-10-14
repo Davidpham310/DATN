@@ -24,8 +24,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authUseCases: AuthUseCases
-) : BaseViewModel<AuthState, AuthEvent>(AuthState()) {
+    private val authUseCases: AuthUseCases,
+    notificationManager: NotificationManager
+) : BaseViewModel<AuthState, AuthEvent>(AuthState() , notificationManager) {
     private val emailValidator = EmailValidator()
     private val passwordValidator = PasswordValidator()
     private val usernameValidator = UsernameValidator()

@@ -22,58 +22,48 @@ import javax.inject.Inject
  * @param E Event (phải kế thừa từ BaseEvent)
  */
 abstract class BaseViewModel<S : BaseState, E : BaseEvent>(
-    initialState: S
+    initialState: S,
+    private val notificationManager: NotificationManager
 ) : ViewModel() {
 
-    // State chung
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<S> = _state
 
     private val _eventFlow = MutableSharedFlow<E>()
     val eventFlow: SharedFlow<E> = _eventFlow.asSharedFlow()
 
-    @Inject
-    lateinit var notificationManager: NotificationManager
-
     // Mỗi ViewModel sẽ xử lý event riêng
     abstract fun onEvent(event: E)
 
-    // Hàm cập nhật state an toàn
     protected fun setState(reducer: S.() -> S) {
         _state.value = _state.value.reducer()
     }
 
-    // Hàm gửi event an toàn
     protected fun sendEvent(event: E) {
         viewModelScope.launch {
             _eventFlow.emit(event)
         }
     }
 
-    // Handler bắt lỗi toàn cục
     private val errorHandler = CoroutineExceptionHandler { _, throwable ->
         showNotification(throwable.message ?: "Unexpected error", NotificationType.ERROR)
         onError(throwable.message ?: "Unexpected error")
     }
 
-    // Launch coroutine an toàn
     protected fun launch(block: suspend CoroutineScope.() -> Unit) {
         viewModelScope.launch(errorHandler, block = block)
     }
 
-    // Có thể override nếu từng ViewModel muốn xử lý lỗi riêng
     protected open fun onError(message: String) {
         showNotification(message, NotificationType.ERROR)
     }
 
-    // Hàm bắn notification chung
     protected fun showNotification(
         message: String,
         type: NotificationType,
         duration: Long = 3000L
     ) {
-        if (this::notificationManager.isInitialized) {
-            notificationManager.onEvent(NotificationEvent.Show(message, type, duration))
-        }
+        notificationManager.onEvent(NotificationEvent.Show(message, type, duration))
     }
 }
+
