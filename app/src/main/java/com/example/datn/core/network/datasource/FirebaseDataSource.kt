@@ -6,6 +6,8 @@ import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.Class
+import com.example.datn.domain.models.ClassStudent
+import com.example.datn.domain.models.EnrollmentStatus
 import javax.inject.Inject
 
 class FirebaseDataSource @Inject constructor(
@@ -13,9 +15,10 @@ class FirebaseDataSource @Inject constructor(
     private val classService: ClassService
 ) : BaseDataSource() {
 
+    // ==================== USER OPERATIONS ====================
+
     suspend fun getUserById(userId: String): Resource<User?> = safeCallWithResult {
-        val user = userService.getUserById(userId)
-        user
+        userService.getUserById(userId)
     }.toResource()
 
     suspend fun getUserByEmail(email: String): Resource<User?> = safeCallWithResult {
@@ -46,49 +49,237 @@ class FirebaseDataSource @Inject constructor(
         userService.updateAvatar(userId, avatarUrl)
     }.toResource()
 
+    // ==================== CLASS OPERATIONS ====================
 
-    // Class
+    /**
+     * Lấy tất cả lớp học
+     */
     suspend fun getAllClasses(): Resource<List<Class>> = safeCallWithResult {
         classService.getAll()
     }.toResource()
-    suspend fun getClassById(classId: String) = safeCallWithResult {
+
+    /**
+     * Lấy lớp theo ID
+     */
+    suspend fun getClassById(classId: String): Resource<Class?> = safeCallWithResult {
         classService.getClassById(classId)
     }.toResource()
 
+    /**
+     * Lấy tất cả lớp của giáo viên
+     */
     suspend fun getClassesByTeacher(teacherId: String): Resource<List<Class>> = safeCallWithResult {
         classService.getClassesByTeacher(teacherId)
     }.toResource()
 
-    suspend fun getClassesByStudent(studentId: String) = safeCallWithResult {
+    /**
+     * Lấy tất cả lớp học sinh tham gia (status = APPROVED)
+     */
+    suspend fun getClassesByStudent(studentId: String): Resource<List<Class>> = safeCallWithResult {
         classService.getClassesByStudent(studentId)
     }.toResource()
 
-    suspend fun addClass(classObj: Class): Resource<Class> = safeCallWithResult {
+    /**
+     * Thêm lớp mới
+     */
+    suspend fun addClass(classObj: Class): Resource<Class?> = safeCallWithResult {
         classService.addClass(classObj)
     }.toResource()
 
-    suspend fun updateClass(classId: String, classObj: Class) = safeCallWithResult {
+    /**
+     * Cập nhật lớp
+     */
+    suspend fun updateClass(classId: String, classObj: Class): Resource<Boolean> = safeCallWithResult {
         classService.updateClass(classId, classObj)
     }.toResource()
 
-    suspend fun deleteClass(classId: String) = safeCallWithResult {
+    /**
+     * Xóa lớp (và tất cả enrollments liên quan)
+     */
+    suspend fun deleteClass(classId: String): Resource<Boolean> = safeCallWithResult {
         classService.deleteClass(classId)
     }.toResource()
 
-    suspend fun addStudentToClass(classId: String, studentId: String) = safeCallWithResult {
-        classService.addStudentToClass(classId, studentId)
+    // ==================== ENROLLMENT OPERATIONS ====================
+
+    /**
+     * Thêm học sinh vào lớp (tạo enrollment request)
+     * @param status Trạng thái ban đầu (PENDING hoặc APPROVED)
+     */
+    suspend fun addStudentToClass(
+        classId: String,
+        studentId: String,
+        status: EnrollmentStatus = EnrollmentStatus.PENDING,
+        approvedBy: String = ""
+    ): Resource<Boolean> = safeCallWithResult {
+        classService.addStudentToClass(
+            classId = classId,
+            studentId = studentId,
+            status = status,
+            approvedBy = approvedBy
+        )
     }.toResource()
 
-    suspend fun removeStudentFromClass(classId: String, studentId: String) = safeCallWithResult {
+    /**
+     * Xóa học sinh khỏi lớp
+     */
+    suspend fun removeStudentFromClass(
+        classId: String,
+        studentId: String
+    ): Resource<Boolean> = safeCallWithResult {
         classService.removeStudentFromClass(classId, studentId)
     }.toResource()
 
+    /**
+     * Approve enrollment request
+     */
+    suspend fun approveEnrollment(
+        classId: String,
+        studentId: String,
+        approvedBy: String
+    ): Resource<Boolean> = safeCallWithResult {
+        classService.updateEnrollmentStatus(
+            classId = classId,
+            studentId = studentId,
+            status = EnrollmentStatus.APPROVED,
+            approvedBy = approvedBy
+        )
+    }.toResource()
 
+    /**
+     * Reject enrollment request
+     */
+    suspend fun rejectEnrollment(
+        classId: String,
+        studentId: String,
+        rejectionReason: String,
+        rejectedBy: String
+    ): Resource<Boolean> = safeCallWithResult {
+        classService.updateEnrollmentStatus(
+            classId = classId,
+            studentId = studentId,
+            status = EnrollmentStatus.REJECTED,
+            approvedBy = rejectedBy,
+            rejectionReason = rejectionReason
+        )
+    }.toResource()
 
+    /**
+     * Cập nhật trạng thái enrollment
+     */
+    suspend fun updateEnrollmentStatus(
+        classId: String,
+        studentId: String,
+        status: EnrollmentStatus,
+        approvedBy: String = "",
+        rejectionReason: String = ""
+    ): Resource<Boolean> = safeCallWithResult {
+        classService.updateEnrollmentStatus(
+            classId = classId,
+            studentId = studentId,
+            status = status,
+            approvedBy = approvedBy,
+            rejectionReason = rejectionReason
+        )
+    }.toResource()
 
-    // Helper để chuyển Result<T> thành Resource<T>
+    /**
+     * Lấy danh sách học sinh trong lớp
+     * @param status Filter theo trạng thái (null = tất cả)
+     */
+    suspend fun getStudentsInClass(
+        classId: String,
+        status: EnrollmentStatus? = null
+    ): Resource<List<ClassStudent>> = safeCallWithResult {
+        classService.getStudentsInClass(classId, status)
+    }.toResource()
+
+    /**
+     * Lấy danh sách học sinh đã được approve trong lớp
+     */
+    suspend fun getApprovedStudentsInClass(classId: String): Resource<List<ClassStudent>> =
+        getStudentsInClass(classId, EnrollmentStatus.APPROVED)
+
+    /**
+     * Lấy danh sách enrollment requests đang pending
+     */
+    suspend fun getPendingEnrollments(classId: String): Resource<List<ClassStudent>> =
+        getStudentsInClass(classId, EnrollmentStatus.PENDING)
+
+    /**
+     * Lấy enrollment của một học sinh trong lớp cụ thể
+     */
+    suspend fun getEnrollment(
+        classId: String,
+        studentId: String
+    ): Resource<ClassStudent?> = safeCallWithResult {
+        classService.getEnrollment(classId, studentId)
+    }.toResource()
+
+    /**
+     * Kiểm tra xem học sinh có trong lớp không (và đã được approve)
+     */
+    suspend fun isStudentInClass(
+        classId: String,
+        studentId: String
+    ): Resource<Boolean> = safeCallWithResult {
+        val enrollment = classService.getEnrollment(classId, studentId)
+        enrollment != null && enrollment.enrollmentStatus == EnrollmentStatus.APPROVED
+    }.toResource()
+
+    /**
+     * Kiểm tra xem học sinh có enrollment request pending không
+     */
+    suspend fun hasPendingEnrollment(
+        classId: String,
+        studentId: String
+    ): Resource<Boolean> = safeCallWithResult {
+        val enrollment = classService.getEnrollment(classId, studentId)
+        enrollment != null && enrollment.enrollmentStatus == EnrollmentStatus.PENDING
+    }.toResource()
+
+    // ==================== BATCH OPERATIONS ====================
+
+    /**
+     * Approve nhiều enrollment requests cùng lúc
+     */
+    suspend fun batchApproveEnrollments(
+        classId: String,
+        studentIds: List<String>,
+        approvedBy: String
+    ): Resource<List<Boolean>> = safeCallWithResult {
+        studentIds.map { studentId ->
+            classService.updateEnrollmentStatus(
+                classId = classId,
+                studentId = studentId,
+                status = EnrollmentStatus.APPROVED,
+                approvedBy = approvedBy
+            )
+        }
+    }.toResource()
+
+    /**
+     * Xóa nhiều học sinh khỏi lớp cùng lúc
+     */
+    suspend fun batchRemoveStudentsFromClass(
+        classId: String,
+        studentIds: List<String>
+    ): Resource<List<Boolean>> = safeCallWithResult {
+        studentIds.map { studentId ->
+            classService.removeStudentFromClass(classId, studentId)
+        }
+    }.toResource()
+
+    // ==================== HELPER ====================
+
+    /**
+     * Helper để chuyển Result<T> thành Resource<T>
+     */
     private fun <T> Result<T>.toResource(): Resource<T> {
-        return if (this.isSuccess) Resource.Success(this.getOrThrow())
-        else Resource.Error(this.exceptionOrNull()?.message ?: "Unknown Firebase Error")
+        return if (this.isSuccess) {
+            Resource.Success(this.getOrThrow())
+        } else {
+            Resource.Error(this.exceptionOrNull()?.message ?: "Unknown Firebase Error")
+        }
     }
 }

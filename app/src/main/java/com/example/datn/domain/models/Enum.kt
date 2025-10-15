@@ -61,7 +61,10 @@ enum class QuestionType(val displayName: String) {
 }
 
 enum class EnrollmentStatus(val displayName: String) {
-    ENROLLED("Đã tham gia"),
+    APPROVED("Đã tham gia"),
+    PENDING("Chờ duyệt"),
+    WITHDRAWN("Đã hủy"),
+    REJECTED("Từ chối"),
     NOT_ENROLLED("Chưa tham gia");
     companion object {
         fun fromDisplayName(displayName: String): RelationshipType? {

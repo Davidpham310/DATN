@@ -1,4 +1,4 @@
-package com.example.datn.core.utils.validation.rules
+package com.example.datn.core.utils.validation.rules.auth
 
 import com.example.datn.core.utils.validation.ValidationResult
 import com.example.datn.core.utils.validation.Validator

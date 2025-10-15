@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.presentation.common.classmanager.ClassManagerEvent
+import com.example.datn.presentation.dialogs.ConfirmationDialog
 import com.example.datn.presentation.teacher.classes.ClassManagerViewModel
 import com.example.datn.presentation.teacher.classes.components.ClassList
 import com.example.datn.presentation.teacher.classes.components.AddEditClassDialog
@@ -45,21 +46,24 @@ fun ClassManagerScreen(
             AddEditClassDialog(
                 classObj = state.editingClass,
                 onDismiss = { viewModel.onEvent(ClassManagerEvent.DismissDialog) },
-                onConfirm = { name, code ->
-                    if (state.editingClass == null) {
-                        viewModel.onEvent(ClassManagerEvent.ConfirmAddClass(name, code))
-                    } else {
-                        viewModel.onEvent(
-                            ClassManagerEvent.EditClass(
-                                state.editingClass!!.copy(
-                                    name = name,
-                                    classCode = code
-                                )
-                            )
-                        )
-                    }
+                onConfirmAdd = { name, code, gradeLevel, subject ->
+                    viewModel.onEvent(
+                        ClassManagerEvent.ConfirmAddClass(name, code, gradeLevel, subject)
+                    )
+                },
+                onConfirmEdit = { id, name, code, gradeLevel, subject ->
+                    viewModel.onEvent(
+                        ClassManagerEvent.ConfirmEditClass(id, name, code, gradeLevel, subject)
+                    )
                 }
             )
         }
+        ConfirmationDialog(
+            state = state.confirmDeleteState,
+            confirmText = "Xóa", // Thay đổi nút xác nhận thành "Xóa"
+            onDismiss = { viewModel.dismissConfirmDeleteDialog() },
+            // Lấy đối tượng Class từ state.data và truyền vào hàm confirmDeleteClass
+            onConfirm = { classObj -> viewModel.confirmDeleteClass(classObj) }
+        )
     }
 }

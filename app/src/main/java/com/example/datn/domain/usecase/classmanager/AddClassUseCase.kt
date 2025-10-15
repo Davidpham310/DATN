@@ -10,18 +10,22 @@ import javax.inject.Inject
 data class AddClassParams(
     val name: String,
     val classCode: String,
-    val teacherId: String
+    val teacherId: String,
+    val gradeLevel: Int? = 1,
+    val subject: String? = null
 )
 
 class AddClassUseCase @Inject constructor(
     private val repository: IClassRepository
 ) {
-    operator fun invoke(params: AddClassParams): Flow<Resource<Class>> {
+    operator fun invoke(params: AddClassParams): Flow<Resource<Class?>> {
         val newClass = Class(
-            id = "", // Firebase sẽ tự tạo ID
+            id = "",
             teacherId = params.teacherId,
             name = params.name,
             classCode = params.classCode,
+            gradeLevel = params.gradeLevel,
+            subject = params.subject,
             createdAt = Instant.now(),
             updatedAt = Instant.now()
         )

@@ -10,7 +10,20 @@ sealed class ClassManagerEvent : BaseEvent {
     data class ShowError(val message: String) : ClassManagerEvent()
     object ShowAddClassDialog : ClassManagerEvent()
 
-    data class ConfirmAddClass(val name: String, val classCode: String) : ClassManagerEvent()
+    data class ConfirmAddClass(
+        val name: String,
+        val classCode: String ,
+        val gradeLevel: Int,
+        val subject: String
+    ) : ClassManagerEvent()
+
+    data class ConfirmEditClass(
+        val id: String,
+        val name: String,
+        val classCode: String,
+        val gradeLevel: Int,
+        val subject: String
+    ) : ClassManagerEvent()
     data class EditClass(val classModel: Class) : ClassManagerEvent()
     object DismissDialog : ClassManagerEvent()
 }

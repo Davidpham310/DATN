@@ -2,13 +2,14 @@ package com.example.datn.domain.usecase.classmanager
 
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.repository.IClassRepository
+import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow
-import javax.inject.Inject
+import com.example.datn.domain.models.Class
 
-class DeleteClassUseCase @Inject constructor(
+class GetClassByIdUseCase @Inject constructor(
     private val repository: IClassRepository
 ) {
-    operator fun invoke(classId: String): Flow<Resource<Boolean>> {
-        return repository.deleteClass(classId)
+    operator fun invoke(classId: String): Flow<Resource<Class?>> {
+        return repository.getClassById(classId)
     }
 }

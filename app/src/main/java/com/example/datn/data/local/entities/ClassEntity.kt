@@ -11,7 +11,7 @@ data class ClassEntity(
     val teacherId: String,
     val name: String,
     val classCode: String,
-    val gradeLevel: String? = null,
+    val gradeLevel: Int? = 1,
     val subject: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant

@@ -26,6 +26,9 @@ interface ClassDao {
     @Query("SELECT * FROM class WHERE id IN (SELECT classId FROM class_student WHERE studentId = :studentId)")
     suspend fun getClassesByStudent(studentId: String): List<ClassEntity>
 
+    @Query("SELECT * FROM class")
+    suspend fun getAllClasses(): List<ClassEntity>
+
     // ----------------- ClassStudent (Relation) -----------------
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addStudentToClass(classStudent: ClassStudentEntity)
@@ -44,4 +47,7 @@ interface ClassDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM class_student WHERE classId = :classId AND studentId = :studentId)")
     suspend fun isStudentInClass(classId: String, studentId: String): Boolean
+
+    @Query("DELETE FROM class_student WHERE classId = :classId")
+    suspend fun deleteAllStudentsFromClass(classId: String)
 }

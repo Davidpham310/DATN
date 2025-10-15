@@ -1,4 +1,4 @@
-package com.example.datn.core.utils.validation.rules
+package com.example.datn.core.utils.validation.rules.auth
 
 import android.util.Patterns
 import com.example.datn.core.utils.validation.ValidationResult

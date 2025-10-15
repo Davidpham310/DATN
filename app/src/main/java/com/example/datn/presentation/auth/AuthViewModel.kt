@@ -5,9 +5,9 @@ import com.example.datn.core.base.BaseViewModel
 import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.core.presentation.notifications.NotificationType
 import com.example.datn.core.utils.Resource
-import com.example.datn.core.utils.validation.rules.EmailValidator
-import com.example.datn.core.utils.validation.rules.PasswordValidator
-import com.example.datn.core.utils.validation.rules.UsernameValidator
+import com.example.datn.core.utils.validation.rules.auth.EmailValidator
+import com.example.datn.core.utils.validation.rules.auth.PasswordValidator
+import com.example.datn.core.utils.validation.rules.auth.UsernameValidator
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.UserRole
 import com.example.datn.domain.usecase.auth.AuthUseCases
