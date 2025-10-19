@@ -59,7 +59,7 @@ class LessonManagerViewModel @Inject constructor(
                 copy(showAddEditDialog = false, editingLesson = null)
             }
             is LessonManagerEvent.ConfirmAddLesson -> addLesson(
-                event.classId, event.title, event.description, event.contentLink, event.order
+                event.classId, event.title, event.description, event.contentLink
             )
             is LessonManagerEvent.ConfirmEditLesson -> updateLesson(
                 event.id, event.classId, event.title, event.description, event.contentLink, event.order
@@ -100,8 +100,7 @@ class LessonManagerViewModel @Inject constructor(
         classId: String,
         title: String,
         description: String?,
-        contentLink: String?,
-        order: Int
+        contentLink: String?
     ) {
         if (currentTeacherId.isBlank()) {
             showNotification("Không xác định được giáo viên", NotificationType.ERROR)
@@ -115,7 +114,7 @@ class LessonManagerViewModel @Inject constructor(
 
         viewModelScope.launch {
             lessonUseCases.createLesson(
-                CreateLessonParams(classId, currentTeacherId, title, description, contentLink, order)
+                CreateLessonParams(classId, currentTeacherId, title, description, contentLink)
             ).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }

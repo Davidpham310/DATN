@@ -15,8 +15,7 @@ data class CreateLessonParams(
     val teacherId: String,
     val title: String,
     val description: String?,
-    val contentLink: String?,
-    val order: Int
+    val contentLink: String?
 )
 class CreateLessonUseCase @Inject constructor(
     private val repository: ILessonRepository
@@ -29,7 +28,7 @@ class CreateLessonUseCase @Inject constructor(
             title = params.title,
             description = params.description,
             contentLink = params.contentLink,
-            order = params.order,
+            order = 0,
             createdAt = Instant.now(),
             updatedAt = Instant.now()
         )

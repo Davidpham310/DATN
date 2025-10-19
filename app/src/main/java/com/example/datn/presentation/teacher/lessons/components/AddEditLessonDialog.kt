@@ -15,7 +15,7 @@ fun AddEditLessonDialog(
     lesson: Lesson?,
     classId: String,
     onDismiss: () -> Unit,
-    onConfirmAdd: (title: String, description: String?, contentLink: String?, order: Int) -> Unit,
+    onConfirmAdd: (title: String, description: String?, contentLink: String?) -> Unit,
     onConfirmEdit: (id: String, classId: String, title: String, description: String?, contentLink: String?, order: Int) -> Unit
 ) {
     var title by remember { mutableStateOf(lesson?.title ?: "") }
@@ -144,7 +144,7 @@ fun AddEditLessonDialog(
                         val link = contentLink.ifBlank { null }
 
                         if (lesson == null) {
-                            onConfirmAdd(title, desc, link, order)
+                            onConfirmAdd(title, desc, link)
                         } else {
                             onConfirmEdit(lesson.id, classId, title, desc, link, order)
                         }

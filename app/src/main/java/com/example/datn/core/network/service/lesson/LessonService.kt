@@ -73,6 +73,18 @@ class LessonService @Inject constructor() :
     suspend fun addLesson(lesson: Lesson): Lesson? {
         Log.d(TAG, "Adding new lesson: ${lesson.title}")
         return try {
+            val existingLessons = getLessonsByClass(lesson.classId)
+
+            // Nếu người dùng không nhập order, tự động tính max + 1
+            val desiredOrder = if (lesson.order <= 0) {
+                if (existingLessons.isEmpty()) 1 else (existingLessons.maxOf { it.order } + 1)
+            } else {
+                lesson.order
+            }
+
+            // Xác định những bài học cần đẩy order lên
+            val lessonsToShift = existingLessons.filter { it.order >= desiredOrder }
+
             val docRef = if (lesson.id.isNotEmpty()) {
                 collectionRef.document(lesson.id)
             } else {
@@ -80,26 +92,29 @@ class LessonService @Inject constructor() :
             }
 
             val now = Instant.now()
-            val lessonWithId = lesson.copy(
+            val lessonWithOrder = lesson.copy(
                 id = docRef.id,
-                teacherId = lesson.teacherId,
-                classId = lesson.classId,
-                title = lesson.title,
-                description = lesson.description,
-                contentLink = lesson.contentLink,
-                order = lesson.order,
+                order = desiredOrder,
                 createdAt = now,
                 updatedAt = now
             )
 
-            docRef.set(lessonWithId).await()
-            Log.i(TAG, "Successfully added lesson: ${lessonWithId.title} (ID: ${lessonWithId.id})")
-            lessonWithId
+            // Batch update để đẩy order các bài học trùng
+            firestore.runBatch { batch ->
+                lessonsToShift.forEach { existingLesson ->
+                    batch.update(collectionRef.document(existingLesson.id), "order", existingLesson.order + 1)
+                }
+                batch.set(docRef, lessonWithOrder)
+            }.await()
+
+            Log.i(TAG, "Successfully added lesson: ${lessonWithOrder.title} with order ${lessonWithOrder.order}")
+            lessonWithOrder
         } catch (e: Exception) {
             Log.e(TAG, "Error adding lesson: ${lesson.title}", e)
             null
         }
     }
+
 
     /**
      * Cập nhật bài học
@@ -107,12 +122,36 @@ class LessonService @Inject constructor() :
     suspend fun updateLesson(lessonId: String, lesson: Lesson): Boolean {
         Log.d(TAG, "Updating lesson: $lessonId")
         return try {
-            val updatedLesson = lesson.copy(
-                id = lessonId,
-                updatedAt = Instant.now()
-            )
-            collectionRef.document(lessonId).set(updatedLesson).await()
-            Log.i(TAG, "Successfully updated lesson: $lessonId")
+            val doc = collectionRef.document(lessonId).get().await()
+            if (!doc.exists()) return false
+
+            val oldLesson = doc.internalToDomain(clazz) ?: return false
+            val oldOrder = oldLesson.order
+            val newOrder = lesson.order
+
+            if (newOrder == oldOrder) {
+                // Nếu order không thay đổi, chỉ cập nhật các thông tin khác
+                val updatedLesson = lesson.copy(updatedAt = Instant.now())
+                collectionRef.document(lessonId).set(updatedLesson).await()
+                Log.i(TAG, "Updated lesson $lessonId without order change")
+                return true
+            }
+
+            // Lấy danh sách các bài học cùng lớp (ngoại trừ bài hiện tại)
+            val otherLessons = getLessonsByClass(lesson.classId).filter { it.id != lessonId }
+
+            firestore.runBatch { batch ->
+                // Tìm bài học có order = newOrder để hoán đổi
+                otherLessons.find { it.order == newOrder }?.let { conflictLesson ->
+                    batch.update(collectionRef.document(conflictLesson.id), "order", oldOrder)
+                }
+
+                // Cập nhật bài học hiện tại với order mới
+                val updatedLesson = lesson.copy(updatedAt = Instant.now())
+                batch.set(collectionRef.document(lessonId), updatedLesson)
+            }.await()
+
+            Log.i(TAG, "Successfully updated lesson $lessonId from order $oldOrder to $newOrder")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Error updating lesson: $lessonId", e)
@@ -120,33 +159,46 @@ class LessonService @Inject constructor() :
         }
     }
 
+
     /**
      * Xóa bài học
      */
     suspend fun deleteLesson(lessonId: String): Boolean {
         Log.d(TAG, "Deleting lesson: $lessonId")
         return try {
-            // Xóa tất cả nội dung bài học trước
+            val doc = collectionRef.document(lessonId).get().await()
+            if (!doc.exists()) return false
+
+            val lessonToDelete = doc.internalToDomain(clazz) ?: return false
+            val deletedOrder = lessonToDelete.order
+
+            // Xóa nội dung bài học
             val contentRef = FirebaseFirestore.getInstance().collection("lesson_contents")
-            val contents = contentRef
-                .whereEqualTo("lessonId", lessonId)
-                .get()
-                .await()
+            val contents = contentRef.whereEqualTo("lessonId", lessonId).get().await()
+
+            // Lấy danh sách các bài học cùng lớp (ngoại trừ bài bị xóa)
+            val otherLessons = getLessonsByClass(lessonToDelete.classId).filter { it.id != lessonId }
 
             firestore.runBatch { batch ->
-                contents.documents.forEach { doc ->
-                    batch.delete(doc.reference)
-                }
+                // Xóa nội dung bài học
+                contents.documents.forEach { batch.delete(it.reference) }
+
+                // Xóa bài học
                 batch.delete(collectionRef.document(lessonId))
+
+                // Giảm order các bài học phía sau
+                otherLessons.filter { it.order > deletedOrder }
+                    .forEach { batch.update(collectionRef.document(it.id), "order", it.order - 1) }
             }.await()
 
-            Log.i(TAG, "Successfully deleted lesson $lessonId and ${contents.size()} contents")
+            Log.i(TAG, "Successfully deleted lesson $lessonId and adjusted orders")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting lesson: $lessonId", e)
             false
         }
     }
+
 
     /**
      * Lấy tất cả bài học của giáo viên

@@ -22,8 +22,7 @@ sealed class LessonManagerEvent : BaseEvent {
         val classId: String,
         val title: String,
         val description: String?,
-        val contentLink: String?,
-        val order: Int
+        val contentLink: String?
     ) : LessonManagerEvent()
 
     data class ConfirmEditLesson(
