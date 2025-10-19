@@ -16,6 +16,7 @@ import com.example.datn.presentation.teacher.classes.components.AddEditClassDial
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClassManagerScreen(
+    onNavigateToLessonManager: (classId: String, className: String) -> Unit,
     viewModel: ClassManagerViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -38,6 +39,9 @@ fun ClassManagerScreen(
                 classes = state.classes,
                 onEdit = { classObj -> viewModel.onEvent(ClassManagerEvent.EditClass(classObj)) },
                 onDelete = { classObj -> viewModel.onEvent(ClassManagerEvent.DeleteClass(classObj)) },
+                onClick = { selectedClass ->
+                    onNavigateToLessonManager(selectedClass.id, selectedClass.name)
+                },
                 modifier = Modifier.fillMaxSize()
             )
         }

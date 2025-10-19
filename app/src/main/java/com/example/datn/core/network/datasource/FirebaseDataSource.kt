@@ -2,17 +2,23 @@ package com.example.datn.core.network.datasource
 
 import com.example.datn.core.base.BaseDataSource
 import com.example.datn.core.network.service.classroom.ClassService
+import com.example.datn.core.network.service.lesson.LessonContentService
+import com.example.datn.core.network.service.lesson.LessonService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.Class
 import com.example.datn.domain.models.ClassStudent
 import com.example.datn.domain.models.EnrollmentStatus
+import com.example.datn.domain.models.Lesson
+import com.example.datn.domain.models.LessonContent
 import javax.inject.Inject
 
 class FirebaseDataSource @Inject constructor(
     private val userService: UserService,
-    private val classService: ClassService
+    private val classService: ClassService,
+    private val lessonService: LessonService,
+    private val lessonContentService: LessonContentService
 ) : BaseDataSource() {
 
     // ==================== USER OPERATIONS ====================
@@ -268,6 +274,47 @@ class FirebaseDataSource @Inject constructor(
         studentIds.map { studentId ->
             classService.removeStudentFromClass(classId, studentId)
         }
+    }.toResource()
+
+
+    // ==================== LESSON OPERATIONS ====================
+
+    suspend fun addLesson(lesson: Lesson): Resource<Lesson?> = safeCallWithResult {
+        lessonService.addLesson(lesson)
+    }.toResource()
+
+    suspend fun getLessonsByClass(classId: String): Resource<List<Lesson>> = safeCallWithResult {
+        lessonService.getLessonsByClass(classId)
+    }.toResource()
+
+    suspend fun getLessonById(lessonId: String): Resource<Lesson?> = safeCallWithResult {
+        lessonService.getLessonById(lessonId)
+    }.toResource()
+
+    suspend fun updateLesson(lessonId: String, lesson: Lesson): Resource<Boolean> = safeCallWithResult {
+        lessonService.updateLesson(lessonId, lesson)
+    }.toResource()
+
+    suspend fun deleteLesson(lessonId: String): Resource<Boolean> = safeCallWithResult {
+        lessonService.deleteLesson(lessonId)
+    }.toResource()
+
+// ==================== LESSON CONTENT OPERATIONS ====================
+
+    suspend fun getLessonContent(lessonId: String): Resource<List<LessonContent>> = safeCallWithResult {
+        lessonContentService.getContentByLesson(lessonId)
+    }.toResource()
+
+    suspend fun addLessonContent(content: LessonContent): Resource<LessonContent?> = safeCallWithResult {
+        lessonContentService.addContent(content)
+    }.toResource()
+
+    suspend fun updateLessonContent(content: LessonContent): Resource<Boolean> = safeCallWithResult {
+        lessonContentService.updateContent(content.id, content)
+    }.toResource()
+
+    suspend fun deleteLessonContent(contentId: String): Resource<Boolean> = safeCallWithResult {
+        lessonContentService.deleteContent(contentId)
     }.toResource()
 
     // ==================== HELPER ====================

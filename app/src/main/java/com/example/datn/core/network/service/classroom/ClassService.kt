@@ -184,10 +184,19 @@ class ClassService @Inject constructor() :
                 .get()
                 .await()
 
+            // 2. Xóa bài học trong lớp
+            val lessonRef = FirebaseFirestore.getInstance().collection("lessons")
+            val lessons = lessonRef
+                .whereEqualTo("classId", classId)
+                .get()
+                .await()
+
+
             firestore.runBatch { batch ->
                 classStudents.documents.forEach { doc ->
                     batch.delete(doc.reference)
                 }
+                lessons.documents.forEach { batch.delete(it.reference) }
                 batch.delete(collectionRef.document(classId))
             }.await()
 

@@ -12,6 +12,7 @@ fun ClassList(
     classes: List<Class>,
     onEdit: (Class) -> Unit,
     onDelete: (Class) -> Unit,
+    onClick: (Class) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(modifier = modifier.fillMaxSize()) {
@@ -19,6 +20,7 @@ fun ClassList(
             ClassItem(
                 classObj = classObj,
                 onEdit = { onEdit(classObj) },
+                onClick = { onClick(classObj) },
                 onDelete = { onDelete(classObj) }
             )
         }

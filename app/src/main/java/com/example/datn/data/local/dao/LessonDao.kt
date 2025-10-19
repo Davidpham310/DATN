@@ -9,4 +9,12 @@ import com.example.datn.data.local.entities.LessonEntity
 interface LessonDao : BaseDao<LessonEntity> {
     @Query("SELECT * FROM lesson WHERE classId = :classId ORDER BY 'order'")
     suspend fun getLessonsByClass(classId: String): List<LessonEntity>
+
+    @Query("SELECT * FROM lesson WHERE id = :lessonId LIMIT 1")
+    suspend fun getLessonById(lessonId: String): LessonEntity?
+
+    @Query("DELETE FROM lesson WHERE classId = :classId")
+    suspend fun deleteLessonsByClass(classId: String)
+
+
 }

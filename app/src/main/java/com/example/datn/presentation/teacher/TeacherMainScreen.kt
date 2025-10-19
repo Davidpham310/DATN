@@ -17,8 +17,6 @@ fun TeacherMainScreen() {
     val items = listOf(
         Screen.TeacherHome,
         Screen.TeacherClassManager,
-        Screen.TeacherAssignmentManager,
-        Screen.TeacherSchedule,
         Screen.TeacherNotification
     )
     Scaffold(
@@ -39,8 +37,6 @@ fun TeacherMainScreen() {
                             when (screen) {
                                 Screen.TeacherHome -> Icon(Icons.Default.Home, null)
                                 Screen.TeacherClassManager -> Icon(Icons.Default.School, null)
-                                Screen.TeacherAssignmentManager -> Icon(Icons.Default.Assignment, null)
-                                Screen.TeacherSchedule -> Icon(Icons.Default.Schedule, null)
                                 Screen.TeacherNotification -> Icon(Icons.Default.Notifications, null)
                                 else -> Icon(Icons.Default.Home, null)
                             }
@@ -50,8 +46,6 @@ fun TeacherMainScreen() {
                                 when (screen) {
                                     Screen.TeacherHome -> "Trang chủ"
                                     Screen.TeacherClassManager -> "Lớp học"
-                                    Screen.TeacherAssignmentManager -> "Bài tập"
-                                    Screen.TeacherSchedule -> "Lịch dạy"
                                     Screen.TeacherNotification -> "Thông báo"
                                     else -> ""
                                 }
