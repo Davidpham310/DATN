@@ -1,18 +1,21 @@
 package com.example.datn.core.network.service.minio
 
 import android.util.Log
-import com.example.datn.core.network.config.MinIOConfig
+import com.example.datn.BuildConfig
 import io.minio.*
 import io.minio.http.Method
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
 
-object MinIOService {
-
-    private val client = MinIOConfig.client
-    private val bucketName = MinIOConfig.bucketName
+@Singleton
+class MinIOService @Inject constructor(
+    private val client: MinioClient,
+    private val bucketName: String
+) {
 
     /**
      * 🟢 CREATE - Upload file mới
@@ -20,28 +23,25 @@ object MinIOService {
     suspend fun uploadFile(
         objectName: String,
         inputStream: InputStream,
-        size: Long,
-        contentType: String
+        size: Long = -1,
+        contentType: String,
     ) = withContext(Dispatchers.IO) {
         try {
             client.putObject(
                 PutObjectArgs.builder()
                     .bucket(bucketName)
                     .`object`(objectName)
-                    .stream(inputStream, -1, 10485760)
+                    .stream(inputStream, size, 10 * 1024 * 1024 )// 10MB mặc định
                     .contentType(contentType)
                     .build()
             )
-            Log.d("MinIO", "✅ Upload thành công: $objectName")
+            Log.d("MinIO", "✅ Upload thành công: $objectName với size là $size với kiểu là $contentType" )
         } catch (e: Exception) {
             Log.e("MinIO", "❌ Lỗi upload: ${e.message}")
             throw e
         }
     }
 
-    /**
-     * 🔵 READ - Lấy InputStream của file
-     */
     suspend fun getFile(objectName: String): InputStream = withContext(Dispatchers.IO) {
         client.getObject(
             GetObjectArgs.builder()
@@ -51,9 +51,11 @@ object MinIOService {
         )
     }
 
-    /**
-     * 🔵 READ - Lấy URL tạm thời (dùng hiển thị ảnh trực tiếp)
-     */
+    suspend fun getDirectFileUrl(objectName: String): String {
+        val baseUrl = BuildConfig.MINIO_ENDPOINT
+        return "$baseUrl/$objectName"
+    }
+
     suspend fun getFileUrl(objectName: String, expirySeconds: Int = 3600): String =
         withContext(Dispatchers.IO) {
             client.getPresignedObjectUrl(
@@ -66,23 +68,6 @@ object MinIOService {
             )
         }
 
-    /**
-     * 🟠 UPDATE - Ghi đè file cũ (thực chất là upload lại)
-     */
-    suspend fun updateFile(
-        objectName: String,
-        newStream: InputStream,
-        size: Long,
-        contentType: String
-    ) = withContext(Dispatchers.IO) {
-        deleteFile(objectName) // xóa cũ
-        uploadFile(objectName, newStream, size, contentType) // upload lại
-        Log.d("MinIO", "♻️ Đã cập nhật file: $objectName")
-    }
-
-    /**
-     * 🔴 DELETE - Xóa file
-     */
     suspend fun deleteFile(objectName: String) = withContext(Dispatchers.IO) {
         try {
             client.removeObject(
@@ -98,9 +83,6 @@ object MinIOService {
         }
     }
 
-    /**
-     * 🔍 KIỂM TRA - File có tồn tại không
-     */
     suspend fun fileExists(objectName: String): Boolean = withContext(Dispatchers.IO) {
         try {
             client.statObject(

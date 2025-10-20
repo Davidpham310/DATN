@@ -12,6 +12,7 @@ import com.example.datn.domain.models.ClassStudent
 import com.example.datn.domain.models.EnrollmentStatus
 import com.example.datn.domain.models.Lesson
 import com.example.datn.domain.models.LessonContent
+import java.io.InputStream
 import javax.inject.Inject
 
 class FirebaseDataSource @Inject constructor(
@@ -305,12 +306,21 @@ class FirebaseDataSource @Inject constructor(
         lessonContentService.getContentByLesson(lessonId)
     }.toResource()
 
-    suspend fun addLessonContent(content: LessonContent): Resource<LessonContent?> = safeCallWithResult {
-        lessonContentService.addContent(content)
+    suspend fun addLessonContent(
+        content: LessonContent,
+        fileStream: InputStream? = null,
+        fileSize: Long = 0
+    ): Resource<LessonContent?> = safeCallWithResult {
+        lessonContentService.addContent(content, fileStream, fileSize)
     }.toResource()
 
-    suspend fun updateLessonContent(contentId: String , content: LessonContent): Resource<Boolean> = safeCallWithResult {
-        lessonContentService.updateContent(contentId, content)
+    suspend fun updateLessonContent(
+        contentId: String,
+        content: LessonContent,
+        newFileStream: InputStream? = null,
+        newFileSize: Long = 0
+    ): Resource<Boolean> = safeCallWithResult {
+        lessonContentService.updateContent(contentId, content, newFileStream, newFileSize)
     }.toResource()
 
     suspend fun deleteLessonContent(contentId: String): Resource<Boolean> = safeCallWithResult {

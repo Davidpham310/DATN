@@ -1,5 +1,8 @@
 package com.example.datn.presentation.teacher.lessons.components
 
+import android.util.Log
+import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -9,8 +12,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.AsyncImage
+import com.bumptech.glide.Glide
 import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
 import java.time.format.DateTimeFormatter
@@ -19,30 +27,25 @@ import java.time.ZoneId
 @Composable
 fun LessonContentItem(
     content: LessonContent,
+    contentUrl: String, // URL media từ state
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onClick: () -> Unit, // Xem nội dung
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
-            .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // Header: Số thứ tự và actions
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Loại nội dung (Icon & Text)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = getContentIcon(content.contentType),
@@ -58,28 +61,19 @@ fun LessonContentItem(
                     )
                 }
 
-                // Action buttons
                 Row {
                     IconButton(onClick = onEdit) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Chỉnh sửa",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Default.Edit, contentDescription = "Chỉnh sửa", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = onDelete) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Xóa",
-                            tint = MaterialTheme.colorScheme.error
-                        )
+                        Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = MaterialTheme.colorScheme.error)
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tiêu đề
+            // Title
             Text(
                 text = content.title,
                 style = MaterialTheme.typography.titleMedium,
@@ -87,7 +81,14 @@ fun LessonContentItem(
                 overflow = TextOverflow.Ellipsis
             )
 
-            // Preview nội dung (Link hoặc Text)
+            // Media Preview
+            if (content.contentType != ContentType.TEXT) {
+                Spacer(modifier = Modifier.height(12.dp))
+                MediaPreview(content, contentUrl)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Text preview or file name
             if (content.contentType == ContentType.TEXT) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -106,18 +107,10 @@ fun LessonContentItem(
                 )
             }
 
-
-            // Thời gian cập nhật
+            // Updated time
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Schedule,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "Cập nhật: ${formatInstant(content.updatedAt)}",
@@ -129,6 +122,74 @@ fun LessonContentItem(
     }
 }
 
+
+@Composable
+fun MediaPreview(content: LessonContent, contentUrl: String) {
+    val context = LocalContext.current
+    when (content.contentType) {
+        ContentType.IMAGE -> {
+            AsyncImage(
+                model = contentUrl,
+                contentDescription = "Ảnh nội dung",
+                modifier = Modifier.height(200.dp).fillMaxWidth(),
+                contentScale = ContentScale.Crop
+            )
+        }
+        ContentType.VIDEO -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clickable { /* mở màn hình xem video */ },
+                contentAlignment = Alignment.Center
+            ) {
+                val heightPx = (200.dp.value * LocalContext.current.resources.displayMetrics.density).toInt()
+                AndroidView(
+                    factory = {
+                        ImageView(context).apply {
+                            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, heightPx)
+                            scaleType = ImageView.ScaleType.CENTER_CROP
+                            Glide.with(context).asBitmap().load(contentUrl).frame(0).into(this)
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+                Icon(
+                    imageVector = Icons.Default.PlayCircle,
+                    contentDescription = "Play",
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        }
+        ContentType.AUDIO -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .clickable { /* mở màn hình nghe audio */ },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Headphones, contentDescription = "Audio Icon", modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.secondary)
+                Spacer(Modifier.width(8.dp))
+                Text(text = content.title, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+        ContentType.PDF -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.PictureAsPdf, contentDescription = "PDF Icon", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.error)
+                Spacer(Modifier.width(8.dp))
+                Text("Tài liệu PDF: ${content.title}", style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+        else -> Spacer(modifier = Modifier.height(0.dp))
+    }
+}
 private fun getContentIcon(type: ContentType): ImageVector {
     return when (type) {
         ContentType.TEXT -> Icons.Default.Description
@@ -136,7 +197,7 @@ private fun getContentIcon(type: ContentType): ImageVector {
         ContentType.PDF -> Icons.Default.PictureAsPdf
         ContentType.IMAGE -> Icons.Default.Image
         ContentType.AUDIO -> Icons.Default.Headphones
-        ContentType.MINIGAME -> TODO()
+        ContentType.MINIGAME -> Icons.Default.Extension
     }
 }
 

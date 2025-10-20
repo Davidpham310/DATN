@@ -4,8 +4,6 @@ import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.example.datn.BuildConfig
 import com.example.datn.core.base.BaseViewModel
-import com.example.datn.core.network.config.MinIOConfig
-import com.example.datn.core.network.config.MinIOConfig.client
 import com.example.datn.core.network.service.minio.MinIOService
 import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.core.utils.Resource

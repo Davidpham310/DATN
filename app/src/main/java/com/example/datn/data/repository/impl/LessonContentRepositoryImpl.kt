@@ -2,8 +2,6 @@ package com.example.datn.data.repository.impl
 
 import android.util.Log
 import com.example.datn.core.network.datasource.FirebaseDataSource
-import com.example.datn.core.network.service.minio.MinIOService
-import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
 import com.example.datn.domain.repository.ILessonContentRepository
 import com.example.datn.core.utils.Resource
@@ -11,7 +9,9 @@ import com.example.datn.data.local.dao.LessonContentDao
 import com.example.datn.data.mapper.toDomain
 import com.example.datn.data.mapper.toEntity
 import com.example.datn.core.utils.firebase.FirebaseErrorMapper
+import com.example.datn.domain.usecase.minio.MinIOUseCase
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import java.io.InputStream
 import javax.inject.Inject
@@ -20,35 +20,25 @@ private const val TAG = "LessonContentRepoImpl"
 
 class LessonContentRepositoryImpl @Inject constructor(
     private val firebaseDataSource: FirebaseDataSource,
-    private val lessonContentDao: LessonContentDao
+    private val lessonContentDao: LessonContentDao,
+    private val minIOUseCase: MinIOUseCase
 ) : ILessonContentRepository {
 
     override fun getContentByLesson(lessonId: String): Flow<Resource<List<LessonContent>>> = flow {
         emit(Resource.Loading())
         try {
-            // 1. Lấy cache Room
-            val cachedEntities = lessonContentDao.getContentsByLessonId(lessonId)
-            val localContents = cachedEntities.map { it.toDomain() }
-            if (localContents.isNotEmpty()) {
-                emit(Resource.Success(localContents))
-            }
+            val cached = lessonContentDao.getContentsByLessonId(lessonId).map { it.toDomain() }
+            if (cached.isNotEmpty()) emit(Resource.Success(cached))
 
-            // 2. Lấy từ FirebaseDataSource
             val result = firebaseDataSource.getLessonContent(lessonId)
             when (result) {
                 is Resource.Success -> {
                     val data = result.data ?: emptyList()
-                    // 3. Cập nhật cache Room và emit
                     lessonContentDao.insertAll(data.map { it.toEntity() })
                     emit(Resource.Success(data))
                 }
-                is Resource.Error -> {
-                    // Chỉ emit lỗi nếu không có dữ liệu local
-                    if (localContents.isEmpty()) {
-                        emit(Resource.Error(result.message ?: "Lỗi lấy nội dung"))
-                    }
-                }
-                is Resource.Loading -> { /* Bỏ qua */ }
+                is Resource.Error -> if (cached.isEmpty()) emit(Resource.Error(result.message))
+                else -> {}
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error getContentByLesson", e)
@@ -59,12 +49,9 @@ class LessonContentRepositoryImpl @Inject constructor(
     override fun getContentById(contentId: String): Flow<Resource<LessonContent>> = flow {
         emit(Resource.Loading())
         try {
-            val localContent = lessonContentDao.getContentById(contentId)?.toDomain()
-            if (localContent != null) {
-                emit(Resource.Success(localContent))
-            }
+            val local = lessonContentDao.getContentById(contentId)?.toDomain()
+            if (local != null) emit(Resource.Success(local))
 
-            // Fetch from remote
             val result = firebaseDataSource.getLessonContent(contentId)
             when (result) {
                 is Resource.Success -> {
@@ -72,17 +59,12 @@ class LessonContentRepositoryImpl @Inject constructor(
                     if (data != null) {
                         lessonContentDao.insert(data.toEntity())
                         emit(Resource.Success(data))
-                    } else if (localContent == null) {
-                        // Chỉ emit lỗi nếu không có cả local và remote
+                    } else if (local == null) {
                         emit(Resource.Error("Nội dung không tồn tại"))
                     }
                 }
-                is Resource.Error -> {
-                    if (localContent == null) {
-                        emit(Resource.Error(result.message ?: "Lỗi lấy nội dung theo ID"))
-                    }
-                }
-                is Resource.Loading -> { /* Bỏ qua */ }
+                is Resource.Error -> if (local == null) emit(Resource.Error(result.message))
+                else -> {}
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error getContentById", e)
@@ -90,6 +72,7 @@ class LessonContentRepositoryImpl @Inject constructor(
         }
     }
 
+    // 🟢 ADD CONTENT + MinIO
     override fun addContent(
         content: LessonContent,
         fileStream: InputStream?,
@@ -97,36 +80,49 @@ class LessonContentRepositoryImpl @Inject constructor(
     ): Flow<Resource<LessonContent>> = flow {
         emit(Resource.Loading())
         try {
-            var newContent = content
+            var contentToUpload = content
 
-            // 1. Xử lý upload file nếu cần
-            if (content.contentType != ContentType.TEXT && fileStream != null) {
-                // Tạo một ID tạm thời/được tạo trước để xây dựng objectName
-                val objectName = "lesson/${content.lessonId}/${content.id}-${content.title}"
-                MinIOService.uploadFile(objectName, fileStream, fileSize, content.contentType.name)
-                // Cập nhật content (link file) và id tạm thời
-                newContent = content.copy(content = objectName)
-            }
-
-            // 2. Thêm vào Firebase
-            val addedResource = firebaseDataSource.addLessonContent(newContent)
-            when (addedResource) {
-                is Resource.Success -> {
-                    addedResource.data?.let { added ->
-                        lessonContentDao.insert(added.toEntity())
-                        emit(Resource.Success(added))
-                    } ?: emit(Resource.Error("Failed to add content. Data is null."))
+            if (fileStream != null) {
+                val extension = when (content.contentType.name.lowercase()) {
+                    "image" -> ".jpg"
+                    "video" -> ".mp4"
+                    "audio" -> ".mp3"
+                    "pdf" -> ".pdf"
+                    else -> ""
                 }
-                is Resource.Error -> emit(Resource.Error(addedResource.message))
-                is Resource.Loading -> { /* Bỏ qua */ }
+
+                val objectName = "lessons/${content.lessonId}/content_${System.currentTimeMillis()}$extension"
+
+                val uploadResult = minIOUseCase.uploadFile(
+                    objectName,
+                    fileStream,
+                    fileSize,
+                    content.contentType.name.lowercase()
+                )
+                Log.i(TAG, "✅ Uploaded file to MinIO: $objectName")
+                contentToUpload = contentToUpload.copy(content = objectName)
             }
 
+            val added = firebaseDataSource.addLessonContent(contentToUpload, null, 0)
+            when (added) {
+                is Resource.Success -> {
+                    added.data?.let {
+                        lessonContentDao.insert(it.toEntity())
+                        emit(Resource.Success(it))
+                    } ?: emit(Resource.Error("Không thêm được nội dung"))
+                }
+                is Resource.Error -> emit(Resource.Error(added.message))
+                else -> {}
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error addContent", e)
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
+        } finally {
+            fileStream?.close()
         }
     }
 
+    // 🟡 UPDATE CONTENT + MinIO
     override fun updateContent(
         contentId: String,
         content: LessonContent,
@@ -135,67 +131,121 @@ class LessonContentRepositoryImpl @Inject constructor(
     ): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
-            // 1. Xử lý update file nếu cần
-            if (content.contentType != ContentType.TEXT && newFileStream != null) {
-                if (content.content.isNotEmpty()) {
-                    MinIOService.updateFile(content.content, newFileStream, newFileSize, content.contentType.name)
-                } else {
-                    // Nếu chưa có link file cũ, upload file mới
-                    val objectName = "lesson/${content.lessonId}/${content.id}-${content.title}"
-                    MinIOService.uploadFile(objectName, newFileStream, newFileSize, content.contentType.name)
-                }
+            // 🔹 Lấy bản ghi cũ từ local DB
+            val oldContent = lessonContentDao.getContentById(contentId)?.toDomain()
+
+            // 🔹 Nếu không tồn tại thì báo lỗi
+            if (oldContent == null) {
+                emit(Resource.Error("Không tìm thấy nội dung cũ để cập nhật"))
+                return@flow
             }
 
-            // 2. Cập nhật Firebase
-            val result = firebaseDataSource.updateLessonContent(contentId ,content)
+            var updatedContent = content.copy(
+                createdAt = oldContent.createdAt
+            )
+
+            // 🔹 Nếu có file mới thì upload lên MinIO
+            if (newFileStream != null) {
+                val extension = when (content.contentType.name.lowercase()) {
+                    "image" -> ".jpg"
+                    "video" -> ".mp4"
+                    "audio" -> ".mp3"
+                    "pdf" -> ".pdf"
+                    else -> ""
+                }
+
+                val newObject =
+                    "lessons/${content.lessonId}/content_${System.currentTimeMillis()}$extension"
+
+                minIOUseCase.uploadFile(
+                    newObject,
+                    newFileStream,
+                    newFileSize,
+                    content.contentType.name.lowercase()
+                )
+                Log.i(TAG, "✅ Uploaded new file to MinIO: $newObject")
+
+                // 🔹 Xóa file cũ nếu có
+                if (oldContent.content.startsWith("lessons/")) {
+                    try {
+                        minIOUseCase.deleteFile(oldContent.content)
+                        Log.i(TAG, "🗑️ Deleted old MinIO file: ${oldContent.content}")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "⚠️ Failed to delete old MinIO file", e)
+                    }
+                }
+
+                // 🔹 Cập nhật lại đường dẫn file
+                updatedContent = updatedContent.copy(content = newObject)
+            }
+
+            // 🔹 Cập nhật Firestore
+            val result = firebaseDataSource.updateLessonContent(
+                contentId,
+                updatedContent,
+                null,
+                0
+            )
+
             when (result) {
                 is Resource.Success -> {
                     if (result.data) {
-                        lessonContentDao.update(content.toEntity())
+                        // 🔹 Cập nhật local DB
+                        lessonContentDao.update(updatedContent.toEntity())
                         emit(Resource.Success(true))
-                    } else {
-                        emit(Resource.Error("Failed to update content"))
-                    }
+                    } else emit(Resource.Error("Cập nhật thất bại"))
                 }
+
                 is Resource.Error -> emit(Resource.Error(result.message))
-                is Resource.Loading -> { /* Bỏ qua */ }
+                else -> {}
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error updateContent", e)
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
+        } finally {
+            newFileStream?.close()
         }
     }
 
+
+    // 🔴 DELETE CONTENT + MinIO
     override fun deleteContent(contentId: String): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
-            // 1. Lấy nội dung để xóa file MinIO
-            val contentResource = firebaseDataSource.getLessonContent(contentId)
-            val content = (contentResource as? Resource.Success)?.data?.firstOrNull()
+            val old = lessonContentDao.getContentById(contentId)?.toDomain()
 
-            content?.let {
-                if (it.contentType != ContentType.TEXT && it.content.isNotEmpty()) {
-                    MinIOService.deleteFile(it.content)
-                }
-            }
-
-            // 2. Xóa Firebase
             val result = firebaseDataSource.deleteLessonContent(contentId)
             when (result) {
                 is Resource.Success -> {
                     if (result.data) {
                         lessonContentDao.deleteById(contentId)
+                        if (old?.content?.startsWith("lessons/") == true) {
+                            try {
+                                minIOUseCase.deleteFile(old.content)
+                                Log.i(TAG, "🗑️ Deleted MinIO file: ${old.content}")
+                            } catch (e: Exception) {
+                                Log.w(TAG, "⚠️ Failed to delete MinIO file", e)
+                            }
+                        }
                         emit(Resource.Success(true))
-                    } else {
-                        emit(Resource.Error("Failed to delete content"))
-                    }
+                    } else emit(Resource.Error("Xóa thất bại"))
                 }
                 is Resource.Error -> emit(Resource.Error(result.message))
-                is Resource.Loading -> { /* Bỏ qua */ }
+                else -> {}
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error deleteContent", e)
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
+        }
+    }
+
+    override fun getContentUrl(content: LessonContent, expirySeconds: Int): Flow<Resource<String>> {
+        return flow {
+            emit(Resource.Loading())
+            val url = minIOUseCase.getFileUrl(content.content, expirySeconds)
+            emit(Resource.Success(url))
+        }.catch { e ->
+            emit(Resource.Error(e.localizedMessage ?: "Lấy URL thất bại"))
         }
     }
 }

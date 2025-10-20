@@ -15,5 +15,6 @@ data class LessonUseCases @Inject constructor(
     val updateLessonContent: UpdateLessonContentUseCase,
     val deleteLessonContent: DeleteLessonContentUseCase,
     val getLessonContentById: GetLessonContentByIdUseCase,
-    val getLessonContentsByLesson: GetLessonContentsByLessonUseCase
+    val getLessonContentsByLesson: GetLessonContentsByLessonUseCase,
+    val getLessonContentUrl: GetLessonContentUrlUseCase,
 )

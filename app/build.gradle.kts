@@ -78,7 +78,13 @@ dependencies {
     implementation("com.google.firebase:firebase-database-ktx")
 
     // MinIO Client
-    implementation("io.minio:minio:8.5.7")
+    implementation("io.minio:minio:8.5.7") {
+        exclude(group = "org.simpleframework", module = "simple-xml")
+        exclude(group = "com.carrotsearch.thirdparty", module = "simple-xml-safe")
+    }
+
+    // MinIO FIX: Add a known-good Simple XML implementation for MinIO's internal XML parsing
+    implementation("org.simpleframework:simple-xml:2.7.1")
 
     // Retrofit + OkHttp
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
@@ -118,14 +124,20 @@ dependencies {
     ksp("com.google.dagger:hilt-compiler:2.57.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
-    // XML parsing
-    // XML Stream API (chuẩn JDK)
-    implementation("javax.xml.stream:stax-api:1.0-2")
-
-    // Aalto XML Parser (implementation cho StAX)
-    implementation("com.fasterxml.woodstox:aalto-xml:1.3.2")
     // JmDNS
-    implementation("org.jmdns:jmdns:3.5.9")
+    implementation("org.jmdns:jmdns:3.5.9") {
+        exclude(group = "com.carrotsearch.thirdparty", module = "simple-xml-safe")
+    }
+
+    // Glide core
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    ksp("com.github.bumptech.glide:compiler:4.16.0")
+
+    // Glide Compose integration for Jetpack Compose
+    implementation("com.github.bumptech.glide:compose:1.0.0-alpha.2")
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
@@ -141,7 +153,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     // ✅ Thêm Jackson Kotlin Module
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.1")
-    // Thêm Jackson Core (thường được pull theo, nhưng thêm cho chắc)
+    // Thêm Jackson Core 
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     implementation("androidx.compose.material3:material3:1.2.0")
     implementation("androidx.compose.material:material-icons-extended")

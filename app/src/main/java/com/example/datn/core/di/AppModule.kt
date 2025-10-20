@@ -1,5 +1,6 @@
 package com.example.datn.core.di
 
+import FileRepositoryImpl
 import android.content.Context
 import androidx.room.Room
 import com.example.datn.BuildConfig
@@ -8,6 +9,7 @@ import com.example.datn.core.network.datasource.FirebaseDataSource
 import com.example.datn.core.network.service.classroom.ClassService
 import com.example.datn.core.network.service.lesson.LessonContentService
 import com.example.datn.core.network.service.lesson.LessonService
+import com.example.datn.core.network.service.minio.MinIOService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.data.local.AppDatabase
@@ -22,9 +24,11 @@ import com.example.datn.data.repository.impl.LessonRepositoryImpl
 import com.example.datn.data.repository.impl.UserRepositoryImpl
 import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.domain.repository.IClassRepository
+import com.example.datn.domain.repository.IFileRepository
 import com.example.datn.domain.repository.ILessonContentRepository
 import com.example.datn.domain.repository.ILessonRepository
 import com.example.datn.domain.repository.IUserRepository
+import com.example.datn.domain.usecase.minio.MinIOUseCase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -72,6 +76,13 @@ object AppModule {
     @Singleton
     fun provideMinioBucketName(): String = BuildConfig.MINIO_BUCKET
 
+
+    @Provides
+    @Singleton
+    fun provideMinioService(
+        client: MinioClient,
+        bucketName: String
+    ): MinIOService = MinIOService(client, bucketName)
 
     // Local Database
     @Provides
@@ -144,8 +155,19 @@ object AppModule {
     @Singleton
     fun provideLessonContentRepository(
         firebaseDataSource: FirebaseDataSource,
-        lessonContentDao: LessonContentDao
-    ): ILessonContentRepository = LessonContentRepositoryImpl(firebaseDataSource, lessonContentDao)
+        lessonContentDao: LessonContentDao,
+        minIOUseCase: MinIOUseCase
+    ): ILessonContentRepository = LessonContentRepositoryImpl(
+        firebaseDataSource,
+        lessonContentDao,
+        minIOUseCase
+    )
+
+    @Provides
+    @Singleton
+    fun provideFileRepository(
+        minIOService: MinIOService
+    ): IFileRepository = FileRepositoryImpl(minIOService)
 
     // Services
     @Provides
@@ -164,6 +186,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideLessonContentService(): LessonContentService = LessonContentService()
+    fun provideLessonContentService(
+        minIOService: MinIOService
+    ): LessonContentService = LessonContentService(minIOService)
 
 }

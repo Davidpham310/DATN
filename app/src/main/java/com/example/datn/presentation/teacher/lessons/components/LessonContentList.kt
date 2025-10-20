@@ -24,6 +24,7 @@ import com.example.datn.domain.models.LessonContent
 @Composable
 fun LessonContentList(
     lessonContents: List<LessonContent>,
+    contentUrls: Map<String, String>,
     onEdit: (LessonContent) -> Unit,
     onDelete: (LessonContent) -> Unit,
     onClick: (LessonContent) -> Unit,
@@ -65,6 +66,7 @@ fun LessonContentList(
             items(lessonContents.sortedBy { it.order }) { content ->
                 LessonContentItem(
                     content = content,
+                    contentUrl = contentUrls[content.id] ?: content.content,
                     onEdit = { onEdit(content) },
                     onDelete = { onDelete(content) },
                     onClick = { onClick(content) }

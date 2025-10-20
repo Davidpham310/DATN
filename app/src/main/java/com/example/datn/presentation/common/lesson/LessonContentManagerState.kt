@@ -16,5 +16,6 @@ data class LessonContentManagerState(
     val showAddEditDialog: Boolean = false,
     val editingContent: LessonContent? = null,
     val confirmDeleteState: ConfirmationDialogState<LessonContent> = ConfirmationDialogState.empty(),
-    val currentLessonId: String = ""
+    val currentLessonId: String = "",
+    val contentUrls: Map<String, String> = emptyMap()
 ) : BaseState

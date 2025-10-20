@@ -18,7 +18,7 @@ import com.example.datn.presentation.common.lesson.LessonContentManagerState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-import java.io.InputStream // Cần thiết để xử lý InputStream
+import java.io.InputStream
 import javax.inject.Inject
 
 @HiltViewModel
@@ -43,15 +43,10 @@ class LessonContentManagerViewModel @Inject constructor(
         }
     }
 
-    // ====================================================================
-    // 🛠️ QUẢN LÝ TỆP TIN (FILE SELECTION)
-    // ====================================================================
-
-    /**
-     * Cập nhật trạng thái tệp tin đã chọn vào State.
-     */
+    // =====================================================
+    // FILE SELECTION
+    // =====================================================
     fun onFileSelected(fileName: String, stream: InputStream, size: Long) {
-        // Đóng InputStream cũ trước khi gán cái mới
         state.value.selectedFileStream?.close()
         setState {
             copy(
@@ -63,12 +58,7 @@ class LessonContentManagerViewModel @Inject constructor(
         showNotification("Đã chọn tệp: $fileName (${size / 1024} KB)", NotificationType.INFO)
     }
 
-    /**
-     * Đặt lại trạng thái tệp tin đã chọn.
-     * Cần gọi khi đóng dialog, trước khi mở dialog mới, hoặc sau khi CRUD thành công.
-     */
     fun resetFileSelection() {
-        // Đóng InputStream cũ nếu tồn tại
         state.value.selectedFileStream?.close()
         setState {
             copy(
@@ -79,10 +69,9 @@ class LessonContentManagerViewModel @Inject constructor(
         }
     }
 
-    // ====================================================================
-    // ⬇️ XỬ LÝ SỰ KIỆN (EVENT HANDLING)
-    // ====================================================================
-
+    // =====================================================
+    // EVENT HANDLING
+    // =====================================================
     override fun onEvent(event: LessonContentManagerEvent) {
         when (event) {
             is LessonContentManagerEvent.LoadContentsForLesson -> loadContents(event.lessonId)
@@ -90,18 +79,17 @@ class LessonContentManagerViewModel @Inject constructor(
             is LessonContentManagerEvent.SelectContent -> setState { copy(selectedContent = event.content) }
 
             is LessonContentManagerEvent.ShowAddContentDialog -> {
-                resetFileSelection() // Reset trạng thái file khi mở dialog ADD
+                resetFileSelection()
                 setState { copy(showAddEditDialog = true, editingContent = null) }
             }
             is LessonContentManagerEvent.EditContent -> {
-                resetFileSelection() // Reset trạng thái file khi mở dialog EDIT
+                resetFileSelection()
                 setState { copy(showAddEditDialog = true, editingContent = event.content) }
             }
 
             is LessonContentManagerEvent.DeleteContent -> showConfirmDeleteContent(event.content)
-
             is LessonContentManagerEvent.DismissDialog -> {
-                resetFileSelection() // Reset trạng thái file khi đóng dialog
+                resetFileSelection()
                 setState { copy(showAddEditDialog = false, editingContent = null) }
             }
 
@@ -110,10 +98,9 @@ class LessonContentManagerViewModel @Inject constructor(
         }
     }
 
-    // ====================================================================
-    // ⬆️ HÀM CRUD
-    // ====================================================================
-
+    // =====================================================
+    // CRUD & CONTENT URL
+    // =====================================================
     private fun loadContents(lessonId: String) {
         setState { copy(currentLessonId = lessonId) }
         viewModelScope.launch {
@@ -121,12 +108,19 @@ class LessonContentManagerViewModel @Inject constructor(
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true, error = null) }
                     is Resource.Success -> {
+                        val contents = result.data ?: emptyList()
                         setState {
                             copy(
-                                lessonContents = result.data ?: emptyList(),
+                                lessonContents = contents,
                                 isLoading = false,
                                 error = null
                             )
+                        }
+                        // Tự động load URL media
+                        contents.forEach { content ->
+                            if (content.contentType != ContentType.TEXT && content.content.isNotEmpty()) {
+                                loadContentUrl(content)
+                            }
                         }
                     }
                     is Resource.Error -> {
@@ -140,9 +134,7 @@ class LessonContentManagerViewModel @Inject constructor(
 
     private fun refreshContents() {
         val lessonId = state.value.currentLessonId
-        if (lessonId.isNotEmpty()) {
-            loadContents(lessonId)
-        }
+        if (lessonId.isNotEmpty()) loadContents(lessonId)
     }
 
     private fun addContent(event: LessonContentManagerEvent.ConfirmAddContent) {
@@ -163,10 +155,6 @@ class LessonContentManagerViewModel @Inject constructor(
             return
         }
 
-        // Lấy thông tin file từ Event (đã được Composable truyền từ State của ViewModel)
-        val fileStream = event.fileStream
-        val fileSize = event.fileSize
-
         viewModelScope.launch {
             lessonUseCases.createLessonContent(
                 CreateLessonContentParams(
@@ -174,14 +162,14 @@ class LessonContentManagerViewModel @Inject constructor(
                     title = event.title,
                     contentType = type,
                     contentText = if (type == ContentType.TEXT) event.contentLink else null,
-                    fileStream = fileStream,
-                    fileSize = fileSize
+                    fileStream = event.fileStream,
+                    fileSize = event.fileSize
                 )
             ).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
-                        resetFileSelection() // Reset stream sau khi thành công
+                        resetFileSelection()
                         setState { copy(isLoading = false, showAddEditDialog = false) }
                         showNotification("Thêm nội dung thành công!", NotificationType.SUCCESS)
                         refreshContents()
@@ -215,10 +203,6 @@ class LessonContentManagerViewModel @Inject constructor(
 
         val order = state.value.lessonContents.find { it.id == event.id }?.order ?: 0
 
-        // Lấy thông tin file mới từ Event
-        val newFileStream = event.fileStream
-        val newFileSize = event.fileSize
-
         viewModelScope.launch {
             lessonUseCases.updateLessonContent(
                 UpdateLessonContentParams(
@@ -228,14 +212,14 @@ class LessonContentManagerViewModel @Inject constructor(
                     contentType = type,
                     contentText = if (type == ContentType.TEXT) event.contentLink else null,
                     order = order,
-                    newFileStream = newFileStream,
-                    newFileSize = newFileSize
+                    newFileStream = event.fileStream,
+                    newFileSize = event.fileSize
                 )
             ).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
-                        resetFileSelection() // Reset stream sau khi thành công
+                        resetFileSelection()
                         setState { copy(isLoading = false, showAddEditDialog = false, editingContent = null) }
                         showNotification("Cập nhật nội dung thành công!", NotificationType.SUCCESS)
                         refreshContents()
@@ -263,15 +247,11 @@ class LessonContentManagerViewModel @Inject constructor(
     }
 
     fun dismissConfirmDeleteDialog() {
-        setState { copy(confirmDeleteState = ConfirmationDialogState.Companion.empty()) }
+        setState { copy(confirmDeleteState = ConfirmationDialogState.empty()) }
     }
 
     fun confirmDeleteContent(content: LessonContent) {
         dismissConfirmDeleteDialog()
-        deleteContent(content)
-    }
-
-    private fun deleteContent(content: LessonContent) {
         viewModelScope.launch {
             lessonUseCases.deleteLessonContent(content.id).collect { result ->
                 when (result) {
@@ -284,6 +264,33 @@ class LessonContentManagerViewModel @Inject constructor(
                     is Resource.Error -> {
                         setState { copy(isLoading = false) }
                         showNotification(result.message ?: "Xóa nội dung thất bại", NotificationType.ERROR)
+                    }
+                }
+            }
+        }
+    }
+
+    // =====================================================
+    // LOAD URL MEDIA
+    // =====================================================
+    fun loadContentUrl(content: LessonContent, expirySeconds: Int = 3600) {
+        viewModelScope.launch {
+            lessonUseCases.getLessonContentUrl(content, expirySeconds).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> setState { copy(isLoading = true) }
+                    is Resource.Success -> {
+                        val url = resource.data ?: ""
+                        Log.d("LessonContentVM", "Loaded URL for content '${content.title}': $url")
+                        setState {
+                            copy(
+                                isLoading = false,
+                                contentUrls = state.value.contentUrls + (content.id to url)
+                            )
+                        }
+                    }
+                    is Resource.Error -> {
+                        setState { copy(isLoading = false) }
+                        showNotification("Lấy URL thất bại: ${resource.message}", NotificationType.ERROR)
                     }
                 }
             }

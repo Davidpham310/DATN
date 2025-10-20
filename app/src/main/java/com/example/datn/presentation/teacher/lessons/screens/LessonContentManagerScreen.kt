@@ -141,16 +141,10 @@ fun LessonContentManagerScreen(
                     // Cần có LessonContentList composable để hiển thị danh sách
                     LessonContentList(
                         lessonContents = state.lessonContents,
-                        onEdit = { content ->
-                            viewModel.onEvent(LessonContentManagerEvent.EditContent(content))
-                        },
-                        onDelete = { content ->
-                            viewModel.onEvent(LessonContentManagerEvent.DeleteContent(content))
-                        },
-                        onClick = { content ->
-                            // Navigate to content detail view
-                            viewModel.onEvent(LessonContentManagerEvent.SelectContent(content))
-                        },
+                        contentUrls = state.contentUrls,
+                        onEdit = { content -> viewModel.onEvent(LessonContentManagerEvent.EditContent(content)) },
+                        onDelete = { content -> viewModel.onEvent(LessonContentManagerEvent.DeleteContent(content)) },
+                        onClick = { content -> viewModel.onEvent(LessonContentManagerEvent.SelectContent(content)) },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
