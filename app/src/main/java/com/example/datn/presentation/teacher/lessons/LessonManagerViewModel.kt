@@ -7,7 +7,6 @@ import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.core.presentation.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.Lesson
-import com.example.datn.domain.models.LessonContent
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.lesson.CreateLessonParams
 import com.example.datn.domain.usecase.lesson.LessonUseCases
@@ -16,9 +15,13 @@ import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
 import com.example.datn.presentation.common.lesson.LessonManagerEvent
 import com.example.datn.presentation.common.lesson.LessonManagerState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,22 +33,56 @@ class LessonManagerViewModel @Inject constructor(
     notificationManager: NotificationManager
 ) : BaseViewModel<LessonManagerState, LessonManagerEvent>(LessonManagerState(), notificationManager) {
 
-    private var currentTeacherId: String = ""
+    // Reactive teacher id flow (same style as ClassManagerViewModel)
+    private val currentTeacherIdFlow: StateFlow<String> = authUseCases.getCurrentIdUser.invoke()
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Companion.WhileSubscribed(5000),
+            initialValue = ""
+        )
+
+    // Current class being observed for lessons
+    private val currentClassIdFlow = MutableStateFlow("")
 
     init {
+        observeLessons()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeLessons() {
         viewModelScope.launch {
-            authUseCases.getCurrentIdUser.invoke()
+            currentTeacherIdFlow
+                .filter { it.isNotBlank() }
+                .flatMapLatest { _teacherId ->
+                    currentClassIdFlow
+                        .filter { it.isNotBlank() }
+                        .flatMapLatest { classId ->
+                            lessonUseCases.getLessonsByClass(classId)
+                        }
+                }
                 .distinctUntilChanged()
-                .collect { id ->
-                    currentTeacherId = id
-                    Log.d("LessonManagerVM", "Loaded teacherId: $currentTeacherId")
+                .collect { result ->
+                    when (result) {
+                        is Resource.Loading -> setState { copy(isLoading = true, error = null) }
+                        is Resource.Success -> setState {
+                            copy(lessons = result.data ?: emptyList(), isLoading = false, error = null)
+                        }
+                        is Resource.Error -> {
+                            setState { copy(isLoading = false, error = result.message) }
+                            showNotification(result.message, NotificationType.ERROR)
+                        }
+                    }
                 }
         }
     }
 
     override fun onEvent(event: LessonManagerEvent) {
         when (event) {
-            is LessonManagerEvent.LoadLessonsForClass -> loadLessons(event.classId)
+            is LessonManagerEvent.LoadLessonsForClass -> {
+                setState { copy(currentClassId = event.classId) }
+                currentClassIdFlow.value = event.classId
+            }
             is LessonManagerEvent.RefreshLessons -> refreshLessons()
             is LessonManagerEvent.SelectLesson -> setState { copy(selectedLesson = event.lesson) }
             is LessonManagerEvent.ShowAddLessonDialog -> setState {
@@ -64,35 +101,14 @@ class LessonManagerViewModel @Inject constructor(
             is LessonManagerEvent.ConfirmEditLesson -> updateLesson(
                 event.id, event.classId, event.title, event.description, event.contentLink, event.order
             )
-            is LessonManagerEvent.LoadLessonContent -> loadLessonContent(event.lessonId)
-            is LessonManagerEvent.AddContent -> addContent(event.content)
-            is LessonManagerEvent.UpdateContent -> updateContent(event.content)
-            is LessonManagerEvent.DeleteContent -> deleteContent(event.contentId)
-        }
-    }
-
-    private fun loadLessons(classId: String) {
-        setState { copy(currentClassId = classId) }
-        viewModelScope.launch {
-            lessonUseCases.getLessonsByClass(classId).collect { result ->
-                when (result) {
-                    is Resource.Loading -> setState { copy(isLoading = true, error = null) }
-                    is Resource.Success -> setState {
-                        copy(lessons = result.data ?: emptyList(), isLoading = false, error = null)
-                    }
-                    is Resource.Error -> {
-                        setState { copy(isLoading = false, error = result.message) }
-                        showNotification(result.message ?: "Tải bài học thất bại", NotificationType.ERROR)
-                    }
-                }
-            }
         }
     }
 
     private fun refreshLessons() {
         val classId = state.value.currentClassId
         if (classId.isNotEmpty()) {
-            loadLessons(classId)
+            // trigger a reload by re-setting the flow value (re-emit)
+            currentClassIdFlow.value = classId
         }
     }
 
@@ -102,7 +118,8 @@ class LessonManagerViewModel @Inject constructor(
         description: String?,
         contentLink: String?
     ) {
-        if (currentTeacherId.isBlank()) {
+        val teacherId = currentTeacherIdFlow.value
+        if (teacherId.isBlank()) {
             showNotification("Không xác định được giáo viên", NotificationType.ERROR)
             return
         }
@@ -114,18 +131,19 @@ class LessonManagerViewModel @Inject constructor(
 
         viewModelScope.launch {
             lessonUseCases.createLesson(
-                CreateLessonParams(classId, currentTeacherId, title, description, contentLink)
+                CreateLessonParams(classId, teacherId, title, description, contentLink)
             ).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
                         setState { copy(isLoading = false, showAddEditDialog = false) }
                         showNotification("Thêm bài học thành công!", NotificationType.SUCCESS)
-                        refreshLessons()
+                        // refresh
+                        observeLessons()
                     }
                     is Resource.Error -> {
                         setState { copy(isLoading = false) }
-                        showNotification(result.message ?: "Thêm bài học thất bại", NotificationType.ERROR)
+                        showNotification(result.message, NotificationType.ERROR)
                     }
                 }
             }
@@ -140,7 +158,8 @@ class LessonManagerViewModel @Inject constructor(
         contentLink: String?,
         order: Int
     ) {
-        if (currentTeacherId.isBlank()) {
+        val teacherId = currentTeacherIdFlow.value
+        if (teacherId.isBlank()) {
             showNotification("Không xác định được giáo viên", NotificationType.ERROR)
             return
         }
@@ -152,18 +171,18 @@ class LessonManagerViewModel @Inject constructor(
 
         viewModelScope.launch {
             lessonUseCases.updateLesson(
-                UpdateLessonParams(id, classId, currentTeacherId, title, description, contentLink, order)
+                UpdateLessonParams(id, classId, teacherId, title, description, contentLink, order)
             ).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
                         setState { copy(isLoading = false, showAddEditDialog = false, editingLesson = null) }
                         showNotification("Cập nhật bài học thành công!", NotificationType.SUCCESS)
-                        refreshLessons()
+                        observeLessons()
                     }
                     is Resource.Error -> {
                         setState { copy(isLoading = false) }
-                        showNotification(result.message ?: "Cập nhật bài học thất bại", NotificationType.ERROR)
+                        showNotification(result.message, NotificationType.ERROR)
                     }
                 }
             }
@@ -200,59 +219,14 @@ class LessonManagerViewModel @Inject constructor(
                     is Resource.Success -> {
                         setState { copy(isLoading = false) }
                         showNotification("Xóa bài học thành công!", NotificationType.SUCCESS)
-                        refreshLessons()
+                        observeLessons()
                     }
                     is Resource.Error -> {
                         setState { copy(isLoading = false) }
-                        showNotification(result.message ?: "Xóa bài học thất bại", NotificationType.ERROR)
+                        showNotification(result.message, NotificationType.ERROR)
                     }
                 }
             }
         }
-    }
-
-    private fun loadLessonContent(lessonId: String) {
-        viewModelScope.launch {
-            lessonUseCases.getLessonContent(lessonId).collect { result ->
-                when (result) {
-                    is Resource.Loading -> setState { copy(isLoading = true) }
-                    is Resource.Success -> setState {
-                        copy(lessonContents = result.data ?: emptyList(), isLoading = false)
-                    }
-                    is Resource.Error -> {
-                        setState { copy(isLoading = false) }
-                        showNotification(result.message ?: "Tải nội dung thất bại", NotificationType.ERROR)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun addContent(content: LessonContent) {
-        // Implementation for adding lesson content
-        showNotification("Chức năng đang phát triển", NotificationType.INFO)
-    }
-
-    private fun updateContent(content: LessonContent) {
-        viewModelScope.launch {
-            lessonUseCases.updateLessonContent(content).collect { result ->
-                when (result) {
-                    is Resource.Loading -> setState { copy(isLoading = true) }
-                    is Resource.Success -> {
-                        setState { copy(isLoading = false) }
-                        showNotification("Cập nhật nội dung thành công!", NotificationType.SUCCESS)
-                    }
-                    is Resource.Error -> {
-                        setState { copy(isLoading = false) }
-                        showNotification(result.message ?: "Cập nhật nội dung thất bại", NotificationType.ERROR)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun deleteContent(contentId: String) {
-        // Implementation for deleting lesson content
-        showNotification("Chức năng đang phát triển", NotificationType.INFO)
     }
 }

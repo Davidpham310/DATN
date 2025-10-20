@@ -309,8 +309,8 @@ class FirebaseDataSource @Inject constructor(
         lessonContentService.addContent(content)
     }.toResource()
 
-    suspend fun updateLessonContent(content: LessonContent): Resource<Boolean> = safeCallWithResult {
-        lessonContentService.updateContent(content.id, content)
+    suspend fun updateLessonContent(contentId: String , content: LessonContent): Resource<Boolean> = safeCallWithResult {
+        lessonContentService.updateContent(contentId, content)
     }.toResource()
 
     suspend fun deleteLessonContent(contentId: String): Resource<Boolean> = safeCallWithResult {

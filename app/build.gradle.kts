@@ -119,10 +119,11 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // XML parsing
-    // Thư viện XML Stream API (bản tương thích Android)
-    implementation("stax:stax-api:1.0.1")
-    // Thư viện XML parser (Aalto — thay thế com.bea)
-    implementation("com.fasterxml:aalto-xml:1.2.2")
+    // XML Stream API (chuẩn JDK)
+    implementation("javax.xml.stream:stax-api:1.0-2")
+
+    // Aalto XML Parser (implementation cho StAX)
+    implementation("com.fasterxml.woodstox:aalto-xml:1.3.2")
     // JmDNS
     implementation("org.jmdns:jmdns:3.5.9")
 

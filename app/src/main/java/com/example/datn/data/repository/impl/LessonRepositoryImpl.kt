@@ -17,7 +17,6 @@ import javax.inject.Inject
 class LessonRepositoryImpl @Inject constructor(
     private val firebaseDataSource: FirebaseDataSource,
     private val lessonDao: LessonDao,
-    private val lessonContentDao: LessonContentDao
 ) : ILessonRepository {
 
     override fun createLesson(lesson: Lesson): Flow<Resource<Lesson>> = flow {
@@ -69,55 +68,6 @@ class LessonRepositoryImpl @Inject constructor(
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
     }
-
-    override fun getLessonContent(lessonId: String): Flow<Resource<List<LessonContent>>> = flow {
-        emit(Resource.Loading())
-        try {
-            // Try to load from local first
-            val localContent = lessonContentDao.getContentByLesson(lessonId).map { it.toDomain() }
-            if (localContent.isNotEmpty()) {
-                emit(Resource.Success(localContent))
-            }
-
-            // Fetch from remote
-            val result = firebaseDataSource.getLessonContent(lessonId)
-            when (result) {
-                is Resource.Success -> {
-                    result.data?.let { contents ->
-                        // Cache to local
-                        contents.forEach { lessonContentDao.insert(it.toEntity()) }
-                        emit(Resource.Success(contents))
-                    }
-                }
-                is Resource.Error -> {
-                    if (localContent.isEmpty()) {
-                        emit(Resource.Error(result.message))
-                    }
-                }
-                is Resource.Loading -> { /* Skip */ }
-            }
-        } catch (e: Exception) {
-            emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
-        }
-    }
-
-    override fun updateLessonContent(content: LessonContent): Flow<Resource<Unit>> = flow {
-        emit(Resource.Loading())
-        try {
-            val result = firebaseDataSource.updateLessonContent(content)
-            when (result) {
-                is Resource.Success -> {
-                    lessonContentDao.update(content.toEntity())
-                    emit(Resource.Success(Unit))
-                }
-                is Resource.Error -> emit(Resource.Error(result.message))
-                is Resource.Loading -> { /* Skip */ }
-            }
-        } catch (e: Exception) {
-            emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
-        }
-    }
-
     fun updateLesson(lessonId: String, lesson: Lesson): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {

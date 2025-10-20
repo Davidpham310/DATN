@@ -17,10 +17,12 @@ import com.example.datn.data.local.dao.LessonDao
 import com.example.datn.data.local.dao.UserDao
 import com.example.datn.data.repository.impl.AuthRepositoryImpl
 import com.example.datn.data.repository.impl.ClassRepositoryImpl
+import com.example.datn.data.repository.impl.LessonContentRepositoryImpl
 import com.example.datn.data.repository.impl.LessonRepositoryImpl
 import com.example.datn.data.repository.impl.UserRepositoryImpl
 import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.domain.repository.IClassRepository
+import com.example.datn.domain.repository.ILessonContentRepository
 import com.example.datn.domain.repository.ILessonRepository
 import com.example.datn.domain.repository.IUserRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -135,9 +137,15 @@ object AppModule {
     @Singleton
     fun provideLessonRepository(
         firebaseDataSource: FirebaseDataSource,
-        lessonDao: LessonDao,
+        lessonDao: LessonDao
+    ): ILessonRepository = LessonRepositoryImpl(firebaseDataSource, lessonDao)
+
+    @Provides
+    @Singleton
+    fun provideLessonContentRepository(
+        firebaseDataSource: FirebaseDataSource,
         lessonContentDao: LessonContentDao
-    ): ILessonRepository = LessonRepositoryImpl(firebaseDataSource, lessonDao, lessonContentDao)
+    ): ILessonContentRepository = LessonContentRepositoryImpl(firebaseDataSource, lessonContentDao)
 
     // Services
     @Provides

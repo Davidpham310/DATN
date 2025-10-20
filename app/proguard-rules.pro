@@ -19,3 +19,8 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Giữ toàn bộ class liên quan tới XML parsing
+-keep class com.fasterxml.aalto.** { *; }
+-keep class javax.xml.stream.** { *; }
+-keep class org.codehaus.stax2.** { *; }

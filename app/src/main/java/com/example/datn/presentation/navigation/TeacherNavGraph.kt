@@ -13,6 +13,7 @@ import com.example.datn.domain.models.User
 import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.presentation.teacher.classes.screens.ClassManagerScreen
 import com.example.datn.presentation.teacher.home.TeacherHomeScreen
+import com.example.datn.presentation.teacher.lessons.screens.LessonContentManagerScreen
 import com.example.datn.presentation.teacher.lessons.screens.LessonManagerScreen
 
 @Composable
@@ -48,6 +49,27 @@ fun TeacherNavGraph(
                 classId = classId,
                 className = className,
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToContentManager = { lessonId, lessonTitle ->
+                    navController.navigate(
+                        Screen.TeacherLessonContentManager.createRoute(lessonId, lessonTitle)
+                    )
+                }
+            )
+        }
+        composable(
+            route = Screen.TeacherLessonContentManager.routeWithArgs,
+            arguments = listOf(
+                navArgument("lessonId") { type = NavType.StringType },
+                navArgument("lessonTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
+            val lessonTitle = backStackEntry.arguments?.getString("lessonTitle") ?: ""
+            LessonContentManagerScreen(
+                lessonId = lessonId,
+                lessonTitle = lessonTitle,
+                onNavigateBack = { navController.popBackStack() },
+
             )
         }
     }

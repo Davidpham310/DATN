@@ -2,13 +2,13 @@ package com.example.datn.presentation.teacher.lessons.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.presentation.common.lesson.LessonManagerEvent
 import com.example.datn.presentation.dialogs.ConfirmationDialog
@@ -22,6 +22,7 @@ fun LessonManagerScreen(
     classId: String,
     className: String,
     onNavigateBack: () -> Unit,
+    onNavigateToContentManager: (lessonId: String, lessonTitle: String) -> Unit,
     viewModel: LessonManagerViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -47,7 +48,7 @@ fun LessonManagerScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Quay lại"
                         )
                     }
@@ -86,8 +87,8 @@ fun LessonManagerScreen(
                             viewModel.onEvent(LessonManagerEvent.DeleteLesson(lesson))
                         },
                         onClick = { lesson ->
-                            // Navigate to lesson detail or content
                             viewModel.onEvent(LessonManagerEvent.SelectLesson(lesson))
+                            onNavigateToContentManager(lesson.id, lesson.title)
                         },
                         modifier = Modifier.fillMaxSize()
                     )

@@ -1,5 +1,6 @@
 package com.example.datn.core.presentation.notifications
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,4 +43,6 @@ fun NotificationHost(
             }
         }
     }
+    Log.e("NotificationHost", "Recomposing NotificationHost with state: $state")
+    Log.e("NotificationHost", "Error : ${state.message}, Visible: ${state.isVisible}")
 }

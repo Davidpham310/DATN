@@ -28,7 +28,7 @@ object MinIOService {
                 PutObjectArgs.builder()
                     .bucket(bucketName)
                     .`object`(objectName)
-                    .stream(inputStream, size, -1)
+                    .stream(inputStream, -1, 10485760)
                     .contentType(contentType)
                     .build()
             )

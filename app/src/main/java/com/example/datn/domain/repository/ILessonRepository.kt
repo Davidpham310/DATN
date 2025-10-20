@@ -8,6 +8,5 @@ import kotlinx.coroutines.flow.Flow
 interface ILessonRepository {
     fun createLesson(lesson: Lesson): Flow<Resource<Lesson>>
     fun getLessonsByClass(classId: String): Flow<Resource<List<Lesson>>>
-    fun getLessonContent(lessonId: String): Flow<Resource<List<LessonContent>>>
-    fun updateLessonContent(content: LessonContent): Flow<Resource<Unit>>
+
 }

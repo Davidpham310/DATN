@@ -33,10 +33,4 @@ sealed class LessonManagerEvent : BaseEvent {
         val contentLink: String?,
         val order: Int
     ) : LessonManagerEvent()
-
-    // Content management
-    data class LoadLessonContent(val lessonId: String) : LessonManagerEvent()
-    data class AddContent(val content: LessonContent) : LessonManagerEvent()
-    data class UpdateContent(val content: LessonContent) : LessonManagerEvent()
-    data class DeleteContent(val contentId: String) : LessonManagerEvent()
 }
