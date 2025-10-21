@@ -8,4 +8,5 @@ data class MinIOUseCase @Inject constructor(
     val downloadFile: DownloadFileUseCase,
     val getFileUrl: GetFileUrlUseCase,
     val fileExist: FileExistsUseCase,
+    val getDirectFileUrl: GetDirectFileUrlUseCase
 )

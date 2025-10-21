@@ -26,4 +26,6 @@ interface ILessonContentRepository {
     fun deleteContent(contentId: String): Flow<Resource<Boolean>>
 
     fun getContentUrl(content: LessonContent, expirySeconds: Int = 3600): Flow<Resource<String>>
+
+    fun getDirectContentUrl(path : String): Flow<Resource<String>>
 }

@@ -30,6 +30,10 @@ class FileRepositoryImpl @Inject constructor(
         minIOService.deleteFile(objectName)
     }
 
+    override suspend fun getDirectFileUrl(objectName: String): String {
+        return minIOService.getDirectFileUrl(objectName)
+    }
+
     override suspend fun fileExists(objectName: String): Boolean {
         return minIOService.fileExists(objectName)
     }

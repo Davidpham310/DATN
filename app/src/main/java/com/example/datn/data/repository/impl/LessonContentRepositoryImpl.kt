@@ -248,4 +248,14 @@ class LessonContentRepositoryImpl @Inject constructor(
             emit(Resource.Error(e.localizedMessage ?: "Lấy URL thất bại"))
         }
     }
+
+    override fun getDirectContentUrl(path : String): Flow<Resource<String>> {
+        return flow {
+            emit(Resource.Loading())
+            val url = minIOUseCase.getDirectFileUrl(path)
+            emit(Resource.Success(url))
+        }.catch { e ->
+            emit(Resource.Error(e.localizedMessage ?: "Lấy URL trực tiếp thất bại"))
+        }
+    }
 }

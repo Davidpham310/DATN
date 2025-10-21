@@ -51,9 +51,15 @@ class MinIOService @Inject constructor(
         )
     }
 
-    suspend fun getDirectFileUrl(objectName: String): String {
-        val baseUrl = BuildConfig.MINIO_ENDPOINT
-        return "$baseUrl/$objectName"
+    suspend fun getDirectFileUrl(objectName: String): String = withContext(Dispatchers.IO) {
+        val baseUrl = BuildConfig.MINIO_ENDPOINT.trimEnd('/')
+        val bucket = bucketName.trim('/')
+        val path = objectName.trimStart('/')
+
+        val fullUrl = "$baseUrl/$bucket/$path"
+
+        Log.d("MinIO", "🌍 Direct URL: $fullUrl")
+        fullUrl
     }
 
     suspend fun getFileUrl(objectName: String, expirySeconds: Int = 3600): String =

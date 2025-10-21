@@ -8,5 +8,7 @@ interface IFileRepository {
     suspend fun getFileUrl(objectName: String, expirySeconds: Int = 3600): String
     suspend fun updateFile(objectName: String, newStream: InputStream, size: Long, contentType: String)
     suspend fun deleteFile(objectName: String)
+
+    suspend fun getDirectFileUrl(objectName: String): String
     suspend fun fileExists(objectName: String): Boolean
 }

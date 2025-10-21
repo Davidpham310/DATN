@@ -99,7 +99,7 @@ class LessonContentManagerViewModel @Inject constructor(
     }
 
     // =====================================================
-    // CRUD & CONTENT URL
+    // CRUD & LOAD CONTENT
     // =====================================================
     private fun loadContents(lessonId: String) {
         setState { copy(currentLessonId = lessonId) }
@@ -116,10 +116,10 @@ class LessonContentManagerViewModel @Inject constructor(
                                 error = null
                             )
                         }
-                        // Tự động load URL media
+                        // 🔹 Tự động load direct URL cho các media
                         contents.forEach { content ->
                             if (content.contentType != ContentType.TEXT && content.content.isNotEmpty()) {
-                                loadContentUrl(content)
+                                loadDirectContentUrl(content)
                             }
                         }
                     }
@@ -233,6 +233,9 @@ class LessonContentManagerViewModel @Inject constructor(
         }
     }
 
+    // =====================================================
+    // DELETE CONTENT
+    // =====================================================
     private fun showConfirmDeleteContent(content: LessonContent) {
         setState {
             copy(
@@ -271,29 +274,42 @@ class LessonContentManagerViewModel @Inject constructor(
     }
 
     // =====================================================
-    // LOAD URL MEDIA
+    // GET DIRECT URL FROM USECASE
     // =====================================================
-    fun loadContentUrl(content: LessonContent, expirySeconds: Int = 3600) {
+    private fun loadDirectContentUrl(content: LessonContent) {
         viewModelScope.launch {
-            lessonUseCases.getLessonContentUrl(content, expirySeconds).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> setState { copy(isLoading = true) }
-                    is Resource.Success -> {
-                        val url = resource.data ?: ""
-                        Log.d("LessonContentVM", "Loaded URL for content '${content.title}': $url")
-                        setState {
-                            copy(
-                                isLoading = false,
-                                contentUrls = state.value.contentUrls + (content.id to url)
-                            )
+            lessonUseCases.getDirectLessonContentUrl(content.content.trimStart('/'))
+                .collect { result ->
+                    when (result) {
+                        is Resource.Loading -> {
+                            Log.d("LessonContentVM", "🔄 Đang tải URL cho ${content.title}")
+                            setState { copy(isLoading = true) }
+                        }
+
+                        is Resource.Success -> {
+                            val url = result.data
+                            if (url != null) {
+                                Log.d("LessonContentVM", "✅ Lấy URL thành công: $url")
+                                setState {
+                                    copy(
+                                        isLoading = false,
+                                        contentUrls = state.value.contentUrls + (content.id to url)
+                                    )
+                                }
+                            } else {
+                                Log.w("LessonContentVM", "⚠️ URL rỗng cho ${content.title}")
+                                showNotification("Không tìm thấy URL cho nội dung", NotificationType.ERROR)
+                            }
+                        }
+
+                        is Resource.Error -> {
+                            Log.e("LessonContentVM", "❌ Lỗi lấy URL: ${result.message}")
+                            setState { copy(isLoading = false) }
+                            showNotification("Lỗi khi tải URL: ${result.message}", NotificationType.ERROR)
                         }
                     }
-                    is Resource.Error -> {
-                        setState { copy(isLoading = false) }
-                        showNotification("Lấy URL thất bại: ${resource.message}", NotificationType.ERROR)
-                    }
                 }
-            }
         }
     }
+
 }
