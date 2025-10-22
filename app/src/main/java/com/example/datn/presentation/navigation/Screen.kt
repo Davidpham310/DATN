@@ -26,6 +26,14 @@ sealed class Screen(val route: String) {
 
         val routeWithArgs = "teacher/lesson_content_manager/{lessonId}/{lessonTitle}"
     }
+    object TeacherLessonContentDetail :
+        Screen("teacher/lesson_content_detail/{contentId}?url={contentUrl}") {
+
+        fun createRoute(contentId: String, contentUrl: String): String =
+            "teacher/lesson_content_detail/$contentId?url=$contentUrl"
+
+        val routeWithArgs = "teacher/lesson_content_detail/{contentId}?url={contentUrl}"
+    }
     object TeacherNotification : Screen("teacher/notification")
 
     object ParentHome : Screen("parent/home")

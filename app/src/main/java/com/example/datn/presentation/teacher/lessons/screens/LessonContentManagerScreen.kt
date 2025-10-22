@@ -29,6 +29,7 @@ fun LessonContentManagerScreen(
     lessonId: String,
     lessonTitle: String,
     onNavigateBack: () -> Unit,
+    onNavigateToDetail: (String, String) -> Unit,
     viewModel: LessonContentManagerViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -144,7 +145,10 @@ fun LessonContentManagerScreen(
                         contentUrls = state.contentUrls,
                         onEdit = { content -> viewModel.onEvent(LessonContentManagerEvent.EditContent(content)) },
                         onDelete = { content -> viewModel.onEvent(LessonContentManagerEvent.DeleteContent(content)) },
-                        onClick = { content -> viewModel.onEvent(LessonContentManagerEvent.SelectContent(content)) },
+                        onClick = { content ->
+                            val url = state.contentUrls[content.id] ?: content.content
+                            onNavigateToDetail(content.id, url)
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
