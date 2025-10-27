@@ -11,6 +11,7 @@ data class MiniGameEntity(
     @PrimaryKey
     val id: String,
     val teacherId: String,
+    val lessonId: String, // Liên kết với bài học
     val title: String,
     val description: String,
     val gameType: GameType,

@@ -13,4 +13,7 @@ interface MiniGameOptionDao : BaseDao<MiniGameOptionEntity> {
 
     @Query("SELECT * FROM minigame_option WHERE miniGameQuestionId = :questionId AND isCorrect = 1")
     suspend fun getCorrectOptionForQuestion(questionId: String): MiniGameOptionEntity?
+
+    @Query("DELETE FROM minigame_option WHERE miniGameQuestionId = :questionId")
+    suspend fun deleteOptionsByQuestion(questionId: String)
 }

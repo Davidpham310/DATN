@@ -6,6 +6,7 @@ import com.example.datn.domain.models.MiniGame
 fun MiniGameEntity.toDomain(): MiniGame = MiniGame(
     id = id,
     teacherId = teacherId,
+    lessonId = lessonId,
     title = title,
     description = description,
     gameType = gameType,
@@ -18,6 +19,7 @@ fun MiniGameEntity.toDomain(): MiniGame = MiniGame(
 fun MiniGame.toEntity(): MiniGameEntity = MiniGameEntity(
     id = id,
     teacherId = teacherId,
+    lessonId = lessonId,
     title = title,
     description = description,
     gameType = gameType,

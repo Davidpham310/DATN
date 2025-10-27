@@ -21,6 +21,8 @@ import com.example.datn.presentation.teacher.lessons.LessonContentManagerViewMod
 import com.example.datn.presentation.teacher.lessons.screens.LessonContentDetailScreen
 import com.example.datn.presentation.teacher.lessons.screens.LessonContentManagerScreen
 import com.example.datn.presentation.teacher.lessons.screens.LessonManagerScreen
+import com.example.datn.presentation.teacher.minigame.screens.LessonMiniGameManagerScreen
+import com.example.datn.presentation.teacher.minigame.screens.LessonMiniGameQuestionManagerScreen
 
 @Composable
 fun TeacherNavGraph(
@@ -81,6 +83,11 @@ fun TeacherNavGraph(
                         Screen.TeacherLessonContentDetail.createRoute(contentId, contentUrl)
                     )
                 },
+                onNavigateToMiniGame = { lessonId, lessonTitle ->
+                    navController.navigate(
+                        Screen.TeacherLessonMiniGameManager.createRoute(lessonId, lessonTitle)
+                    )
+                },
                 onNavigateBack = { navController.popBackStack() },
                 viewModel = viewModel
             )
@@ -109,6 +116,41 @@ fun TeacherNavGraph(
                 contentId = contentId,
                 contentUrl = contentUrl,
                 viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Screen.TeacherLessonMiniGameManager.routeWithArgs,
+            arguments = listOf(
+                navArgument("lessonId") { type = NavType.StringType },
+                navArgument("lessonTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
+            val lessonTitle = backStackEntry.arguments?.getString("lessonTitle") ?: ""
+            LessonMiniGameManagerScreen(
+                lessonId = lessonId,
+                lessonTitle = lessonTitle,
+                onNavigateToQuestions = { gameId, gameTitle ->
+                    navController.navigate(
+                        Screen.TeacherLessonMiniGameQuestionManager.createRoute(gameId, gameTitle)
+                    )
+                },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Screen.TeacherLessonMiniGameQuestionManager.routeWithArgs,
+            arguments = listOf(
+                navArgument("gameId") { type = NavType.StringType },
+                navArgument("gameTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val gameId = backStackEntry.arguments?.getString("gameId") ?: ""
+            val gameTitle = backStackEntry.arguments?.getString("gameTitle") ?: ""
+            LessonMiniGameQuestionManagerScreen(
+                gameId = gameId,
+                gameTitle = gameTitle,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

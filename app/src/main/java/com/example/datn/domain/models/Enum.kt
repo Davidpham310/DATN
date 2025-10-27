@@ -36,11 +36,11 @@ enum class Level(val displayName: String) {
     MEDIUM("Trung bình"),
     HARD("Khó");
     companion object {
-        fun fromDisplayName(displayName: String): RelationshipType? {
-            return RelationshipType.values().find { it.displayName == displayName }
+        fun fromDisplayName(displayName: String): Level? {
+            return values().find { it.displayName == displayName }
         }
-        fun fromString(type: String): RelationshipType? {
-            return RelationshipType.values().find { it.name.equals(type, ignoreCase = true) }
+        fun fromString(type: String): Level? {
+            return values().find { it.name.equals(type, ignoreCase = true) }
         }
     }
 }
@@ -51,11 +51,11 @@ enum class QuestionType(val displayName: String) {
     FILL_BLANK("Điền vào chỗ trống"),
     ESSAY("Tự luận");
     companion object {
-        fun fromDisplayName(displayName: String): RelationshipType? {
-            return RelationshipType.values().find { it.displayName == displayName }
+        fun fromDisplayName(displayName: String): QuestionType? {
+            return values().find { it.displayName == displayName }
         }
-        fun fromString(type: String): RelationshipType? {
-            return RelationshipType.values().find { it.name.equals(type, ignoreCase = true) }
+        fun fromString(type: String): QuestionType? {
+            return values().find { it.name.equals(type, ignoreCase = true) }
         }
     }
 }
@@ -67,11 +67,11 @@ enum class EnrollmentStatus(val displayName: String) {
     REJECTED("Từ chối"),
     NOT_ENROLLED("Chưa tham gia");
     companion object {
-        fun fromDisplayName(displayName: String): RelationshipType? {
-            return RelationshipType.values().find { it.displayName == displayName }
+        fun fromDisplayName(displayName: String): EnrollmentStatus? {
+            return values().find { it.displayName == displayName }
         }
-        fun fromString(type: String): RelationshipType? {
-            return RelationshipType.values().find { it.name.equals(type, ignoreCase = true) }
+        fun fromString(type: String): EnrollmentStatus? {
+            return values().find { it.name.equals(type, ignoreCase = true) }
         }
     }
 }
@@ -83,11 +83,11 @@ enum class ContentType(val displayName: String) {
     PDF("Tài liệu PDF"),
     MINIGAME("Trò chơi nhỏ");
     companion object {
-        fun fromDisplayName(displayName: String): RelationshipType? {
-            return RelationshipType.values().find { it.displayName == displayName }
+        fun fromDisplayName(displayName: String): ContentType? {
+            return values().find { it.displayName == displayName }
         }
-        fun fromString(type: String): RelationshipType? {
-            return RelationshipType.values().find { it.name.equals(type, ignoreCase = true) }
+        fun fromString(type: String): ContentType? {
+            return values().find { it.name.equals(type, ignoreCase = true) }
         }
     }
 }
@@ -96,11 +96,11 @@ enum class GameType(val displayName: String) {
     PUZZLE("Đoán chữ"),
     MATCHING("Ghép cặp");
     companion object {
-        fun fromDisplayName(displayName: String): RelationshipType? {
-            return RelationshipType.values().find { it.displayName == displayName }
+        fun fromDisplayName(displayName: String): GameType? {
+            return values().find { it.displayName == displayName }
         }
-        fun fromString(type: String): RelationshipType? {
-            return RelationshipType.values().find { it.name.equals(type, ignoreCase = true) }
+        fun fromString(type: String): GameType? {
+            return values().find { it.name.equals(type, ignoreCase = true) }
         }
     }
 }
@@ -111,11 +111,11 @@ enum class GameStatus(val displayName: String) {
     FAILED("Thất bại"),
     TIMEOUT("Hết giờ");
     companion object {
-        fun fromDisplayName(displayName: String): RelationshipType? {
-            return RelationshipType.values().find { it.displayName == displayName }
+        fun fromDisplayName(displayName: String): GameStatus? {
+            return values().find { it.displayName == displayName }
         }
-        fun fromString(type: String): RelationshipType? {
-            return RelationshipType.values().find { it.name.equals(type, ignoreCase = true) }
+        fun fromString(type: String): GameStatus? {
+            return values().find { it.name.equals(type, ignoreCase = true) }
         }
     }
 }
@@ -126,11 +126,11 @@ enum class TestStatus(val displayName: String) {
     OVERDUE("Quá hạn nộp"),
     UNSUBMITTED("Chưa nộp");
     companion object {
-        fun fromDisplayName(displayName: String): RelationshipType? {
-            return RelationshipType.values().find { it.displayName == displayName }
+        fun fromDisplayName(displayName: String): TestStatus? {
+            return values().find { it.displayName == displayName }
         }
-        fun fromString(type: String): RelationshipType? {
-            return RelationshipType.values().find { it.name.equals(type, ignoreCase = true) }
+        fun fromString(type: String): TestStatus? {
+            return values().find { it.name.equals(type, ignoreCase = true) }
         }
     }
 }
@@ -142,11 +142,11 @@ enum class NotificationType(val displayName: String) {
     GRADE_UPDATE("Cập nhật điểm"),
     CLASS_UPDATE("Cập nhật lớp học");
     companion object {
-        fun fromDisplayName(displayName: String): RelationshipType? {
-            return RelationshipType.values().find { it.displayName == displayName }
+        fun fromDisplayName(displayName: String): NotificationType? {
+            return values().find { it.displayName == displayName }
         }
-        fun fromString(type: String): RelationshipType? {
-            return RelationshipType.values().find { it.name.equals(type, ignoreCase = true) }
+        fun fromString(type: String): NotificationType? {
+            return values().find { it.name.equals(type, ignoreCase = true) }
         }
     }
 }
@@ -155,11 +155,11 @@ enum class ConversationType(val displayName: String) {
     ONE_TO_ONE("Trò chuyện cá nhân"),
     GROUP("Trò chuyện nhóm");
     companion object {
-        fun fromDisplayName(displayName: String): RelationshipType? {
-            return RelationshipType.values().find { it.displayName == displayName }
+        fun fromDisplayName(displayName: String): ConversationType? {
+            return values().find { it.displayName == displayName }
         }
-        fun fromString(type: String): RelationshipType? {
-            return RelationshipType.values().find { it.name.equals(type, ignoreCase = true) }
+        fun fromString(type: String): ConversationType? {
+            return values().find { it.name.equals(type, ignoreCase = true) }
         }
     }
 }

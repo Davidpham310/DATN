@@ -9,6 +9,7 @@ import com.example.datn.core.network.datasource.FirebaseDataSource
 import com.example.datn.core.network.service.classroom.ClassService
 import com.example.datn.core.network.service.lesson.LessonContentService
 import com.example.datn.core.network.service.lesson.LessonService
+import com.example.datn.core.network.service.mini_game.MiniGameService
 import com.example.datn.core.network.service.minio.MinIOService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.presentation.notifications.NotificationManager
@@ -16,17 +17,22 @@ import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.ClassDao
 import com.example.datn.data.local.dao.LessonContentDao
 import com.example.datn.data.local.dao.LessonDao
+import com.example.datn.data.local.dao.MiniGameDao
+import com.example.datn.data.local.dao.MiniGameQuestionDao
+import com.example.datn.data.local.dao.MiniGameOptionDao
 import com.example.datn.data.local.dao.UserDao
 import com.example.datn.data.repository.impl.AuthRepositoryImpl
 import com.example.datn.data.repository.impl.ClassRepositoryImpl
 import com.example.datn.data.repository.impl.LessonContentRepositoryImpl
 import com.example.datn.data.repository.impl.LessonRepositoryImpl
+import com.example.datn.data.repository.impl.MiniGameRepositoryImpl
 import com.example.datn.data.repository.impl.UserRepositoryImpl
 import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.domain.repository.IClassRepository
 import com.example.datn.domain.repository.IFileRepository
 import com.example.datn.domain.repository.ILessonContentRepository
 import com.example.datn.domain.repository.ILessonRepository
+import com.example.datn.domain.repository.IMiniGameRepository
 import com.example.datn.domain.repository.IUserRepository
 import com.example.datn.domain.usecase.minio.MinIOUseCase
 import com.google.firebase.auth.FirebaseAuth
@@ -110,9 +116,24 @@ object AppModule {
     @Singleton
     fun provideLessonDao(db: AppDatabase): LessonDao = db.lessonDao()
 
+
+
+
     @Provides
     @Singleton
     fun provideLessonContentDao(db: AppDatabase): LessonContentDao = db.lessonContentDao()
+
+    @Provides
+    @Singleton
+    fun provideMiniGameDao(db: AppDatabase): MiniGameDao = db.miniGameDao()
+
+    @Provides
+    @Singleton
+    fun provideMiniGameQuestionDao(db: AppDatabase): MiniGameQuestionDao = db.miniGameQuestionDao()
+
+    @Provides
+    @Singleton
+    fun provideMiniGameOptionDao(db: AppDatabase): MiniGameOptionDao = db.miniGameOptionDao()
 
     // Firebase data sources
     @Provides
@@ -121,6 +142,22 @@ object AppModule {
         firebaseAuth: FirebaseAuth,
         firestore: FirebaseFirestore
     ): FirebaseAuthDataSource = FirebaseAuthDataSource(firebaseAuth, firestore)
+
+    @Provides
+    @Singleton
+    fun provideFirebaseDataSource(
+        userService: UserService,
+        classService: ClassService,
+        lessonService: LessonService,
+        lessonContentService: LessonContentService,
+        miniGameService: MiniGameService
+    ): FirebaseDataSource = FirebaseDataSource(
+        userService,
+        classService,
+        lessonService,
+        lessonContentService,
+        miniGameService
+    )
 
     // Repositories
     @Provides
@@ -165,6 +202,20 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideMiniGameRepository(
+        firebaseDataSource: FirebaseDataSource,
+        miniGameDao: MiniGameDao,
+        miniGameQuestionDao: MiniGameQuestionDao,
+        miniGameOptionDao: MiniGameOptionDao
+    ): IMiniGameRepository = MiniGameRepositoryImpl(
+        firebaseDataSource,
+        miniGameDao,
+        miniGameQuestionDao,
+        miniGameOptionDao
+    )
+
+    @Provides
+    @Singleton
     fun provideFileRepository(
         minIOService: MinIOService
     ): IFileRepository = FileRepositoryImpl(minIOService)
@@ -189,5 +240,9 @@ object AppModule {
     fun provideLessonContentService(
         minIOService: MinIOService
     ): LessonContentService = LessonContentService(minIOService)
+
+    @Provides
+    @Singleton
+    fun provideMiniGameService(): MiniGameService = MiniGameService()
 
 }

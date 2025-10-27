@@ -4,6 +4,7 @@ import com.example.datn.core.base.BaseDataSource
 import com.example.datn.core.network.service.classroom.ClassService
 import com.example.datn.core.network.service.lesson.LessonContentService
 import com.example.datn.core.network.service.lesson.LessonService
+import com.example.datn.core.network.service.mini_game.MiniGameService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.User
@@ -12,6 +13,8 @@ import com.example.datn.domain.models.ClassStudent
 import com.example.datn.domain.models.EnrollmentStatus
 import com.example.datn.domain.models.Lesson
 import com.example.datn.domain.models.LessonContent
+import com.example.datn.domain.models.MiniGame
+import com.example.datn.domain.models.MiniGameQuestion
 import java.io.InputStream
 import javax.inject.Inject
 
@@ -19,7 +22,8 @@ class FirebaseDataSource @Inject constructor(
     private val userService: UserService,
     private val classService: ClassService,
     private val lessonService: LessonService,
-    private val lessonContentService: LessonContentService
+    private val lessonContentService: LessonContentService,
+    private val miniGameService: MiniGameService
 ) : BaseDataSource() {
 
     // ==================== USER OPERATIONS ====================
@@ -325,6 +329,55 @@ class FirebaseDataSource @Inject constructor(
 
     suspend fun deleteLessonContent(contentId: String): Resource<Boolean> = safeCallWithResult {
         lessonContentService.deleteContent(contentId)
+    }.toResource()
+
+    // ==================== MINI GAME OPERATIONS ====================
+
+    suspend fun addMiniGame(game: MiniGame): Resource<MiniGame?> = safeCallWithResult {
+        miniGameService.addMiniGame(game)
+    }.toResource()
+
+    suspend fun getMiniGameById(gameId: String): Resource<MiniGame?> = safeCallWithResult {
+        miniGameService.getMiniGameById(gameId)
+    }.toResource()
+
+    suspend fun getMiniGamesByLesson(lessonId: String): Resource<List<MiniGame>> = safeCallWithResult {
+        miniGameService.getMiniGamesByLesson(lessonId)
+    }.toResource()
+
+    suspend fun getMiniGamesByTeacher(teacherId: String): Resource<List<MiniGame>> = safeCallWithResult {
+        miniGameService.getMiniGamesByTeacher(teacherId)
+    }.toResource()
+
+    suspend fun updateMiniGame(gameId: String, game: MiniGame): Resource<Boolean> = safeCallWithResult {
+        miniGameService.updateMiniGame(gameId, game)
+    }.toResource()
+
+    suspend fun deleteMiniGame(gameId: String): Resource<Boolean> = safeCallWithResult {
+        miniGameService.deleteMiniGame(gameId)
+    }.toResource()
+
+    suspend fun searchMiniGames(query: String, teacherId: String? = null): Resource<List<MiniGame>> = safeCallWithResult {
+        miniGameService.searchMiniGames(query, teacherId)
+    }.toResource()
+
+    // ==================== MINI GAME QUESTION OPERATIONS ====================
+
+    suspend fun addMiniGameQuestion(question: MiniGameQuestion): Resource<MiniGameQuestion?> = safeCallWithResult {
+        miniGameService.addMiniGameQuestion(question)
+    }.toResource()
+
+    suspend fun getQuestionsByMiniGame(gameId: String): Resource<List<MiniGameQuestion>> = safeCallWithResult {
+        miniGameService.getQuestionsByMiniGame(gameId)
+    }.toResource()
+
+
+    suspend fun updateMiniGameQuestion(questionId: String, question: MiniGameQuestion): Resource<Boolean> = safeCallWithResult {
+        miniGameService.updateMiniGameQuestion(questionId, question)
+    }.toResource()
+
+    suspend fun deleteMiniGameQuestion(questionId: String): Resource<Boolean> = safeCallWithResult {
+        miniGameService.deleteMiniGameQuestion(questionId)
     }.toResource()
 
     // ==================== HELPER ====================
