@@ -50,6 +50,35 @@ sealed class Screen(val route: String) {
         val routeWithArgs = "teacher/lesson_minigame_question_manager/{gameId}/{gameTitle}"
     }
 
+    object TeacherMiniGameOptionManager : Screen("teacher/minigame_option_manager/{questionId}/{questionContent}") {
+        fun createRoute(questionId: String, questionContent: String): String =
+            "teacher/minigame_option_manager/$questionId/$questionContent"
+
+        val routeWithArgs = "teacher/minigame_option_manager/{questionId}/{questionContent}"
+    }
+
+    // Test routes trong context của LessonContent
+    object TeacherLessonTestManager : Screen("teacher/lesson_test_manager/{lessonId}/{lessonTitle}") {
+        fun createRoute(lessonId: String, lessonTitle: String): String =
+            "teacher/lesson_test_manager/$lessonId/$lessonTitle"
+
+        val routeWithArgs = "teacher/lesson_test_manager/{lessonId}/{lessonTitle}"
+    }
+
+    object TeacherTestQuestionManager : Screen("teacher/test_question_manager/{testId}/{testTitle}") {
+        fun createRoute(testId: String, testTitle: String): String =
+            "teacher/test_question_manager/$testId/$testTitle"
+
+        val routeWithArgs = "teacher/test_question_manager/{testId}/{testTitle}"
+    }
+
+    object TeacherTestOptionManager : Screen("teacher/test_option_manager/{questionId}/{questionContent}") {
+        fun createRoute(questionId: String, questionContent: String): String =
+            "teacher/test_option_manager/$questionId/$questionContent"
+
+        val routeWithArgs = "teacher/test_option_manager/{questionId}/{questionContent}"
+    }
+
     object ParentHome : Screen("parent/home")
     object StudentHome : Screen("student/home")
 }

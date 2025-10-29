@@ -5,6 +5,7 @@ import com.example.datn.core.network.service.classroom.ClassService
 import com.example.datn.core.network.service.lesson.LessonContentService
 import com.example.datn.core.network.service.lesson.LessonService
 import com.example.datn.core.network.service.mini_game.MiniGameService
+import com.example.datn.core.network.service.test.TestService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.User
@@ -15,6 +16,8 @@ import com.example.datn.domain.models.Lesson
 import com.example.datn.domain.models.LessonContent
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.domain.models.MiniGameQuestion
+import com.example.datn.domain.models.MiniGameOption
+import com.example.datn.domain.models.TestOption
 import java.io.InputStream
 import javax.inject.Inject
 
@@ -23,7 +26,8 @@ class FirebaseDataSource @Inject constructor(
     private val classService: ClassService,
     private val lessonService: LessonService,
     private val lessonContentService: LessonContentService,
-    private val miniGameService: MiniGameService
+    private val miniGameService: MiniGameService,
+    private val testService: TestService
 ) : BaseDataSource() {
 
     // ==================== USER OPERATIONS ====================
@@ -378,6 +382,78 @@ class FirebaseDataSource @Inject constructor(
 
     suspend fun deleteMiniGameQuestion(questionId: String): Resource<Boolean> = safeCallWithResult {
         miniGameService.deleteMiniGameQuestion(questionId)
+    }.toResource()
+
+    // ==================== MINI GAME OPTION OPERATIONS ====================
+    suspend fun addMiniGameOption(option: MiniGameOption): Resource<MiniGameOption?> = safeCallWithResult {
+        miniGameService.addMiniGameOption(option)
+    }.toResource()
+
+    suspend fun getMiniGameOptionsByQuestion(questionId: String): Resource<List<MiniGameOption>> = safeCallWithResult {
+        miniGameService.getOptionsByQuestion(questionId)
+    }.toResource()
+
+    suspend fun updateMiniGameOption(optionId: String, option: MiniGameOption): Resource<Boolean> = safeCallWithResult {
+        miniGameService.updateMiniGameOption(optionId, option)
+    }.toResource()
+
+    suspend fun deleteMiniGameOption(optionId: String): Resource<Boolean> = safeCallWithResult {
+        miniGameService.deleteMiniGameOption(optionId)
+    }.toResource()
+
+    // ==================== TEST OPTION OPERATIONS ====================
+    suspend fun addTestOption(option: TestOption): Resource<TestOption?> = safeCallWithResult {
+        testService.addOption(option)
+    }.toResource()
+
+    suspend fun getTestOptionsByQuestion(questionId: String): Resource<List<TestOption>> = safeCallWithResult {
+        testService.getOptionsByQuestion(questionId)
+    }.toResource()
+
+    suspend fun updateTestOption(optionId: String, option: TestOption): Resource<Boolean> = safeCallWithResult {
+        testService.updateOption(optionId, option)
+    }.toResource()
+
+    suspend fun deleteTestOption(optionId: String): Resource<Boolean> = safeCallWithResult {
+        testService.deleteOption(optionId)
+    }.toResource()
+
+    // ==================== TEST OPERATIONS ====================
+    suspend fun addTest(test: com.example.datn.domain.models.Test): Resource<com.example.datn.domain.models.Test?> = safeCallWithResult {
+        testService.addTest(test)
+    }.toResource()
+
+    suspend fun getTestById(testId: String): Resource<com.example.datn.domain.models.Test?> = safeCallWithResult {
+        testService.getTestById(testId)
+    }.toResource()
+
+    suspend fun getTestsByLesson(lessonId: String): Resource<List<com.example.datn.domain.models.Test>> = safeCallWithResult {
+        testService.getTestsByLesson(lessonId)
+    }.toResource()
+
+    suspend fun updateTest(testId: String, test: com.example.datn.domain.models.Test): Resource<Boolean> = safeCallWithResult {
+        testService.updateTest(testId, test)
+    }.toResource()
+
+    suspend fun deleteTest(testId: String): Resource<Boolean> = safeCallWithResult {
+        testService.deleteTest(testId)
+    }.toResource()
+
+    suspend fun getTestQuestions(testId: String): Resource<List<com.example.datn.domain.models.TestQuestion>> = safeCallWithResult {
+        testService.getQuestionsByTest(testId)
+    }.toResource()
+
+    // ==================== TEST RESULT OPERATIONS ====================
+    suspend fun submitTestResult(result: com.example.datn.domain.models.StudentTestResult): Resource<com.example.datn.domain.models.StudentTestResult?> = safeCallWithResult {
+        testService.submitResult(result)
+    }.toResource()
+
+    suspend fun getStudentResult(studentId: String, testId: String): Resource<com.example.datn.domain.models.StudentTestResult?> = safeCallWithResult {
+        testService.getResultByStudentAndTest(studentId, testId)
+    }.toResource()
+
+    suspend fun getResultsByTest(testId: String): Resource<List<com.example.datn.domain.models.StudentTestResult>> = safeCallWithResult {
+        testService.getResultsByTest(testId)
     }.toResource()
 
     // ==================== HELPER ====================

@@ -16,4 +16,10 @@ interface MiniGameOptionDao : BaseDao<MiniGameOptionEntity> {
 
     @Query("DELETE FROM minigame_option WHERE miniGameQuestionId = :questionId")
     suspend fun deleteOptionsByQuestion(questionId: String)
+
+    @Query("SELECT * FROM minigame_option WHERE id = :optionId")
+    suspend fun getOptionById(optionId: String): MiniGameOptionEntity?
+
+    @Query("DELETE FROM minigame_option WHERE id = :optionId")
+    suspend fun deleteById(optionId: String)
 }

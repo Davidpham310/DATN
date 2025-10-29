@@ -9,4 +9,16 @@ import com.example.datn.data.local.entities.TestQuestionEntity
 interface TestQuestionDao : BaseDao<TestQuestionEntity> {
     @Query("SELECT * FROM test_question WHERE testId = :testId ORDER BY 'order'")
     suspend fun getQuestionsByTest(testId: String): List<TestQuestionEntity>
+
+    @Query("SELECT * FROM test_question WHERE id = :id")
+    suspend fun getQuestionById(id: String): TestQuestionEntity?
+
+    @Query("DELETE FROM test_question WHERE testId = :testId")
+    suspend fun deleteQuestionsByTest(testId: String)
+
+    @Query("DELETE FROM test_question WHERE id = :id")
+    suspend fun deleteById(id: String)
+
+    @Query("SELECT MAX(`order`) FROM test_question WHERE testId = :testId")
+    suspend fun getMaxOrderForTest(testId: String): Int?
 }

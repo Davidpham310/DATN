@@ -3,6 +3,7 @@ package com.example.datn.domain.usecase.minigame
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.domain.models.MiniGameQuestion
+import com.example.datn.domain.models.MiniGameOption
 import com.example.datn.domain.repository.IMiniGameRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -62,5 +63,26 @@ class MiniGameUseCases @Inject constructor(
     
     fun getQuestionById(questionId: String): Flow<Resource<MiniGameQuestion?>> {
         return repository.getQuestionById(questionId)
+    }
+
+    // Option methods
+    fun createOption(option: MiniGameOption): Flow<Resource<MiniGameOption>> {
+        return repository.createOption(option)
+    }
+
+    fun updateOption(option: MiniGameOption): Flow<Resource<MiniGameOption>> {
+        return repository.updateOption(option)
+    }
+
+    fun deleteOption(optionId: String): Flow<Resource<Unit>> {
+        return repository.deleteOption(optionId)
+    }
+
+    fun getOptionsByQuestion(questionId: String): Flow<Resource<List<MiniGameOption>>> {
+        return repository.getOptionsByQuestion(questionId)
+    }
+
+    fun getOptionById(optionId: String): Flow<Resource<MiniGameOption?>> {
+        return repository.getOptionById(optionId)
     }
 }

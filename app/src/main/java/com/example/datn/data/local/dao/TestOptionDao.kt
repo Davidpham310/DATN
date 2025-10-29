@@ -26,4 +26,14 @@ interface TestOptionDao : BaseDao<TestOptionEntity> {
      */
     @Query("SELECT * FROM test_option WHERE testQuestionId = :testQuestionId AND isCorrect = 1")
     suspend fun getCorrectOptionsForQuestion(testQuestionId: String): List<TestOptionEntity>
+
+    @Query("DELETE FROM test_option WHERE testQuestionId = :testQuestionId")
+    suspend fun deleteOptionsByQuestion(testQuestionId: String)
+
+    @Query("SELECT * FROM test_option WHERE id = :optionId")
+    suspend fun getOptionById(optionId: String): TestOptionEntity?
+
+    @Query("DELETE FROM test_option WHERE id = :optionId")
+    suspend fun deleteById(optionId: String)
+
 }

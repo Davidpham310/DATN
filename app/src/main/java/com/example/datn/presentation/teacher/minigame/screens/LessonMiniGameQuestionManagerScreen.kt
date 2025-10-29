@@ -20,6 +20,7 @@ fun LessonMiniGameQuestionManagerScreen(
     gameId: String,
     gameTitle: String,
     onNavigateBack: () -> Unit,
+    onNavigateToOptions: (questionId: String, questionContent: String) -> Unit,
     viewModel: LessonMiniGameQuestionViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -93,7 +94,7 @@ fun LessonMiniGameQuestionManagerScreen(
                             onDelete = { question ->
                                 viewModel.onEvent(MiniGameQuestionEvent.DeleteQuestion(question))
                             },
-                            onClick = { /* No-op */ },
+                            onClick = { q -> onNavigateToOptions(q.id, q.content) },
                             modifier = Modifier.fillMaxSize(),
                             questionOptions = state.questionOptions
                         )

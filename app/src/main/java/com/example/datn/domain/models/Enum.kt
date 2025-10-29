@@ -121,6 +121,7 @@ enum class GameStatus(val displayName: String) {
 }
 enum class TestStatus(val displayName: String) {
     SUBMITTED("Đã nộp bài"),
+    COMPLETED("Hoàn thành"),
     GRADED("Đã chấm điểm"),
     IN_PROGRESS("Đang làm bài"),
     OVERDUE("Quá hạn nộp"),

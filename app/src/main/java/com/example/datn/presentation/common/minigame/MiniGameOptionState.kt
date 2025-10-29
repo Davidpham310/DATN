@@ -2,6 +2,7 @@ package com.example.datn.presentation.common.minigame
 
 import com.example.datn.core.base.BaseState
 import com.example.datn.domain.models.MiniGameOption
+import com.example.datn.domain.models.QuestionType
 import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
 
 data class MiniGameOptionState(
@@ -12,5 +13,6 @@ data class MiniGameOptionState(
     val showAddEditDialog: Boolean = false,
     val editingOption: MiniGameOption? = null,
     val confirmDeleteState: ConfirmationDialogState<MiniGameOption> = ConfirmationDialogState.empty(),
-    val currentQuestionId: String = ""
+    val currentQuestionId: String = "",
+    val currentQuestionType: QuestionType? = null
 ) : BaseState

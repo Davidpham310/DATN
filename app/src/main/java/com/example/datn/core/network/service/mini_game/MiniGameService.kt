@@ -5,6 +5,7 @@ import com.example.datn.core.network.service.BaseFirestoreService
 import com.example.datn.core.utils.mapper.internalToDomain
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.domain.models.MiniGameQuestion
+import com.example.datn.domain.models.MiniGameOption
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
@@ -20,6 +21,7 @@ class MiniGameService @Inject constructor() :
     ) {
 
     private val questionRef = FirebaseFirestore.getInstance().collection("minigame_questions")
+    private val optionRef = FirebaseFirestore.getInstance().collection("minigame_options")
 
     // ==================== MINI GAME ====================
 
@@ -231,6 +233,52 @@ class MiniGameService @Inject constructor() :
         true
     } catch (e: Exception) {
         Log.e(TAG, "❌ Error deleting question: $questionId", e)
+        false
+    }
+
+    // ==================== MINI GAME OPTIONS ====================
+    suspend fun getOptionsByQuestion(questionId: String): List<MiniGameOption> = try {
+        Log.d(TAG, "Fetching option for questionId: $questionId")
+        val snapshot = optionRef.whereEqualTo("miniGameQuestionId", questionId).get().await()
+
+        snapshot.documents.mapNotNull {
+            try {
+                it.internalToDomain(MiniGameOption::class.java)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Parse error for option: ${it.id}", e)
+                null
+            }
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error fetching options for question: $questionId", e)
+        emptyList()
+    }
+
+    suspend fun addMiniGameOption(option: MiniGameOption): MiniGameOption? = try {
+        val docRef = if (option.id.isNotEmpty()) optionRef.document(option.id) else optionRef.document()
+        val now = Instant.now()
+        val data = option.copy(id = docRef.id, createdAt = now, updatedAt = now)
+        docRef.set(data).await()
+        data
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error adding option", e)
+        null
+    }
+
+    suspend fun updateMiniGameOption(optionId: String, option: MiniGameOption): Boolean = try {
+        val updated = option.copy(id = optionId, updatedAt = Instant.now())
+        optionRef.document(optionId).set(updated).await()
+        true
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error updating option: $optionId", e)
+        false
+    }
+
+    suspend fun deleteMiniGameOption(optionId: String): Boolean = try {
+        optionRef.document(optionId).delete().await()
+        true
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error deleting option: $optionId", e)
         false
     }
 }

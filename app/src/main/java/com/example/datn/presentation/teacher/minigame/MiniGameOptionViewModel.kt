@@ -7,6 +7,7 @@ import com.example.datn.core.presentation.notifications.NotificationManager
 import com.example.datn.core.presentation.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.MiniGameOption
+import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.usecase.minigame.MiniGameUseCases
 import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
 import com.example.datn.presentation.common.minigame.MiniGameOptionEvent
@@ -61,6 +62,7 @@ class MiniGameOptionViewModel @Inject constructor(
     private fun loadOptions(questionId: String) {
         setState { copy(currentQuestionId = questionId) }
         viewModelScope.launch {
+            // Load options
             miniGameUseCases.getOptionsByQuestion(questionId).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true, error = null) }
@@ -81,6 +83,16 @@ class MiniGameOptionViewModel @Inject constructor(
                 }
             }
         }
+
+        // Load question meta (type) in parallel
+        viewModelScope.launch {
+            miniGameUseCases.getQuestionById(questionId).collect { r ->
+                when (r) {
+                    is Resource.Success -> setState { copy(currentQuestionType = r.data?.questionType) }
+                    else -> {}
+                }
+            }
+        }
     }
 
     private fun refreshOptions() {
@@ -98,6 +110,16 @@ class MiniGameOptionViewModel @Inject constructor(
             // Tính order dựa trên số lượng đáp án hiện có
             val currentOptions = state.value.options
             val newOrder = if (currentOptions.isEmpty()) 0 else currentOptions.maxOf { it.order } + 1
+
+            // Enforce single-correct for non-multiple-choice types
+            val qType = state.value.currentQuestionType
+            if (event.isCorrect && qType != QuestionType.MULTIPLE_CHOICE) {
+                val hasCorrect = currentOptions.any { it.isCorrect }
+                if (hasCorrect) {
+                    showNotification("Câu hỏi này chỉ được phép có một đáp án đúng.", NotificationType.ERROR)
+                    return@launch
+                }
+            }
 
             val newOption = MiniGameOption(
                 id = "",
@@ -120,4 +142,97 @@ class MiniGameOptionViewModel @Inject constructor(
                     }
                     is Resource.Error -> {
                         setState { copy(isLoading = false) }
-                        showNotification(result.message
+                        showNotification(result.message ?: "Thêm đáp án thất bại", NotificationType.ERROR)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updateOption(event: MiniGameOptionEvent.ConfirmEditOption) {
+        if (event.content.isBlank()) {
+            showNotification("Nội dung đáp án không được để trống", NotificationType.ERROR)
+            return
+        }
+
+        val original = state.value.options.find { it.id == event.id }
+
+        viewModelScope.launch {
+            // Enforce single-correct for non-multiple-choice types
+            val qType = state.value.currentQuestionType
+            if (event.isCorrect && qType != QuestionType.MULTIPLE_CHOICE) {
+                val anotherCorrect = state.value.options.any { it.isCorrect && it.id != event.id }
+                if (anotherCorrect) {
+                    showNotification("Câu hỏi này chỉ được phép có một đáp án đúng.", NotificationType.ERROR)
+                    return@launch
+                }
+            }
+
+            val updatedOption = MiniGameOption(
+                id = event.id,
+                miniGameQuestionId = event.questionId,
+                content = event.content.trim(),
+                isCorrect = event.isCorrect,
+                order = original?.order ?: 0,
+                mediaUrl = event.mediaUrl?.trim(),
+                createdAt = original?.createdAt ?: Instant.now(),
+                updatedAt = Instant.now()
+            )
+
+            miniGameUseCases.updateOption(updatedOption).collect { result ->
+                when (result) {
+                    is Resource.Loading -> setState { copy(isLoading = true) }
+                    is Resource.Success -> {
+                        setState { copy(isLoading = false, showAddEditDialog = false, editingOption = null) }
+                        showNotification("Cập nhật đáp án thành công!", NotificationType.SUCCESS)
+                        refreshOptions()
+                    }
+                    is Resource.Error -> {
+                        setState { copy(isLoading = false) }
+                        showNotification(result.message ?: "Cập nhật đáp án thất bại", NotificationType.ERROR)
+                    }
+                }
+            }
+        }
+    }
+
+    // =====================================================
+    // DELETE OPTION
+    // =====================================================
+    private fun showConfirmDeleteOption(option: MiniGameOption) {
+        setState {
+            copy(
+                confirmDeleteState = ConfirmationDialogState(
+                    isShowing = true,
+                    title = "Xác nhận xóa đáp án",
+                    message = "Bạn có chắc chắn muốn xóa đáp án này?\nHành động này không thể hoàn tác.",
+                    data = option
+                )
+            )
+        }
+    }
+
+    fun dismissConfirmDeleteDialog() {
+        setState { copy(confirmDeleteState = ConfirmationDialogState.empty()) }
+    }
+
+    fun confirmDeleteOption(option: MiniGameOption) {
+        dismissConfirmDeleteDialog()
+        viewModelScope.launch {
+            miniGameUseCases.deleteOption(option.id).collect { result ->
+                when (result) {
+                    is Resource.Loading -> setState { copy(isLoading = true) }
+                    is Resource.Success -> {
+                        setState { copy(isLoading = false) }
+                        showNotification("Xóa đáp án thành công!", NotificationType.SUCCESS)
+                        refreshOptions()
+                    }
+                    is Resource.Error -> {
+                        setState { copy(isLoading = false) }
+                        showNotification(result.message ?: "Xóa đáp án thất bại", NotificationType.ERROR)
+                    }
+                }
+            }
+        }
+    }
+}

@@ -23,6 +23,10 @@ import com.example.datn.presentation.teacher.lessons.screens.LessonContentManage
 import com.example.datn.presentation.teacher.lessons.screens.LessonManagerScreen
 import com.example.datn.presentation.teacher.minigame.screens.LessonMiniGameManagerScreen
 import com.example.datn.presentation.teacher.minigame.screens.LessonMiniGameQuestionManagerScreen
+import com.example.datn.presentation.teacher.minigame.screens.MiniGameOptionManagerScreen
+import com.example.datn.presentation.teacher.test.screens.LessonTestManagerScreen
+import com.example.datn.presentation.teacher.test.screens.TestQuestionManagerScreen
+import com.example.datn.presentation.teacher.test.screens.TestOptionManagerScreen
 
 @Composable
 fun TeacherNavGraph(
@@ -151,6 +155,86 @@ fun TeacherNavGraph(
             LessonMiniGameQuestionManagerScreen(
                 gameId = gameId,
                 gameTitle = gameTitle,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOptions = { questionId, content ->
+                    navController.navigate(
+                        Screen.TeacherMiniGameOptionManager.createRoute(questionId, content)
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = Screen.TeacherMiniGameOptionManager.routeWithArgs,
+            arguments = listOf(
+                navArgument("questionId") { type = NavType.StringType },
+                navArgument("questionContent") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val questionId = backStackEntry.arguments?.getString("questionId") ?: ""
+            val questionContent = backStackEntry.arguments?.getString("questionContent") ?: ""
+            MiniGameOptionManagerScreen(
+                questionId = questionId,
+                questionContent = questionContent,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // ==================== TEST NAVIGATION ====================
+        composable(
+            route = Screen.TeacherLessonTestManager.routeWithArgs,
+            arguments = listOf(
+                navArgument("lessonId") { type = NavType.StringType },
+                navArgument("lessonTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
+            val lessonTitle = backStackEntry.arguments?.getString("lessonTitle") ?: ""
+            LessonTestManagerScreen(
+                lessonId = lessonId,
+                lessonTitle = lessonTitle,
+                onNavigateToQuestions = { testId, testTitle ->
+                    navController.navigate(
+                        Screen.TeacherTestQuestionManager.createRoute(testId, testTitle)
+                    )
+                },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.TeacherTestQuestionManager.routeWithArgs,
+            arguments = listOf(
+                navArgument("testId") { type = NavType.StringType },
+                navArgument("testTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val testId = backStackEntry.arguments?.getString("testId") ?: ""
+            val testTitle = backStackEntry.arguments?.getString("testTitle") ?: ""
+            TestQuestionManagerScreen(
+                testId = testId,
+                testTitle = testTitle,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOptions = { questionId, content ->
+                    navController.navigate(
+                        Screen.TeacherTestOptionManager.createRoute(questionId, content)
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = Screen.TeacherTestOptionManager.routeWithArgs,
+            arguments = listOf(
+                navArgument("questionId") { type = NavType.StringType },
+                navArgument("questionContent") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val questionId = backStackEntry.arguments?.getString("questionId") ?: ""
+            val questionContent = backStackEntry.arguments?.getString("questionContent") ?: ""
+            TestOptionManagerScreen(
+                questionId = questionId,
+                questionContent = questionContent,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

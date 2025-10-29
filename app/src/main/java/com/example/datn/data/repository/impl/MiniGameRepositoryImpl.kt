@@ -9,6 +9,7 @@ import com.example.datn.data.mapper.toDomain
 import com.example.datn.data.mapper.toEntity
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.domain.models.MiniGameQuestion
+import com.example.datn.domain.models.MiniGameOption
 import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.repository.IMiniGameRepository
@@ -249,17 +250,21 @@ class MiniGameRepositoryImpl @Inject constructor(
     override fun createQuestion(question: MiniGameQuestion): Flow<Resource<MiniGameQuestion>> = flow {
         try {
             emit(Resource.Loading())
-            
+            // Compute order based on existing questions
+            val existing = miniGameQuestionDao.getQuestionsByMiniGame(question.miniGameId)
+            val nextOrder = if (existing.isEmpty()) 0 else existing.maxOf { it.order } + 1
+
             val questionWithId = if (question.id.isBlank()) {
                 question.copy(
                     id = UUID.randomUUID().toString(),
+                    order = nextOrder,
                     createdAt = Instant.now(),
                     updatedAt = Instant.now()
                 )
             } else {
-                question.copy(updatedAt = Instant.now())
+                question.copy(order = if (question.order < 0) nextOrder else question.order, updatedAt = Instant.now())
             }
-            
+
             // Save to Firebase
             val result = firebaseDataSource.addMiniGameQuestion(questionWithId)
             when (result) {
@@ -281,8 +286,15 @@ class MiniGameRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             val updatedQuestion = question.copy(updatedAt = Instant.now())
-            miniGameQuestionDao.update(updatedQuestion.toEntity())
-            emit(Resource.Success(updatedQuestion))
+            // Update remote first
+            when (val result = firebaseDataSource.updateMiniGameQuestion(updatedQuestion.id, updatedQuestion)) {
+                is Resource.Success -> {
+                    miniGameQuestionDao.update(updatedQuestion.toEntity())
+                    emit(Resource.Success(updatedQuestion))
+                }
+                is Resource.Error -> emit(Resource.Error(result.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
         } catch (e: Exception) {
             emit(Resource.Error("Lỗi khi cập nhật câu hỏi: ${e.message}"))
         }
@@ -291,13 +303,18 @@ class MiniGameRepositoryImpl @Inject constructor(
     override fun deleteQuestion(questionId: String): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
-            
-            // Delete related options first
-            miniGameOptionDao.deleteOptionsByQuestion(questionId)
-            
-            // Delete the question
-            miniGameQuestionDao.deleteById(questionId)
-            emit(Resource.Success(Unit))
+            // Delete remote
+            when (val result = firebaseDataSource.deleteMiniGameQuestion(questionId)) {
+                is Resource.Success -> {
+                    // Delete related options first
+                    miniGameOptionDao.deleteOptionsByQuestion(questionId)
+                    // Delete the question
+                    miniGameQuestionDao.deleteById(questionId)
+                    emit(Resource.Success(Unit))
+                }
+                is Resource.Error -> emit(Resource.Error(result.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
         } catch (e: Exception) {
             emit(Resource.Error("Lỗi khi xóa câu hỏi: ${e.message}"))
         }
@@ -310,6 +327,90 @@ class MiniGameRepositoryImpl @Inject constructor(
             emit(Resource.Success(question))
         } catch (e: Exception) {
             emit(Resource.Error("Lỗi khi lấy câu hỏi: ${e.message}"))
+        }
+    }
+
+    // ==================== OPTION OPERATIONS ====================
+    override fun createOption(option: MiniGameOption): Flow<Resource<MiniGameOption>> = flow {
+        try {
+            emit(Resource.Loading())
+            val withId = if (option.id.isBlank()) option.copy(id = UUID.randomUUID().toString()) else option
+            val withTimestamps = withId.copy(
+                createdAt = if (withId.createdAt.toEpochMilli() == 0L) Instant.now() else withId.createdAt,
+                updatedAt = Instant.now()
+            )
+            val result = firebaseDataSource.addMiniGameOption(withTimestamps)
+            when (result) {
+                is Resource.Success -> {
+                    val saved = result.data ?: withTimestamps
+                    miniGameOptionDao.insert(saved.toEntity())
+                    emit(Resource.Success(saved))
+                }
+                is Resource.Error -> emit(Resource.Error(result.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error("Lỗi khi tạo đáp án: ${e.message}"))
+        }
+    }
+
+    override fun updateOption(option: MiniGameOption): Flow<Resource<MiniGameOption>> = flow {
+        try {
+            emit(Resource.Loading())
+            val updated = option.copy(updatedAt = Instant.now())
+            when (val result = firebaseDataSource.updateMiniGameOption(updated.id, updated)) {
+                is Resource.Success -> {
+                    miniGameOptionDao.update(updated.toEntity())
+                    emit(Resource.Success(updated))
+                }
+                is Resource.Error -> emit(Resource.Error(result.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error("Lỗi khi cập nhật đáp án: ${e.message}"))
+        }
+    }
+
+    override fun deleteOption(optionId: String): Flow<Resource<Unit>> = flow {
+        try {
+            emit(Resource.Loading())
+            when (val result = firebaseDataSource.deleteMiniGameOption(optionId)) {
+                is Resource.Success -> {
+                    miniGameOptionDao.deleteById(optionId)
+                    emit(Resource.Success(Unit))
+                }
+                is Resource.Error -> emit(Resource.Error(result.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error("Lỗi khi xóa đáp án: ${e.message}"))
+        }
+    }
+
+    override fun getOptionsByQuestion(questionId: String): Flow<Resource<List<MiniGameOption>>> = flow {
+        try {
+            emit(Resource.Loading())
+            when (val result = firebaseDataSource.getMiniGameOptionsByQuestion(questionId)) {
+                is Resource.Success -> {
+                    val options = result.data ?: emptyList()
+                    options.forEach { miniGameOptionDao.insert(it.toEntity()) }
+                    emit(Resource.Success(options))
+                }
+                is Resource.Error -> emit(Resource.Error(result.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error("Lỗi khi lấy danh sách đáp án: ${e.message}"))
+        }
+    }
+
+    override fun getOptionById(optionId: String): Flow<Resource<MiniGameOption?>> = flow {
+        try {
+            emit(Resource.Loading())
+            val option = miniGameOptionDao.getOptionById(optionId)?.toDomain()
+            emit(Resource.Success(option))
+        } catch (e: Exception) {
+            emit(Resource.Error("Lỗi khi lấy đáp án: ${e.message}"))
         }
     }
 }

@@ -12,4 +12,7 @@ interface StudentTestResultDao : BaseDao<StudentTestResultEntity> {
 
     @Query("SELECT * FROM student_test_result WHERE testId = :testId")
     suspend fun getResultsByTest(testId: String): List<StudentTestResultEntity>
+
+    @Query("DELETE FROM student_test_result WHERE testId = :testId")
+    suspend fun deleteByTest(testId: String)
 }
