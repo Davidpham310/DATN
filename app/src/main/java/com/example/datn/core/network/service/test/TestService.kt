@@ -36,6 +36,48 @@ class TestService @Inject constructor() :
         emptyList()
     }
 
+    suspend fun addTestQuestion(question: TestQuestion): TestQuestion? = try {
+        val docRef = if (question.id.isNotEmpty()) questionRef.document(question.id) else questionRef.document()
+        val now = Instant.now()
+        val data = question.copy(id = docRef.id, createdAt = now, updatedAt = now)
+        docRef.set(data).await()
+        data
+    } catch (e: Exception) {
+        Log.e(TAG, "Error addTestQuestion", e)
+        null
+    }
+
+    suspend fun updateTestQuestion(questionId: String, question: TestQuestion): Boolean = try {
+        val updated = question.copy(id = questionId, updatedAt = Instant.now())
+        questionRef.document(questionId).set(updated).await()
+        true
+    } catch (e: Exception) {
+        Log.e(TAG, "Error updateTestQuestion", e)
+        false
+    }
+
+    suspend fun deleteTestQuestion(questionId: String): Boolean = try {
+        // Delete all options first
+        val options = getOptionsByQuestion(questionId)
+        options.forEach { option ->
+            optionRef.document(option.id).delete().await()
+        }
+        // Then delete the question
+        questionRef.document(questionId).delete().await()
+        true
+    } catch (e: Exception) {
+        Log.e(TAG, "Error deleteTestQuestion", e)
+        false
+    }
+
+    suspend fun getTestQuestionById(questionId: String): TestQuestion? = try {
+        val doc = questionRef.document(questionId).get().await()
+        if (doc.exists()) doc.internalToDomain(TestQuestion::class.java) else null
+    } catch (e: Exception) {
+        Log.e(TAG, "Error getTestQuestionById", e)
+        null
+    }
+
     // ==================== OPTIONS ====================
     suspend fun getOptionsByQuestion(questionId: String): List<TestOption> = try {
         val snapshot = optionRef.whereEqualTo("testQuestionId", questionId).get().await()

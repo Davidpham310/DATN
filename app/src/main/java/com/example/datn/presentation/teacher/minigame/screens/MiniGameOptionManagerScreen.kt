@@ -76,8 +76,10 @@ fun MiniGameOptionManagerScreen(
         if (state.showAddEditDialog) {
             AddEditMiniGameOptionDialog(
                 editing = state.editingOption,
+                questionType = state.currentQuestionType,
+                gameType = state.currentGameType,
                 onDismiss = { viewModel.onEvent(MiniGameOptionEvent.DismissDialog) },
-                onConfirm = { content, isCorrect, mediaUrl ->
+                onConfirm = { content, isCorrect, mediaUrl, hint, pairContent ->
                     val qid = state.currentQuestionId
                     val editing = state.editingOption
                     if (editing == null) {
@@ -86,7 +88,9 @@ fun MiniGameOptionManagerScreen(
                                 questionId = qid,
                                 content = content,
                                 isCorrect = isCorrect,
-                                mediaUrl = mediaUrl
+                                mediaUrl = mediaUrl,
+                                hint = hint,
+                                pairContent = pairContent
                             )
                         )
                     } else {
@@ -96,7 +100,9 @@ fun MiniGameOptionManagerScreen(
                                 questionId = qid,
                                 content = content,
                                 isCorrect = isCorrect,
-                                mediaUrl = mediaUrl
+                                mediaUrl = mediaUrl,
+                                hint = hint,
+                                pairContent = pairContent
                             )
                         )
                     }

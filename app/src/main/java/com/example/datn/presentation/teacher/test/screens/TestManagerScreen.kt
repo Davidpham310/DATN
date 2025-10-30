@@ -20,7 +20,7 @@ import com.example.datn.presentation.teacher.test.components.TestList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LessonTestManagerScreen(
+fun TestManagerScreen(
     lessonId: String,
     lessonTitle: String,
     classId: String,
@@ -104,5 +104,3 @@ fun LessonTestManagerScreen(
         }
     }
 }
-
-

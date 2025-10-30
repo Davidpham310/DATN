@@ -27,7 +27,9 @@ fun TestOptionList(
     }
     LazyColumn(modifier = modifier.fillMaxSize()) {
         items(options, key = { it.id }) { option ->
+            val index = options.indexOf(option) + 1
             TestOptionItem(
+                optionNumber = index,
                 option = option,
                 onEdit = { onEdit(option) },
                 onDelete = { onDelete(option) },

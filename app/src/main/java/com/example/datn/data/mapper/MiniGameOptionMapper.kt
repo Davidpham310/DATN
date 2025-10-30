@@ -10,6 +10,9 @@ fun MiniGameOptionEntity.toDomain(): MiniGameOption = MiniGameOption(
     isCorrect = isCorrect,
     order = order,
     mediaUrl = mediaUrl,
+    hint = hint,
+    pairId = pairId,
+    pairContent = pairContent,
     createdAt = createdAt,
     updatedAt = updatedAt
 )
@@ -21,6 +24,9 @@ fun MiniGameOption.toEntity(): MiniGameOptionEntity = MiniGameOptionEntity(
     isCorrect = isCorrect,
     order = order,
     mediaUrl = mediaUrl,
+    hint = hint,
+    pairId = pairId,
+    pairContent = pairContent,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

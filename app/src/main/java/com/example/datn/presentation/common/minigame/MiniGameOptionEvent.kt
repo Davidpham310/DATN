@@ -19,7 +19,9 @@ sealed class MiniGameOptionEvent : BaseEvent {
         val questionId: String,
         val content: String,
         val isCorrect: Boolean,
-        val mediaUrl: String?
+        val mediaUrl: String?,
+        val hint: String?,
+        val pairContent: String?
     ) : MiniGameOptionEvent()
 
     data class ConfirmEditOption(
@@ -27,6 +29,8 @@ sealed class MiniGameOptionEvent : BaseEvent {
         val questionId: String,
         val content: String,
         val isCorrect: Boolean,
-        val mediaUrl: String?
+        val mediaUrl: String?,
+        val hint: String?,
+        val pairContent: String?
     ) : MiniGameOptionEvent()
 }

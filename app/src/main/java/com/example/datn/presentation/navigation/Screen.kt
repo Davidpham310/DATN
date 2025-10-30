@@ -20,11 +20,11 @@ sealed class Screen(val route: String) {
 
         val routeWithArgs = "teacher/lesson_manager/{classId}/{className}"
     }
-    object TeacherLessonContentManager : Screen("teacher/lesson_content_manager/{lessonId}/{lessonTitle}") {
-        fun createRoute(lessonId: String, lessonTitle: String): String =
-            "teacher/lesson_content_manager/$lessonId/$lessonTitle"
+    object TeacherLessonContentManager : Screen("teacher/lesson_content_manager/{classId}/{lessonId}/{lessonTitle}") {
+        fun createRoute(classId: String, lessonId: String, lessonTitle: String): String =
+            "teacher/lesson_content_manager/$classId/$lessonId/$lessonTitle"
 
-        val routeWithArgs = "teacher/lesson_content_manager/{lessonId}/{lessonTitle}"
+        val routeWithArgs = "teacher/lesson_content_manager/{classId}/{lessonId}/{lessonTitle}"
     }
     object TeacherLessonContentDetail :
         Screen("teacher/lesson_content_detail/{contentId}?url={contentUrl}") {
@@ -35,6 +35,7 @@ sealed class Screen(val route: String) {
         val routeWithArgs = "teacher/lesson_content_detail/{contentId}?url={contentUrl}"
     }
     object TeacherNotification : Screen("teacher/notification")
+    object TeacherTestManager : Screen("teacher/test_manager")
     
     // MiniGame routes trong context của LessonContent
     object TeacherLessonMiniGameManager : Screen("teacher/lesson_minigame_manager/{lessonId}/{lessonTitle}") {
@@ -58,11 +59,11 @@ sealed class Screen(val route: String) {
     }
 
     // Test routes trong context của LessonContent
-    object TeacherLessonTestManager : Screen("teacher/lesson_test_manager/{lessonId}/{lessonTitle}") {
-        fun createRoute(lessonId: String, lessonTitle: String): String =
-            "teacher/lesson_test_manager/$lessonId/$lessonTitle"
+    object TeacherLessonTestManager : Screen("teacher/lesson_test_manager/{classId}/{lessonId}/{lessonTitle}") {
+        fun createRoute(classId: String, lessonId: String, lessonTitle: String): String =
+            "teacher/lesson_test_manager/$classId/$lessonId/$lessonTitle"
 
-        val routeWithArgs = "teacher/lesson_test_manager/{lessonId}/{lessonTitle}"
+        val routeWithArgs = "teacher/lesson_test_manager/{classId}/{lessonId}/{lessonTitle}"
     }
 
     object TeacherTestQuestionManager : Screen("teacher/test_question_manager/{testId}/{testTitle}") {

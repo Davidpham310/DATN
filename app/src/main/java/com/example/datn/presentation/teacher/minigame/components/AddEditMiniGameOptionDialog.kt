@@ -19,23 +19,35 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.MiniGameOption
+import com.example.datn.domain.models.QuestionType
 
 @Composable
 fun AddEditMiniGameOptionDialog(
     editing: MiniGameOption?,
+    questionType: QuestionType?,
+    gameType: GameType?,
     onDismiss: () -> Unit,
-    onConfirm: (content: String, isCorrect: Boolean, mediaUrl: String?) -> Unit
+    onConfirm: (content: String, isCorrect: Boolean, mediaUrl: String?, hint: String?, pairContent: String?) -> Unit
 ) {
     val title = if (editing == null) "Thêm đáp án" else "Chỉnh sửa đáp án"
     val contentState = remember { mutableStateOf(editing?.content ?: "") }
     val urlState = remember { mutableStateOf(editing?.mediaUrl ?: "") }
     val correctState = remember { mutableStateOf(editing?.isCorrect ?: false) }
+    val hintState = remember { mutableStateOf(editing?.hint ?: "") }
+    val pairContentState = remember { mutableStateOf(editing?.pairContent ?: "") }
+    
+    // Determine if we need special fields
+    val isPuzzle = gameType == GameType.PUZZLE && questionType == QuestionType.FILL_BLANK
+    val isMatching = gameType == GameType.MATCHING
 
     LaunchedEffect(editing?.id) {
         contentState.value = editing?.content ?: ""
         urlState.value = editing?.mediaUrl ?: ""
         correctState.value = editing?.isCorrect ?: false
+        hintState.value = editing?.hint ?: ""
+        pairContentState.value = editing?.pairContent ?: ""
     }
 
     AlertDialog(
@@ -57,6 +69,31 @@ fun AddEditMiniGameOptionDialog(
                     label = { Text("Media URL (tuỳ chọn)") }
                 )
                 Spacer(Modifier.height(8.dp))
+                
+                // PUZZLE specific: Hint field
+                if (isPuzzle) {
+                    OutlinedTextField(
+                        value = hintState.value,
+                        onValueChange = { hintState.value = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Gợi ý (VD: a__le cho apple)") },
+                        supportingText = { Text("Dùng _ để ẩn ký tự", style = MaterialTheme.typography.bodySmall) }
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+                
+                // MATCHING specific: Pair content field
+                if (isMatching) {
+                    OutlinedTextField(
+                        value = pairContentState.value,
+                        onValueChange = { pairContentState.value = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Nội dung cặp ghép") },
+                        supportingText = { Text("Nội dung để ghép với đáp án này", style = MaterialTheme.typography.bodySmall) }
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+                
                 RowCheckbox(
                     checked = correctState.value,
                     onCheckedChange = { correctState.value = it },
@@ -65,7 +102,15 @@ fun AddEditMiniGameOptionDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(contentState.value, correctState.value, urlState.value.ifBlank { null }) }) {
+            Button(onClick = { 
+                onConfirm(
+                    contentState.value, 
+                    correctState.value, 
+                    urlState.value.ifBlank { null },
+                    if (isPuzzle) hintState.value.ifBlank { null } else null,
+                    if (isMatching) pairContentState.value.ifBlank { null } else null
+                )
+            }) {
                 Text("Xác nhận")
             }
         },

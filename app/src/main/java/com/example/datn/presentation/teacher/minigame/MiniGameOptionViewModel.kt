@@ -84,11 +84,24 @@ class MiniGameOptionViewModel @Inject constructor(
             }
         }
 
-        // Load question meta (type) in parallel
+        // Load question meta (type and game) in parallel
         viewModelScope.launch {
             miniGameUseCases.getQuestionById(questionId).collect { r ->
                 when (r) {
-                    is Resource.Success -> setState { copy(currentQuestionType = r.data?.questionType) }
+                    is Resource.Success -> {
+                        val question = r.data
+                        setState { copy(currentQuestionType = question?.questionType) }
+                        
+                        // Load game to get gameType
+                        question?.miniGameId?.let { gameId ->
+                            miniGameUseCases.getMiniGameById(gameId).collect { gameResult ->
+                                when (gameResult) {
+                                    is Resource.Success -> setState { copy(currentGameType = gameResult.data?.gameType) }
+                                    else -> {}
+                                }
+                            }
+                        }
+                    }
                     else -> {}
                 }
             }
@@ -128,6 +141,8 @@ class MiniGameOptionViewModel @Inject constructor(
                 isCorrect = event.isCorrect,
                 order = newOrder,
                 mediaUrl = event.mediaUrl?.trim(),
+                hint = event.hint?.trim(),
+                pairContent = event.pairContent?.trim(),
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )
@@ -175,6 +190,8 @@ class MiniGameOptionViewModel @Inject constructor(
                 isCorrect = event.isCorrect,
                 order = original?.order ?: 0,
                 mediaUrl = event.mediaUrl?.trim(),
+                hint = event.hint?.trim(),
+                pairContent = event.pairContent?.trim(),
                 createdAt = original?.createdAt ?: Instant.now(),
                 updatedAt = Instant.now()
             )

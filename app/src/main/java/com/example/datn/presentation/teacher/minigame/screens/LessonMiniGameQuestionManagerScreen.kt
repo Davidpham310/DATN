@@ -118,6 +118,7 @@ fun LessonMiniGameQuestionManagerScreen(
             AddEditQuestionDialog(
                 question = state.editingQuestion,
                 gameId = gameId,
+                gameType = state.currentGame?.gameType,
                 onDismiss = { viewModel.onEvent(MiniGameQuestionEvent.DismissDialog) },
                 onConfirmAdd = { gameId, content, questionType, score, timeLimit ->
                     viewModel.onEvent(

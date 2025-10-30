@@ -31,6 +31,7 @@ import com.example.datn.data.repository.impl.LessonContentRepositoryImpl
 import com.example.datn.data.repository.impl.LessonRepositoryImpl
 import com.example.datn.data.repository.impl.MiniGameRepositoryImpl
 import com.example.datn.data.repository.impl.TestOptionRepositoryImpl
+import com.example.datn.data.repository.impl.TestQuestionRepositoryImpl
 import com.example.datn.data.repository.impl.TestRepositoryImpl
 import com.example.datn.data.repository.impl.UserRepositoryImpl
 import com.example.datn.domain.repository.IAuthRepository
@@ -40,8 +41,10 @@ import com.example.datn.domain.repository.ILessonContentRepository
 import com.example.datn.domain.repository.ILessonRepository
 import com.example.datn.domain.repository.IMiniGameRepository
 import com.example.datn.domain.repository.ITestOptionRepository
+import com.example.datn.domain.repository.ITestQuestionRepository
 import com.example.datn.domain.repository.ITestRepository
 import com.example.datn.domain.repository.IUserRepository
+import com.example.datn.domain.usecase.test.TestQuestionUseCases
 import com.example.datn.domain.usecase.minio.MinIOUseCase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -259,6 +262,21 @@ object AppModule {
         testQuestionDao,
         studentTestResultDao
     )
+
+    @Provides
+    @Singleton
+    fun provideTestQuestionRepository(
+        firebaseDataSource: FirebaseDataSource,
+        testQuestionDao: TestQuestionDao
+    ): ITestQuestionRepository = TestQuestionRepositoryImpl(
+        firebaseDataSource,
+        testQuestionDao
+    )
+
+    @Provides
+    fun provideTestQuestionUseCases(
+        repository: ITestQuestionRepository
+    ): TestQuestionUseCases = TestQuestionUseCases(repository)
 
     @Provides
     @Singleton

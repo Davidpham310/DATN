@@ -25,6 +25,7 @@ import com.example.datn.presentation.teacher.minigame.screens.LessonMiniGameMana
 import com.example.datn.presentation.teacher.minigame.screens.LessonMiniGameQuestionManagerScreen
 import com.example.datn.presentation.teacher.minigame.screens.MiniGameOptionManagerScreen
 import com.example.datn.presentation.teacher.test.screens.LessonTestManagerScreen
+import com.example.datn.presentation.teacher.test.screens.TestManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestQuestionManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestOptionManagerScreen
 
@@ -48,6 +49,7 @@ fun TeacherNavGraph(
                 }
             )
         }
+        // Removed standalone TeacherTestManager - tests are now managed per lesson
         composable(
             route = Screen.TeacherLessonManager.routeWithArgs,
             arguments = listOf(
@@ -63,7 +65,7 @@ fun TeacherNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToContentManager = { lessonId, lessonTitle ->
                     navController.navigate(
-                        Screen.TeacherLessonContentManager.createRoute(lessonId, lessonTitle)
+                        Screen.TeacherLessonContentManager.createRoute(classId, lessonId, lessonTitle)
                     )
                 }
             )
@@ -71,13 +73,14 @@ fun TeacherNavGraph(
         composable(
             route = Screen.TeacherLessonContentManager.routeWithArgs,
             arguments = listOf(
+                navArgument("classId") { type = NavType.StringType },
                 navArgument("lessonId") { type = NavType.StringType },
                 navArgument("lessonTitle") { type = NavType.StringType }
             )
         ) { backStackEntry ->
+            val classId = backStackEntry.arguments?.getString("classId") ?: ""
             val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
             val lessonTitle = backStackEntry.arguments?.getString("lessonTitle") ?: ""
-//            Log.d("TeacherNavGraph", "lessonId: $lessonId")
             val viewModel: LessonContentManagerViewModel = hiltViewModel(backStackEntry)
             LessonContentManagerScreen(
                 lessonId = lessonId,
@@ -90,6 +93,11 @@ fun TeacherNavGraph(
                 onNavigateToMiniGame = { lessonId, lessonTitle ->
                     navController.navigate(
                         Screen.TeacherLessonMiniGameManager.createRoute(lessonId, lessonTitle)
+                    )
+                },
+                onNavigateToTest = { lessonId, lessonTitle ->
+                    navController.navigate(
+                        Screen.TeacherLessonTestManager.createRoute(classId, lessonId, lessonTitle)
                     )
                 },
                 onNavigateBack = { navController.popBackStack() },
@@ -184,13 +192,16 @@ fun TeacherNavGraph(
         composable(
             route = Screen.TeacherLessonTestManager.routeWithArgs,
             arguments = listOf(
+                navArgument("classId") { type = NavType.StringType },
                 navArgument("lessonId") { type = NavType.StringType },
                 navArgument("lessonTitle") { type = NavType.StringType }
             )
         ) { backStackEntry ->
+            val classId = backStackEntry.arguments?.getString("classId") ?: ""
             val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
             val lessonTitle = backStackEntry.arguments?.getString("lessonTitle") ?: ""
             LessonTestManagerScreen(
+                classId = classId,
                 lessonId = lessonId,
                 lessonTitle = lessonTitle,
                 onNavigateToQuestions = { testId, testTitle ->

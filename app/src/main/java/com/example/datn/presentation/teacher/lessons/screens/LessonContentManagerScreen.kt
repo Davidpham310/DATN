@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Games
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +33,7 @@ fun LessonContentManagerScreen(
     onNavigateBack: () -> Unit,
     onNavigateToDetail: (String, String) -> Unit,
     onNavigateToMiniGame: (String, String) -> Unit = { _, _ -> },
+    onNavigateToTest: (String, String) -> Unit = { _, _ -> },
     viewModel: LessonContentManagerViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -123,6 +125,14 @@ fun LessonContentManagerScreen(
                         Icon(
                             imageVector = Icons.Default.Games,
                             contentDescription = "Quản lý Mini Game"
+                        )
+                    }
+                    IconButton(
+                        onClick = { onNavigateToTest(lessonId, lessonTitle) }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Quiz,
+                            contentDescription = "Quản lý Bài kiểm tra"
                         )
                     }
                 }

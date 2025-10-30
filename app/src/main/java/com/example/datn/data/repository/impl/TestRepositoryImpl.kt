@@ -48,6 +48,40 @@ class TestRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun updateTest(test: Test): Flow<Resource<Test>> = flow {
+        try {
+            emit(Resource.Loading())
+            val withTimestamp = test.copy(updatedAt = Instant.now())
+            when (val result = firebaseDataSource.updateTest(withTimestamp)) {
+                is Resource.Success -> {
+                    val updated = result.data ?: withTimestamp
+                    testDao.insert(updated.toEntity())
+                    emit(Resource.Success(updated))
+                }
+                is Resource.Error -> emit(Resource.Error(result.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error("Lỗi khi cập nhật bài kiểm tra: ${e.message}"))
+        }
+    }
+
+    override fun deleteTest(testId: String): Flow<Resource<Unit>> = flow {
+        try {
+            emit(Resource.Loading())
+            when (val result = firebaseDataSource.deleteTest(testId)) {
+                is Resource.Success -> {
+                    testDao.deleteById(testId)
+                    emit(Resource.Success(Unit))
+                }
+                is Resource.Error -> emit(Resource.Error(result.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error("Lỗi khi xóa bài kiểm tra: ${e.message}"))
+        }
+    }
+
     override fun getTestDetails(testId: String): Flow<Resource<Test>> = flow {
         try {
             emit(Resource.Loading())

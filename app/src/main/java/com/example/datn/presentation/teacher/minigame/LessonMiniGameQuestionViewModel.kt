@@ -65,6 +65,20 @@ class LessonMiniGameQuestionViewModel @Inject constructor(
     private fun loadQuestions(gameId: String) {
         setState { copy(currentGameId = gameId) }
         viewModelScope.launch {
+            // Load game information first
+            miniGameUseCases.getMiniGameById(gameId).collect { gameResult ->
+                when (gameResult) {
+                    is Resource.Success -> {
+                        setState { copy(currentGame = gameResult.data) }
+                    }
+                    is Resource.Error -> {
+                        Log.e("LessonMiniGameQuestionVM", "Failed to load game: ${gameResult.message}")
+                    }
+                    is Resource.Loading -> { /* No action needed */ }
+                }
+            }
+            
+            // Load questions
             miniGameUseCases.getQuestionsByMiniGame(gameId).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true, error = null) }

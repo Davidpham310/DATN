@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.MiniGameQuestion
 import com.example.datn.domain.models.QuestionType
 
@@ -33,14 +34,25 @@ import com.example.datn.domain.models.QuestionType
 fun AddEditQuestionDialog(
     question: MiniGameQuestion?,
     gameId: String,
+    gameType: GameType?,
     onDismiss: () -> Unit,
     onConfirmAdd: (gameId: String, content: String, questionType: QuestionType, score: Double, timeLimit: Long) -> Unit,
     onConfirmEdit: (id: String, gameId: String, content: String, questionType: QuestionType, score: Double, timeLimit: Long) -> Unit
 ) {
     val isEditing = question != null
 
+    // Get allowed question types based on game type
+    val allowedQuestionTypes = remember(gameType) {
+        gameType?.getAllowedQuestionTypes() ?: QuestionType.entries
+    }
+
+    // Set default question type to first allowed type
+    val defaultQuestionType = remember(allowedQuestionTypes) {
+        question?.questionType ?: allowedQuestionTypes.firstOrNull() ?: QuestionType.SINGLE_CHOICE
+    }
+
     var content by remember { mutableStateOf(question?.content ?: "") }
-    var selectedQuestionType by remember { mutableStateOf(question?.questionType ?: QuestionType.MULTIPLE_CHOICE) }
+    var selectedQuestionType by remember { mutableStateOf(defaultQuestionType) }
     var score by remember { mutableStateOf(question?.score ?: 1.0) }
     var timeLimit by remember { mutableStateOf(question?.timeLimit ?: 30L) }
 
@@ -113,7 +125,7 @@ fun AddEditQuestionDialog(
                         expanded = isQuestionTypeExpanded,
                         onDismissRequest = { isQuestionTypeExpanded = false }
                     ) {
-                        QuestionType.entries.forEach { type ->
+                        allowedQuestionTypes.forEach { type ->
                             DropdownMenuItem(
                                 text = { Text(type.displayName) },
                                 onClick = {

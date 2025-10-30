@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.datn.data.local.converters.DateTimeConverter
 import com.example.datn.data.local.converters.EnumConverter
 import com.example.datn.data.local.dao.*
@@ -35,7 +37,7 @@ import com.example.datn.data.local.entities.*
         StudentLessonProgressEntity::class, DailyStudyTimeEntity::class, NotificationEntity::class,
         ConversationEntity::class, MessageEntity::class
     ],
-    version = 1, // Tăng phiên bản khi thay đổi cấu trúc DB
+    version = 2, // Tăng phiên bản khi thay đổi cấu trúc DB
     exportSchema = false
 )
 @TypeConverters(DateTimeConverter::class, EnumConverter::class)
@@ -76,6 +78,25 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        /**
+         * Migration từ version 1 sang 2:
+         * Thêm các trường hint, pairId, pairContent vào bảng minigame_option
+         */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Thêm các cột mới vào bảng minigame_option
+                database.execSQL(
+                    "ALTER TABLE minigame_option ADD COLUMN hint TEXT DEFAULT NULL"
+                )
+                database.execSQL(
+                    "ALTER TABLE minigame_option ADD COLUMN pairId TEXT DEFAULT NULL"
+                )
+                database.execSQL(
+                    "ALTER TABLE minigame_option ADD COLUMN pairContent TEXT DEFAULT NULL"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -83,7 +104,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_db"
                 )
-
+                    .addMigrations(MIGRATION_1_2)
                     .build()
                 INSTANCE = instance
                 instance

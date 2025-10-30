@@ -95,6 +95,29 @@ enum class GameType(val displayName: String) {
     QUIZ("Trắc nghiệm"),
     PUZZLE("Đoán chữ"),
     MATCHING("Ghép cặp");
+    
+    /**
+     * Returns the list of allowed question types for this game type
+     */
+    fun getAllowedQuestionTypes(): List<QuestionType> {
+        return when (this) {
+            QUIZ -> listOf(
+                QuestionType.SINGLE_CHOICE,
+                QuestionType.MULTIPLE_CHOICE,
+                QuestionType.FILL_BLANK,
+                QuestionType.ESSAY
+            )
+            PUZZLE -> listOf(
+                QuestionType.FILL_BLANK,
+                QuestionType.SINGLE_CHOICE
+            )
+            MATCHING -> listOf(
+                QuestionType.SINGLE_CHOICE,
+                QuestionType.MULTIPLE_CHOICE
+            )
+        }
+    }
+    
     companion object {
         fun fromDisplayName(displayName: String): GameType? {
             return values().find { it.displayName == displayName }
