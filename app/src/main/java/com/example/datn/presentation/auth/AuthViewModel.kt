@@ -2,8 +2,8 @@ package com.example.datn.presentation.auth
 
 import android.util.Log
 import com.example.datn.core.base.BaseViewModel
-import com.example.datn.core.presentation.notifications.NotificationManager
-import com.example.datn.core.presentation.notifications.NotificationType
+import com.example.datn.presentation.common.notifications.NotificationManager
+import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.core.utils.validation.rules.auth.EmailValidator
 import com.example.datn.core.utils.validation.rules.auth.PasswordValidator

@@ -25,7 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.datn.core.presentation.notifications.NotificationHost
+import com.example.datn.presentation.common.notifications.NotificationHost
 import com.example.datn.domain.models.UserRole
 import com.example.datn.presentation.auth.AuthViewModel
 import com.example.datn.presentation.common.auth.AuthEvent

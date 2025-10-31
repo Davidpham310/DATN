@@ -2,9 +2,9 @@ package com.example.datn.core.base
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.datn.core.presentation.notifications.NotificationEvent
-import com.example.datn.core.presentation.notifications.NotificationManager
-import com.example.datn.core.presentation.notifications.NotificationType
+import com.example.datn.presentation.common.notifications.NotificationEvent
+import com.example.datn.presentation.common.notifications.NotificationManager
+import com.example.datn.presentation.common.notifications.NotificationType
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow

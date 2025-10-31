@@ -3,9 +3,9 @@ package com.example.datn.presentation.teacher.classes
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
-import com.example.datn.core.presentation.notifications.NotificationEvent
-import com.example.datn.core.presentation.notifications.NotificationManager
-import com.example.datn.core.presentation.notifications.NotificationType
+import com.example.datn.presentation.common.notifications.NotificationEvent
+import com.example.datn.presentation.common.notifications.NotificationManager
+import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.core.utils.validation.rules.classmanager.ValidateClassCode
 import com.example.datn.core.utils.validation.rules.classmanager.ValidateClassName

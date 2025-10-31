@@ -8,6 +8,8 @@ import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
 data class TestQuestionState(
     override val isLoading: Boolean = false,
     override val error: String? = null,
+    val testId: String = "",
+    val testTitle: String = "",
     val questions: List<TestQuestion> = emptyList(),
     val selectedQuestion: TestQuestion? = null,
     val showAddEditDialog: Boolean = false,

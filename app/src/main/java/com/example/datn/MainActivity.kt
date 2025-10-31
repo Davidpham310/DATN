@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
-import com.example.datn.core.presentation.notifications.NotificationHost
-import com.example.datn.core.presentation.notifications.NotificationManager
+import com.example.datn.presentation.common.notifications.NotificationHost
+import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.core.theme.AppTheme
 import com.example.datn.core.utils.network.NetworkChecker
 import com.example.datn.domain.repository.IAuthRepository

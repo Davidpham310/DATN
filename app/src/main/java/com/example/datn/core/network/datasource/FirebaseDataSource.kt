@@ -2,8 +2,10 @@ package com.example.datn.core.network.datasource
 
 import com.example.datn.core.base.BaseDataSource
 import com.example.datn.core.network.service.classroom.ClassService
+import com.example.datn.core.network.service.conversation.ConversationService
 import com.example.datn.core.network.service.lesson.LessonContentService
 import com.example.datn.core.network.service.lesson.LessonService
+import com.example.datn.core.network.service.message.MessageService
 import com.example.datn.core.network.service.mini_game.MiniGameService
 import com.example.datn.core.network.service.test.TestService
 import com.example.datn.core.network.service.user.UserService
@@ -19,6 +21,9 @@ import com.example.datn.domain.models.MiniGameQuestion
 import com.example.datn.domain.models.MiniGameOption
 import com.example.datn.domain.models.TestOption
 import com.example.datn.domain.models.Test
+import com.example.datn.domain.models.Conversation
+import com.example.datn.domain.models.Message
+import kotlinx.coroutines.flow.Flow
 
 import java.io.InputStream
 import javax.inject.Inject
@@ -29,7 +34,9 @@ class FirebaseDataSource @Inject constructor(
     private val lessonService: LessonService,
     private val lessonContentService: LessonContentService,
     private val miniGameService: MiniGameService,
-    private val testService: TestService
+    private val testService: TestService,
+    private val conversationService: ConversationService,
+    private val messageService: MessageService
 ) : BaseDataSource() {
 
     // ==================== USER OPERATIONS ====================
@@ -474,6 +481,71 @@ class FirebaseDataSource @Inject constructor(
 
     suspend fun getResultsByTest(testId: String): Resource<List<com.example.datn.domain.models.StudentTestResult>> = safeCallWithResult {
         testService.getResultsByTest(testId)
+    }.toResource()
+
+    // ==================== MESSAGING OPERATIONS ====================
+
+    /**
+     * Lấy danh sách cuộc hội thoại của người dùng
+     */
+    fun getConversationsByUser(userId: String): Flow<List<Conversation>> {
+        return conversationService.getConversationsByUser(userId)
+    }
+
+    /**
+     * Lấy tin nhắn trong cuộc hội thoại (real-time)
+     */
+    fun getMessages(conversationId: String): Flow<Message> {
+        return messageService.getMessages(conversationId)
+    }
+
+    /**
+     * Gửi tin nhắn
+     */
+    suspend fun sendMessage(message: Message): Resource<String> = safeCallWithResult {
+        messageService.sendMessage(message)
+    }.toResource()
+
+    /**
+     * Tạo cuộc hội thoại mới
+     */
+    suspend fun createConversation(
+        conversation: Conversation,
+        participantIds: List<String>
+    ): Resource<Conversation> = safeCallWithResult {
+        conversationService.createConversation(conversation, participantIds)
+    }.toResource()
+
+    /**
+     * Đánh dấu cuộc hội thoại là đã đọc
+     */
+    suspend fun updateLastViewed(
+        conversationId: String,
+        userId: String,
+        lastViewedAt: java.time.Instant
+    ): Resource<Unit> = safeCallWithResult {
+        messageService.markMessagesAsRead(conversationId, userId)
+    }.toResource()
+
+    /**
+     * Cập nhật thời gian tin nhắn cuối cùng
+     */
+    suspend fun updateConversationLastMessageAt(conversationId: String): Resource<Unit> = safeCallWithResult {
+        conversationService.updateLastMessageAt(conversationId)
+    }.toResource()
+
+    /**
+     * Lấy cuộc hội thoại theo ID
+     */
+    suspend fun getConversationById(conversationId: String): Resource<Conversation?> = safeCallWithResult {
+        conversationService.getConversationById(conversationId)
+    }.toResource()
+
+    /**
+     * Tìm cuộc hội thoại 1-1 giữa 2 người dùng
+     */
+    suspend fun findOneToOneConversation(user1Id: String, user2Id: String): Resource<Conversation?> = safeCallWithResult {
+        conversationService.findOneToOneConversation(user1Id, user2Id)
     }.toResource()
 
     // ==================== HELPER ====================

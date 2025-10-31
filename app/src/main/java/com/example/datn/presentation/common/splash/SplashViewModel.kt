@@ -2,7 +2,7 @@ package com.example.datn.presentation.common.splash
 
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
-import com.example.datn.core.presentation.notifications.NotificationManager
+import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.usecase.splash.SplashUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel

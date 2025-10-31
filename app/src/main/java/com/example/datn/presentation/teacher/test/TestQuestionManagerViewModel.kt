@@ -3,36 +3,21 @@ package com.example.datn.presentation.teacher.test
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseState
 import com.example.datn.core.base.BaseViewModel
-import com.example.datn.core.presentation.notifications.NotificationManager
-import com.example.datn.core.presentation.notifications.NotificationType
+import com.example.datn.presentation.common.notifications.NotificationManager
+import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.models.TestQuestion
 import com.example.datn.domain.usecase.test.TestQuestionUseCases
 import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
 import com.example.datn.presentation.common.test.TestQuestionEvent
+import com.example.datn.presentation.common.test.TestQuestionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.time.Instant
 import javax.inject.Inject
-
-data class TestQuestionState(
-    override val isLoading: Boolean = false,
-    override val error: String? = null,
-    val testId: String = "",
-    val testTitle: String = "",
-    val questions: List<TestQuestion> = emptyList(),
-    val showAddEditDialog: Boolean = false,
-    val editingQuestion: TestQuestion? = null,
-    val confirmDeleteState: ConfirmationDialogState<TestQuestion> = ConfirmationDialogState(
-        isShowing = false,
-        title = "Xác nhận xóa",
-        message = "Bạn có chắc chắn muốn xóa câu hỏi này?",
-        data = null
-    )
-): BaseState
 
 
 @HiltViewModel

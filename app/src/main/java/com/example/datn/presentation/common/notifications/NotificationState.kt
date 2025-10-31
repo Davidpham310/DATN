@@ -1,4 +1,4 @@
-package com.example.datn.core.presentation.notifications
+package com.example.datn.presentation.common.notifications
 
 data class NotificationState(
     val message: String = "",

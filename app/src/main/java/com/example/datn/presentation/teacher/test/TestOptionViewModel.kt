@@ -3,8 +3,8 @@ package com.example.datn.presentation.teacher.test
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
-import com.example.datn.core.presentation.notifications.NotificationManager
-import com.example.datn.core.presentation.notifications.NotificationType
+import com.example.datn.presentation.common.notifications.NotificationManager
+import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.models.TestOption

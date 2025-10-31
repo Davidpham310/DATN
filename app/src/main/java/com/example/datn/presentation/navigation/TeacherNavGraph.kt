@@ -28,6 +28,8 @@ import com.example.datn.presentation.teacher.test.screens.LessonTestManagerScree
 import com.example.datn.presentation.teacher.test.screens.TestManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestQuestionManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestOptionManagerScreen
+import com.example.datn.presentation.teacher.messaging.screens.ConversationListScreen
+import com.example.datn.presentation.teacher.messaging.screens.ChatScreen
 
 @Composable
 fun TeacherNavGraph(
@@ -246,6 +248,37 @@ fun TeacherNavGraph(
             TestOptionManagerScreen(
                 questionId = questionId,
                 questionContent = questionContent,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // ==================== MESSAGING NAVIGATION ====================
+        composable(Screen.TeacherMessages.route) {
+            ConversationListScreen(
+                onConversationClick = { conversationId, recipientId, recipientName ->
+                    navController.navigate(
+                        Screen.TeacherChat.createRoute(conversationId, recipientId, recipientName)
+                    )
+                },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.TeacherChat.routeWithArgs,
+            arguments = listOf(
+                navArgument("conversationId") { type = NavType.StringType },
+                navArgument("recipientId") { type = NavType.StringType },
+                navArgument("recipientName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+            val recipientId = backStackEntry.arguments?.getString("recipientId") ?: ""
+            val recipientName = backStackEntry.arguments?.getString("recipientName") ?: ""
+            ChatScreen(
+                conversationId = conversationId,
+                recipientId = recipientId,
+                recipientName = recipientName,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

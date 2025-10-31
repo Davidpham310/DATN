@@ -13,11 +13,14 @@ import com.example.datn.core.network.service.mini_game.MiniGameService
 import com.example.datn.core.network.service.test.TestService
 import com.example.datn.core.network.service.minio.MinIOService
 import com.example.datn.core.network.service.user.UserService
-import com.example.datn.core.presentation.notifications.NotificationManager
+import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.ClassDao
+import com.example.datn.data.local.dao.ConversationDao
+import com.example.datn.data.local.dao.ConversationParticipantDao
 import com.example.datn.data.local.dao.LessonContentDao
 import com.example.datn.data.local.dao.LessonDao
+import com.example.datn.data.local.dao.MessageDao
 import com.example.datn.data.local.dao.MiniGameDao
 import com.example.datn.data.local.dao.MiniGameQuestionDao
 import com.example.datn.data.local.dao.MiniGameOptionDao
@@ -29,6 +32,7 @@ import com.example.datn.data.repository.impl.AuthRepositoryImpl
 import com.example.datn.data.repository.impl.ClassRepositoryImpl
 import com.example.datn.data.repository.impl.LessonContentRepositoryImpl
 import com.example.datn.data.repository.impl.LessonRepositoryImpl
+import com.example.datn.data.repository.impl.MessagingRepositoryImpl
 import com.example.datn.data.repository.impl.MiniGameRepositoryImpl
 import com.example.datn.data.repository.impl.TestOptionRepositoryImpl
 import com.example.datn.data.repository.impl.TestQuestionRepositoryImpl
@@ -39,11 +43,13 @@ import com.example.datn.domain.repository.IClassRepository
 import com.example.datn.domain.repository.IFileRepository
 import com.example.datn.domain.repository.ILessonContentRepository
 import com.example.datn.domain.repository.ILessonRepository
+import com.example.datn.domain.repository.IMessagingRepository
 import com.example.datn.domain.repository.IMiniGameRepository
 import com.example.datn.domain.repository.ITestOptionRepository
 import com.example.datn.domain.repository.ITestQuestionRepository
 import com.example.datn.domain.repository.ITestRepository
 import com.example.datn.domain.repository.IUserRepository
+import com.example.datn.domain.usecase.messaging.*
 import com.example.datn.domain.usecase.test.TestQuestionUseCases
 import com.example.datn.domain.usecase.minio.MinIOUseCase
 import com.google.firebase.auth.FirebaseAuth
@@ -174,14 +180,18 @@ object AppModule {
         lessonService: LessonService,
         lessonContentService: LessonContentService,
         miniGameService: MiniGameService,
-        testService: TestService
+        testService: TestService,
+        conversationService: com.example.datn.core.network.service.conversation.ConversationService,
+        messageService: com.example.datn.core.network.service.message.MessageService
     ): FirebaseDataSource = FirebaseDataSource(
         userService,
         classService,
         lessonService,
         lessonContentService,
         miniGameService,
-        testService
+        testService,
+        conversationService,
+        messageService
     )
 
     // Repositories
@@ -312,5 +322,54 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTestService(): TestService = TestService()
+
+    @Provides
+    @Singleton
+    fun provideConversationService(): com.example.datn.core.network.service.conversation.ConversationService =
+        com.example.datn.core.network.service.conversation.ConversationService()
+
+    @Provides
+    @Singleton
+    fun provideMessageService(): com.example.datn.core.network.service.message.MessageService =
+        com.example.datn.core.network.service.message.MessageService()
+
+    // Messaging DAOs
+    @Provides
+    @Singleton
+    fun provideConversationDao(db: AppDatabase): ConversationDao = db.conversationDao()
+
+    @Provides
+    @Singleton
+    fun provideMessageDao(db: AppDatabase): MessageDao = db.messageDao()
+
+    @Provides
+    @Singleton
+    fun provideConversationParticipantDao(db: AppDatabase): ConversationParticipantDao = db.conversationParticipantDao()
+
+    // Messaging Repository
+    @Provides
+    @Singleton
+    fun provideMessagingRepository(
+        conversationDao: ConversationDao,
+        messageDao: MessageDao,
+        participantDao: ConversationParticipantDao
+    ): IMessagingRepository = MessagingRepositoryImpl(
+        conversationDao,
+        messageDao,
+        participantDao
+    )
+
+    // Messaging Use Cases
+    @Provides
+    @Singleton
+    fun provideMessagingUseCases(
+        repository: IMessagingRepository
+    ): MessagingUseCases = MessagingUseCases(
+        getConversations = GetConversationsUseCase(repository),
+        getMessages = GetMessagesUseCase(repository),
+        sendMessage = SendMessageUseCase(repository),
+        createConversation = CreateConversationUseCase(repository),
+        markAsRead = MarkAsReadUseCase(repository)
+    )
 
 }
