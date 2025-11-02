@@ -25,15 +25,17 @@ import com.example.datn.presentation.teacher.minigame.screens.LessonMiniGameMana
 import com.example.datn.presentation.teacher.minigame.screens.LessonMiniGameQuestionManagerScreen
 import com.example.datn.presentation.teacher.minigame.screens.MiniGameOptionManagerScreen
 import com.example.datn.presentation.teacher.test.screens.LessonTestManagerScreen
-import com.example.datn.presentation.teacher.test.screens.TestManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestQuestionManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestOptionManagerScreen
 import com.example.datn.presentation.teacher.messaging.screens.ConversationListScreen
 import com.example.datn.presentation.teacher.messaging.screens.ChatScreen
+import com.example.datn.presentation.teacher.account.TeacherAccountScreen
+import com.example.datn.presentation.teacher.notification.TeacherNotificationScreen
 
 @Composable
 fun TeacherNavGraph(
     navController: NavHostController,
+    onNavigateToLogin: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -281,6 +283,18 @@ fun TeacherNavGraph(
                 recipientName = recipientName,
                 onNavigateBack = { navController.popBackStack() }
             )
+        }
+
+        // ==================== NOTIFICATION NAVIGATION ====================
+        composable(Screen.TeacherNotification.route) {
+            TeacherNotificationScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Account
+        composable(Screen.TeacherAccount.route) {
+            TeacherAccountScreen(onNavigateToLogin = onNavigateToLogin)
         }
 
     }

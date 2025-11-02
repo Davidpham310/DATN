@@ -21,6 +21,11 @@ interface IClassRepository {
     fun getClassById(classId: String): Flow<Resource<Class?>>
 
     /**
+     * Tìm kiếm lớp theo mã lớp (classCode).
+     */
+    fun getClassByCode(classCode: String): Flow<Resource<Class?>>
+
+    /**
      * Lấy danh sách lớp theo giáo viên.
      */
     fun getClassesByTeacher(teacherId: String): Flow<Resource<List<Class>>>

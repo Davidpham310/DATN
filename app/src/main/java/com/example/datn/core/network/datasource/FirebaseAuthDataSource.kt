@@ -61,7 +61,6 @@ class FirebaseAuthDataSource @Inject constructor(
                 "name" to name,
                 "role" to role.uppercase(),
                 "avatarUrl" to "",
-                "phone" to "",
                 "createdAt" to System.currentTimeMillis(),
                 "updatedAt" to System.currentTimeMillis(),
                 "isActive" to true

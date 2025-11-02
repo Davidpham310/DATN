@@ -61,7 +61,7 @@ class MessageService @Inject constructor() :
      */
     suspend fun sendMessage(message: Message): String {
         val messageData = mapOf(
-            "id" to (message.id.takeIf { it.isNotEmpty() } ?: firestore.collection(collectionName).document().id),
+            "id" to (message.id.takeIf { it.isNotEmpty() } ?: generateDocumentId()),
             "senderId" to message.senderId,
             "recipientId" to message.recipientId,
             "conversationId" to message.conversationId,

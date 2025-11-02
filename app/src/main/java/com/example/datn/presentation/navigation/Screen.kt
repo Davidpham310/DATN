@@ -35,6 +35,7 @@ sealed class Screen(val route: String) {
         val routeWithArgs = "teacher/lesson_content_detail/{contentId}?url={contentUrl}"
     }
     object TeacherNotification : Screen("teacher/notification")
+    object TeacherSendNotification : Screen("teacher/send_notification")
     object TeacherTestManager : Screen("teacher/test_manager")
     
     // MiniGame routes trong context của LessonContent
@@ -88,7 +89,17 @@ sealed class Screen(val route: String) {
 
         val routeWithArgs = "teacher/chat/{conversationId}/{recipientId}/{recipientName}"
     }
+    
+    // Teacher Account
+    object TeacherAccount : Screen("teacher/account")
 
+    // Parent routes
     object ParentHome : Screen("parent/home")
+    object ParentAccount : Screen("parent/account")
+    
+    // Student routes
     object StudentHome : Screen("student/home")
+    object StudentMyClasses : Screen("student/my_classes")
+    object StudentJoinClass : Screen("student/join_class")
+    object StudentAccount : Screen("student/account")
 }

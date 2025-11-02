@@ -9,10 +9,13 @@ import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.presentation.auth.screens.ForgotPasswordScreen
 import com.example.datn.presentation.auth.screens.LoginScreen
 import com.example.datn.presentation.auth.screens.RegisterScreen
-import com.example.datn.presentation.parent.home.ParentHomeScreen
 import com.example.datn.presentation.splash.screen.SplashScreen
+import com.example.datn.presentation.student.classmanager.JoinClassScreen
+import com.example.datn.presentation.student.classmanager.MyClassesScreen
 import com.example.datn.presentation.student.home.StudentHomeScreen
 import com.example.datn.presentation.teacher.TeacherMainScreen
+import com.example.datn.presentation.parent.ParentMainScreen
+import com.example.datn.presentation.student.account.StudentAccountScreen
 
 @Composable
 fun AppNavGraph(
@@ -78,12 +81,66 @@ fun AppNavGraph(
 
 
         // Teacher
-        composable(Screen.TeacherHome.route) { TeacherMainScreen() }
+        composable(Screen.TeacherHome.route) { 
+            TeacherMainScreen(
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
 
         // Parent
-        composable(Screen.ParentHome.route) { ParentHomeScreen() }
+        composable(Screen.ParentHome.route) { 
+            ParentMainScreen(
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
 
         // Student
-        composable(Screen.StudentHome.route) { StudentHomeScreen() }
+        composable(Screen.StudentHome.route) { 
+            StudentHomeScreen(
+                onNavigateToMyClasses = {
+                    navController.navigate(Screen.StudentMyClasses.route)
+                }
+            )
+        }
+        
+        composable(Screen.StudentMyClasses.route) {
+            MyClassesScreen(
+                onNavigateToClassDetail = { classId, className ->
+                    // TODO: Navigate to class detail
+                },
+                onNavigateToJoinClass = {
+                    navController.navigate(Screen.StudentJoinClass.route)
+                }
+            )
+        }
+        
+        composable(Screen.StudentJoinClass.route) {
+            JoinClassScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        
+        composable(Screen.StudentAccount.route) {
+            StudentAccountScreen(
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
     }
 }

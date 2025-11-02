@@ -90,6 +90,13 @@ class FirebaseDataSource @Inject constructor(
     }.toResource()
 
     /**
+     * Tìm kiếm lớp theo mã lớp (classCode)
+     */
+    suspend fun getClassByCode(classCode: String): Resource<Class?> = safeCallWithResult {
+        classService.getClassByCode(classCode)
+    }.toResource()
+
+    /**
      * Lấy tất cả lớp của giáo viên
      */
     suspend fun getClassesByTeacher(teacherId: String): Resource<List<Class>> = safeCallWithResult {

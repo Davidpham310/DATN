@@ -45,6 +45,32 @@ class ClassService @Inject constructor() :
     }
 
     /**
+     * Tìm kiếm lớp theo mã lớp (classCode)
+     */
+    suspend fun getClassByCode(classCode: String): Class? {
+        Log.d(TAG, "Fetching class by code: $classCode")
+        return try {
+            val snapshot = collectionRef
+                .whereEqualTo("classCode", classCode)
+                .limit(1)
+                .get()
+                .await()
+
+            if (snapshot.isEmpty) {
+                Log.w(TAG, "Class not found with code: $classCode")
+                null
+            } else {
+                val classObj = snapshot.documents.first().internalToDomain(clazz)
+                Log.i(TAG, "Successfully fetched class: ${classObj?.name} (Code: $classCode)")
+                classObj
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching class by code: $classCode", e)
+            null
+        }
+    }
+
+    /**
      * Lấy tất cả lớp của giáo viên
      */
     suspend fun getClassesByTeacher(teacherId: String): List<Class> {

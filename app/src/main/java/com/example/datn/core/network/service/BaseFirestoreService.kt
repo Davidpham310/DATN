@@ -13,8 +13,12 @@ abstract class BaseFirestoreService<T : Any>(
 ) {
     protected val firestore = FirebaseFirestore.getInstance()
     protected val collectionRef = firestore.collection(collectionName)
+    
     //Helper để chuyển snapshot → entity
     protected fun DocumentSnapshot.toEntity(): T = internalToDomain(clazz)
+    
+    //Helper để tạo document ID mới
+    protected fun generateDocumentId(): String = collectionRef.document().id
 
     open suspend fun add(id: String? = null, data: T): String {
         val map = internalToFirestoreMap(data, clazz)

@@ -9,6 +9,7 @@ data class ClassUseCases @Inject constructor(
     val deleteClass: DeleteClassUseCase,
     val getAllClasses: GetAllClassesUseCase,
     val getClassById: GetClassByIdUseCase,
+    val getClassByCode: GetClassByCodeUseCase,
     val getClassesByTeacher: GetClassesByTeacherUseCase,
     val getClassesByStudent: GetClassesByStudentUseCase,
 

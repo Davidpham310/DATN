@@ -13,6 +13,7 @@ import com.example.datn.core.network.service.mini_game.MiniGameService
 import com.example.datn.core.network.service.test.TestService
 import com.example.datn.core.network.service.minio.MinIOService
 import com.example.datn.core.network.service.user.UserService
+import com.example.datn.core.network.service.notification.FirestoreNotificationService
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.ClassDao
@@ -28,6 +29,7 @@ import com.example.datn.data.local.dao.StudentTestResultDao
 import com.example.datn.data.local.dao.TestDao
 import com.example.datn.data.local.dao.TestQuestionDao
 import com.example.datn.data.local.dao.UserDao
+import com.example.datn.data.local.dao.NotificationDao
 import com.example.datn.data.repository.impl.AuthRepositoryImpl
 import com.example.datn.data.repository.impl.ClassRepositoryImpl
 import com.example.datn.data.repository.impl.LessonContentRepositoryImpl
@@ -38,6 +40,7 @@ import com.example.datn.data.repository.impl.TestOptionRepositoryImpl
 import com.example.datn.data.repository.impl.TestQuestionRepositoryImpl
 import com.example.datn.data.repository.impl.TestRepositoryImpl
 import com.example.datn.data.repository.impl.UserRepositoryImpl
+import com.example.datn.data.repository.impl.NotificationRepositoryImpl
 import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.domain.repository.IClassRepository
 import com.example.datn.domain.repository.IFileRepository
@@ -49,12 +52,17 @@ import com.example.datn.domain.repository.ITestOptionRepository
 import com.example.datn.domain.repository.ITestQuestionRepository
 import com.example.datn.domain.repository.ITestRepository
 import com.example.datn.domain.repository.IUserRepository
+import com.example.datn.domain.repository.INotificationRepository
 import com.example.datn.domain.usecase.messaging.*
 import com.example.datn.domain.usecase.test.TestQuestionUseCases
 import com.example.datn.domain.usecase.minio.MinIOUseCase
+import com.example.datn.domain.usecase.notification.SendTeacherNotificationUseCase
+import com.example.datn.domain.usecase.notification.SendBulkNotificationUseCase
+import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -79,6 +87,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFirebaseStorage(): FirebaseStorage = FirebaseStorage.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideFirebaseMessaging(): FirebaseMessaging = FirebaseMessaging.getInstance()
 
     // 🧩 MinIO Client
     @Provides
@@ -346,6 +358,10 @@ object AppModule {
     @Singleton
     fun provideConversationParticipantDao(db: AppDatabase): ConversationParticipantDao = db.conversationParticipantDao()
 
+    @Provides
+    @Singleton
+    fun provideNotificationDao(db: AppDatabase): NotificationDao = db.notificationDao()
+
     // Messaging Repository
     @Provides
     @Singleton
@@ -371,5 +387,62 @@ object AppModule {
         createConversation = CreateConversationUseCase(repository),
         markAsRead = MarkAsReadUseCase(repository)
     )
+
+    // Notification Service
+    @Provides
+    @Singleton
+    fun provideFirestoreNotificationService(): FirestoreNotificationService =
+        FirestoreNotificationService()
+
+    // Notification Repository
+    @Provides
+    @Singleton
+    fun provideNotificationRepository(
+        notificationDao: NotificationDao,
+        firestoreService: FirestoreNotificationService
+    ): INotificationRepository = NotificationRepositoryImpl(
+        notificationDao,
+        firestoreService
+    )
+
+    // Notification Use Cases
+    @Provides
+    @Singleton
+    fun provideSendTeacherNotificationUseCase(
+        repository: INotificationRepository
+    ): SendTeacherNotificationUseCase = SendTeacherNotificationUseCase(repository)
+
+    @Provides
+    @Singleton
+    fun provideSendBulkNotificationUseCase(
+        notificationRepository: INotificationRepository,
+        userRepository: IUserRepository,
+        classRepository: IClassRepository,
+        firestoreService: FirestoreNotificationService,
+        firestore: FirebaseFirestore
+    ): SendBulkNotificationUseCase = SendBulkNotificationUseCase(
+        notificationRepository,
+        userRepository,
+        classRepository,
+        firestoreService,
+        firestore
+    )
+
+    @Provides
+    @Singleton
+    fun provideGetReferenceObjectsUseCase(
+        classRepository: IClassRepository,
+        lessonRepository: ILessonRepository,
+        lessonContentRepository: ILessonContentRepository,
+        testRepository: ITestRepository,
+        miniGameRepository: IMiniGameRepository
+    ): com.example.datn.domain.usecase.notification.GetReferenceObjectsUseCase =
+        com.example.datn.domain.usecase.notification.GetReferenceObjectsUseCase(
+            classRepository,
+            lessonRepository,
+            lessonContentRepository,
+            testRepository,
+            miniGameRepository
+        )
 
 }

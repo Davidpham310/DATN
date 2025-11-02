@@ -67,6 +67,25 @@ class ClassRepositoryImpl @Inject constructor(
     }
 
     /**
+     * Tìm kiếm lớp theo mã lớp (classCode).
+     */
+    override fun getClassByCode(classCode: String): Flow<Resource<Class?>> = flow {
+        emit(Resource.Loading())
+        try {
+            val result = firebaseDataSource.getClassByCode(classCode)
+
+            if (result is Resource.Success && result.data != null) {
+                // Cache vào Room
+                classDao.insertClass(result.data.toEntity())
+            }
+
+            emit(result)
+        } catch (e: Exception) {
+            emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
+        }
+    }
+
+    /**
      * Lấy danh sách lớp theo giáo viên.
      */
     override fun getClassesByTeacher(teacherId: String): Flow<Resource<List<Class>>> = flow {

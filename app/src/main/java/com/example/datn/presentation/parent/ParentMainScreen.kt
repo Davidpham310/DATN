@@ -1,4 +1,4 @@
-package com.example.datn.presentation.teacher
+package com.example.datn.presentation.parent
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -9,20 +9,18 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.datn.presentation.navigation.Screen
-import com.example.datn.presentation.navigation.TeacherNavGraph
+import com.example.datn.presentation.navigation.ParentNavGraph
 
 @Composable
-fun TeacherMainScreen(
+fun ParentMainScreen(
     onNavigateToLogin: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val items = listOf(
-        Screen.TeacherHome,
-        Screen.TeacherClassManager,
-        Screen.TeacherMessages,
-        Screen.TeacherNotification,
-        Screen.TeacherAccount
+        Screen.ParentHome,
+        Screen.ParentAccount
     )
+    
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -33,28 +31,22 @@ fun TeacherMainScreen(
                         selected = currentRoute == screen.route,
                         onClick = {
                             navController.navigate(screen.route) {
-                                popUpTo(Screen.TeacherHome.route){ inclusive = false }
+                                popUpTo(Screen.ParentHome.route) { inclusive = false }
                                 launchSingleTop = true
                             }
                         },
                         icon = {
                             when (screen) {
-                                Screen.TeacherHome -> Icon(Icons.Default.Home, null)
-                                Screen.TeacherClassManager -> Icon(Icons.Default.School, null)
-                                Screen.TeacherMessages -> Icon(Icons.Default.Message, null)
-                                Screen.TeacherNotification -> Icon(Icons.Default.Notifications, null)
-                                Screen.TeacherAccount -> Icon(Icons.Default.Person, null)
+                                Screen.ParentHome -> Icon(Icons.Default.Home, null)
+                                Screen.ParentAccount -> Icon(Icons.Default.Person, null)
                                 else -> Icon(Icons.Default.Home, null)
                             }
                         },
                         label = {
                             Text(
                                 when (screen) {
-                                    Screen.TeacherHome -> "Trang chủ"
-                                    Screen.TeacherClassManager -> "Lớp học"
-                                    Screen.TeacherMessages -> "Nhắn tin"
-                                    Screen.TeacherNotification -> "Thông báo"
-                                    Screen.TeacherAccount -> "Tài khoản"
+                                    Screen.ParentHome -> "Trang chủ"
+                                    Screen.ParentAccount -> "Tài khoản"
                                     else -> ""
                                 }
                             )
@@ -64,11 +56,10 @@ fun TeacherMainScreen(
             }
         }
     ) { innerPadding ->
-        TeacherNavGraph(
+        ParentNavGraph(
             navController = navController,
             onNavigateToLogin = onNavigateToLogin,
             modifier = Modifier.padding(innerPadding)
         )
     }
 }
-
