@@ -9,6 +9,7 @@ data class ChatState(
     val conversationId: String = "",
     val recipientId: String = "",
     val recipientName: String = "",
+    val currentUserId: String = "",
     val messages: List<Message> = emptyList(),
     val messageInput: String = "",
     val isSending: Boolean = false

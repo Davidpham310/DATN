@@ -10,12 +10,9 @@ import com.example.datn.presentation.auth.screens.ForgotPasswordScreen
 import com.example.datn.presentation.auth.screens.LoginScreen
 import com.example.datn.presentation.auth.screens.RegisterScreen
 import com.example.datn.presentation.splash.screen.SplashScreen
-import com.example.datn.presentation.student.classmanager.JoinClassScreen
-import com.example.datn.presentation.student.classmanager.MyClassesScreen
-import com.example.datn.presentation.student.home.StudentHomeScreen
 import com.example.datn.presentation.teacher.TeacherMainScreen
 import com.example.datn.presentation.parent.ParentMainScreen
-import com.example.datn.presentation.student.account.StudentAccountScreen
+import com.example.datn.presentation.student.StudentMainScreen
 
 @Composable
 fun AppNavGraph(
@@ -106,34 +103,7 @@ fun AppNavGraph(
 
         // Student
         composable(Screen.StudentHome.route) { 
-            StudentHomeScreen(
-                onNavigateToMyClasses = {
-                    navController.navigate(Screen.StudentMyClasses.route)
-                }
-            )
-        }
-        
-        composable(Screen.StudentMyClasses.route) {
-            MyClassesScreen(
-                onNavigateToClassDetail = { classId, className ->
-                    // TODO: Navigate to class detail
-                },
-                onNavigateToJoinClass = {
-                    navController.navigate(Screen.StudentJoinClass.route)
-                }
-            )
-        }
-        
-        composable(Screen.StudentJoinClass.route) {
-            JoinClassScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
-            )
-        }
-        
-        composable(Screen.StudentAccount.route) {
-            StudentAccountScreen(
+            StudentMainScreen(
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }

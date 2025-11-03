@@ -21,11 +21,13 @@ abstract class BaseFirestoreService<T : Any>(
     protected fun generateDocumentId(): String = collectionRef.document().id
 
     open suspend fun add(id: String? = null, data: T): String {
-        val map = internalToFirestoreMap(data, clazz)
+        val map = internalToFirestoreMap(data, clazz).toMutableMap()
         return if (id == null) {
             val docRef = collectionRef.add(map).await()
             docRef.id
         } else {
+            // Ensure the 'id' field in the data matches the document ID
+            map["id"] = id
             collectionRef.document(id).set(map).await()
             id
         }
@@ -48,7 +50,9 @@ abstract class BaseFirestoreService<T : Any>(
     }
 
     open suspend fun update(id: String, data: T) {
-        val map = internalToFirestoreMap(data, clazz)
+        val map = internalToFirestoreMap(data, clazz).toMutableMap()
+        // Ensure the 'id' field in the data matches the document ID
+        map["id"] = id
         collectionRef.document(id).update(map).await()
     }
 

@@ -14,6 +14,7 @@ import com.example.datn.core.network.service.test.TestService
 import com.example.datn.core.network.service.minio.MinIOService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.network.service.notification.FirestoreNotificationService
+import com.example.datn.core.network.service.FirebaseMessagingService
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.ClassDao
@@ -30,6 +31,9 @@ import com.example.datn.data.local.dao.TestDao
 import com.example.datn.data.local.dao.TestQuestionDao
 import com.example.datn.data.local.dao.UserDao
 import com.example.datn.data.local.dao.NotificationDao
+import com.example.datn.data.local.dao.StudentDao
+import com.example.datn.data.local.dao.ParentDao
+import com.example.datn.data.local.dao.ParentStudentDao
 import com.example.datn.data.repository.impl.AuthRepositoryImpl
 import com.example.datn.data.repository.impl.ClassRepositoryImpl
 import com.example.datn.data.repository.impl.LessonContentRepositoryImpl
@@ -41,6 +45,8 @@ import com.example.datn.data.repository.impl.TestQuestionRepositoryImpl
 import com.example.datn.data.repository.impl.TestRepositoryImpl
 import com.example.datn.data.repository.impl.UserRepositoryImpl
 import com.example.datn.data.repository.impl.NotificationRepositoryImpl
+import com.example.datn.data.repository.impl.StudentRepositoryImpl
+import com.example.datn.data.repository.impl.ParentRepositoryImpl
 import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.domain.repository.IClassRepository
 import com.example.datn.domain.repository.IFileRepository
@@ -53,12 +59,18 @@ import com.example.datn.domain.repository.ITestQuestionRepository
 import com.example.datn.domain.repository.ITestRepository
 import com.example.datn.domain.repository.IUserRepository
 import com.example.datn.domain.repository.INotificationRepository
+import com.example.datn.domain.repository.IStudentRepository
+import com.example.datn.domain.repository.IParentRepository
 import com.example.datn.domain.usecase.messaging.*
 import com.example.datn.domain.usecase.test.TestQuestionUseCases
 import com.example.datn.domain.usecase.minio.MinIOUseCase
 import com.example.datn.domain.usecase.notification.SendTeacherNotificationUseCase
 import com.example.datn.domain.usecase.notification.SendBulkNotificationUseCase
 import com.example.datn.domain.usecase.auth.AuthUseCases
+import com.example.datn.domain.usecase.parentstudent.*
+import com.example.datn.core.network.service.student.StudentService
+import com.example.datn.core.network.service.parent.ParentService
+import com.example.datn.core.network.service.parent.ParentStudentService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -219,6 +231,38 @@ object AppModule {
     fun provideUserRepository(
         firebaseDataSource: FirebaseDataSource
     ): IUserRepository = UserRepositoryImpl(firebaseDataSource)
+    
+    @Provides
+    @Singleton
+    fun provideStudentRepository(
+        firebaseDataSource: FirebaseDataSource,
+        studentService: StudentService,
+        studentDao: StudentDao
+    ): IStudentRepository = StudentRepositoryImpl(
+        firebaseDataSource,
+        studentService,
+        studentDao
+    )
+    
+    @Provides
+    @Singleton
+    fun provideParentRepository(
+        firebaseDataSource: FirebaseDataSource,
+        parentService: ParentService,
+        parentStudentService: ParentStudentService,
+        studentService: StudentService,
+        parentDao: ParentDao,
+        studentDao: StudentDao,
+        parentStudentDao: ParentStudentDao
+    ): IParentRepository = ParentRepositoryImpl(
+        firebaseDataSource,
+        parentService,
+        parentStudentService,
+        studentService,
+        parentDao,
+        studentDao,
+        parentStudentDao
+    )
 
 
     @Provides
@@ -344,6 +388,18 @@ object AppModule {
     @Singleton
     fun provideMessageService(): com.example.datn.core.network.service.message.MessageService =
         com.example.datn.core.network.service.message.MessageService()
+    
+    @Provides
+    @Singleton
+    fun provideStudentService(): StudentService = StudentService()
+    
+    @Provides
+    @Singleton
+    fun provideParentService(): ParentService = ParentService()
+    
+    @Provides
+    @Singleton
+    fun provideParentStudentService(): ParentStudentService = ParentStudentService()
 
     // Messaging DAOs
     @Provides
@@ -361,31 +417,55 @@ object AppModule {
     @Provides
     @Singleton
     fun provideNotificationDao(db: AppDatabase): NotificationDao = db.notificationDao()
+    
+    @Provides
+    @Singleton
+    fun provideStudentDao(db: AppDatabase): StudentDao = db.studentDao()
+    
+    @Provides
+    @Singleton
+    fun provideParentDao(db: AppDatabase): ParentDao = db.parentDao()
+    
+    @Provides
+    @Singleton
+    fun provideParentStudentDao(db: AppDatabase): ParentStudentDao = db.parentStudentDao()
 
+    // Firebase Messaging Service
+    @Provides
+    @Singleton
+    fun provideFirebaseMessagingService(
+        firestore: FirebaseFirestore
+    ): FirebaseMessagingService = FirebaseMessagingService(firestore)
+    
     // Messaging Repository
     @Provides
     @Singleton
     fun provideMessagingRepository(
         conversationDao: ConversationDao,
         messageDao: MessageDao,
-        participantDao: ConversationParticipantDao
+        participantDao: ConversationParticipantDao,
+        firebaseMessaging: FirebaseMessagingService
     ): IMessagingRepository = MessagingRepositoryImpl(
         conversationDao,
         messageDao,
-        participantDao
+        participantDao,
+        firebaseMessaging
     )
 
     // Messaging Use Cases
     @Provides
     @Singleton
     fun provideMessagingUseCases(
-        repository: IMessagingRepository
+        repository: IMessagingRepository,
+        firebaseMessaging: FirebaseMessagingService
     ): MessagingUseCases = MessagingUseCases(
         getConversations = GetConversationsUseCase(repository),
         getMessages = GetMessagesUseCase(repository),
         sendMessage = SendMessageUseCase(repository),
         createConversation = CreateConversationUseCase(repository),
-        markAsRead = MarkAsReadUseCase(repository)
+        markAsRead = MarkAsReadUseCase(repository),
+        createGroupConversation = CreateGroupConversationUseCase(firebaseMessaging),
+        addParticipants = AddParticipantsUseCase(firebaseMessaging)
     )
 
     // Notification Service
@@ -444,5 +524,40 @@ object AppModule {
             testRepository,
             miniGameRepository
         )
+    
+    // Parent Student Use Cases
+    @Provides
+    @Singleton
+    fun provideParentStudentUseCases(
+        firebaseAuthDataSource: FirebaseAuthDataSource,
+        studentService: StudentService,
+        userService: UserService,
+        parentStudentService: ParentStudentService,
+        firebaseDataSource: FirebaseDataSource,
+        parentRepository: IParentRepository
+    ): ParentStudentUseCases = ParentStudentUseCases(
+        createStudentAccount = CreateStudentAccountUseCase(
+            firebaseAuthDataSource,
+            studentService,
+            userService,
+            parentStudentService
+        ),
+        linkStudent = LinkStudentUseCase(parentStudentService),
+        updateStudentInfo = UpdateStudentInfoUseCase(
+            firebaseDataSource,
+            studentService
+        ),
+        getLinkedStudents = GetLinkedStudentsUseCase(
+            parentStudentService,
+            studentService,
+            firebaseDataSource
+        ),
+        unlinkStudent = UnlinkStudentUseCase(parentRepository),
+        searchStudent = SearchStudentUseCase(
+            studentService,
+            firebaseDataSource
+        ),
+        updateRelationship = UpdateRelationshipUseCase(parentStudentService)
+    )
 
 }

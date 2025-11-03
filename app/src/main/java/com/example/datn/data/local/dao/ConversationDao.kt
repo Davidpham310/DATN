@@ -203,19 +203,19 @@ interface ConversationDao : BaseDao<ConversationEntity> {
             C.title,
             CP.lastViewedAt AS lastViewedAt,
             
-            (SELECT U.id 
-             FROM user AS U
-             JOIN conversation_participant AS Other_CP
-             ON Other_CP.userId = U.id
+            (SELECT Other_CP.userId
+             FROM conversation_participant AS Other_CP
              WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
              LIMIT 1) AS participantUserId,
             
             (SELECT U.name 
              FROM user AS U
-             JOIN conversation_participant AS Other_CP
-             ON Other_CP.userId = U.id
-             WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
-             LIMIT 1) AS participantName,
+             WHERE U.id = (
+                 SELECT Other_CP.userId
+                 FROM conversation_participant AS Other_CP
+                 WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
+                 LIMIT 1
+             )) AS participantName,
             
             (SELECT COUNT(M.id) 
              FROM message AS M 
@@ -242,19 +242,19 @@ interface ConversationDao : BaseDao<ConversationEntity> {
             C.title,
             CP.lastViewedAt AS lastViewedAt,
             
-            (SELECT U.id 
-             FROM user AS U
-             JOIN conversation_participant AS Other_CP
-             ON Other_CP.userId = U.id
+            (SELECT Other_CP.userId
+             FROM conversation_participant AS Other_CP
              WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
              LIMIT 1) AS participantUserId,
             
             (SELECT U.name 
              FROM user AS U
-             JOIN conversation_participant AS Other_CP
-             ON Other_CP.userId = U.id
-             WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
-             LIMIT 1) AS participantName,
+             WHERE U.id = (
+                 SELECT Other_CP.userId
+                 FROM conversation_participant AS Other_CP
+                 WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
+                 LIMIT 1
+             )) AS participantName,
             
             (SELECT COUNT(M.id) 
              FROM message AS M 
@@ -291,19 +291,19 @@ interface ConversationDao : BaseDao<ConversationEntity> {
             C.title,
             CP.lastViewedAt AS lastViewedAt,
             
-            (SELECT U.id 
-             FROM user AS U
-             JOIN conversation_participant AS Other_CP
-             ON Other_CP.userId = U.id
+            (SELECT Other_CP.userId
+             FROM conversation_participant AS Other_CP
              WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
              LIMIT 1) AS participantUserId,
             
             (SELECT U.name 
              FROM user AS U
-             JOIN conversation_participant AS Other_CP
-             ON Other_CP.userId = U.id
-             WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
-             LIMIT 1) AS participantName,
+             WHERE U.id = (
+                 SELECT Other_CP.userId
+                 FROM conversation_participant AS Other_CP
+                 WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
+                 LIMIT 1
+             )) AS participantName,
             
             (SELECT COUNT(M.id) 
              FROM message AS M 

@@ -1,4 +1,4 @@
-package com.example.datn.presentation.teacher.messaging
+package com.example.datn.presentation.student.messaging
 
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
@@ -24,10 +24,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ChatViewModel @Inject constructor(
+class StudentChatViewModel @Inject constructor(
     private val messagingUseCases: MessagingUseCases,
     private val authUseCases: AuthUseCases,
-    private val notificationManager: NotificationManager
+    notificationManager: NotificationManager
 ) : BaseViewModel<ChatState, ChatEvent>(ChatState(), notificationManager) {
 
     private val currentUserIdFlow: StateFlow<String> = authUseCases.getCurrentIdUser.invoke()
@@ -89,10 +89,10 @@ class ChatViewModel @Inject constructor(
             val recipientId = currentState.recipientId
             
             // Debug log
-            android.util.Log.d("TeacherChatVM", "SendMessage - conversationId: ${currentState.conversationId}, recipientId: $recipientId, recipientName: ${currentState.recipientName}")
+            android.util.Log.d("StudentChatVM", "SendMessage - conversationId: ${currentState.conversationId}, recipientId: $recipientId, recipientName: ${currentState.recipientName}")
             
             if (recipientId.isBlank()) {
-                showNotification("Không xác định được người nhận. Vui lòng chọn lại.", NotificationType.ERROR)
+                showNotification("Không xác định được người nhận. Vui lòng chọn lại giáo viên.", NotificationType.ERROR)
                 return@launch
             }
 
@@ -152,7 +152,7 @@ class ChatViewModel @Inject constructor(
                     startMessageListener(foundConversation!!.conversationId)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("TeacherChatVM", "Error finding conversation: ${e.message}")
+                android.util.Log.e("StudentChatVM", "Error finding conversation: ${e.message}")
             }
         }
     }
@@ -177,11 +177,11 @@ class ChatViewModel @Inject constructor(
     private fun reloadMessages(conversationId: String) {
         viewModelScope.launch {
             try {
-                android.util.Log.d("TeacherChatVM", "Reloading messages for conversation: $conversationId")
+                android.util.Log.d("StudentChatVM", "Reloading messages for conversation: $conversationId")
                 kotlinx.coroutines.delay(200)
                 startMessageListener(conversationId)
             } catch (e: Exception) {
-                android.util.Log.e("TeacherChatVM", "Error reloading messages: ${e.message}")
+                android.util.Log.e("StudentChatVM", "Error reloading messages: ${e.message}")
             }
         }
     }

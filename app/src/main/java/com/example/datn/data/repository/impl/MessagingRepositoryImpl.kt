@@ -1,5 +1,6 @@
 package com.example.datn.data.repository.impl
 
+import com.example.datn.core.network.service.FirebaseMessagingService
 import com.example.datn.core.utils.Resource
 import com.example.datn.data.local.dao.ConversationDao
 import com.example.datn.data.local.dao.ConversationParticipantDao
@@ -22,7 +23,8 @@ import javax.inject.Inject
 class MessagingRepositoryImpl @Inject constructor(
     private val conversationDao: ConversationDao,
     private val messageDao: MessageDao,
-    private val participantDao: ConversationParticipantDao
+    private val participantDao: ConversationParticipantDao,
+    private val firebaseMessaging: FirebaseMessagingService
 ) : IMessagingRepository {
 
     override fun getConversations(userId: String): Flow<Resource<List<ConversationWithListDetails>>> = flow {
@@ -37,9 +39,40 @@ class MessagingRepositoryImpl @Inject constructor(
     }
 
     override fun getMessages(conversationId: String): Flow<Message> = flow {
-        messageDao.getMessagesFlow(conversationId).collect { entities ->
-            entities.forEach { entity ->
-                emit(entity.toDomain())
+        try {
+            // Thử lắng nghe từ Firebase real-time
+            firebaseMessaging.getMessages(conversationId).collect { messageData ->
+                try {
+                    val message = Message(
+                        id = messageData["id"] as? String ?: "",
+                        senderId = messageData["senderId"] as? String ?: "",
+                        recipientId = messageData["recipientId"] as? String ?: "",
+                        content = messageData["content"] as? String ?: "",
+                        sentAt = Instant.ofEpochMilli(messageData["sentAt"] as? Long ?: 0L),
+                        isRead = messageData["isRead"] as? Boolean ?: false,
+                        conversationId = messageData["conversationId"] as? String ?: "",
+                        createdAt = Instant.ofEpochMilli(messageData["createdAt"] as? Long ?: 0L),
+                        updatedAt = Instant.ofEpochMilli(messageData["updatedAt"] as? Long ?: 0L)
+                    )
+                    
+                    // Lưu vào local cache
+                    messageDao.insert(message.toEntity())
+                    
+                    // Emit message
+                    emit(message)
+                } catch (e: Exception) {
+                    // Skip invalid messages
+                }
+            }
+        } catch (e: Exception) {
+            // Nếu Firebase fail (index chưa có), fallback về local database
+            android.util.Log.w("MessagingRepository", "Firebase failed, using local cache: ${e.message}")
+            
+            // Load từ local cache
+            messageDao.getMessagesFlow(conversationId).collect { entities ->
+                entities.forEach { entity ->
+                    emit(entity.toDomain())
+                }
             }
         }
     }
@@ -52,25 +85,29 @@ class MessagingRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             
-            // Tìm hoặc tạo conversation 1-1
+            // Tìm conversation local trước
             var conversation = conversationDao.findOneToOneConversation(senderId, recipientId)
+            var conversationId = conversation?.id
             
-            if (conversation == null) {
-                // Tạo conversation mới
+            // Nếu chưa có, tạo mới
+            if (conversationId == null) {
+                conversationId = UUID.randomUUID().toString()
+                
                 val newConversation = Conversation(
-                    id = UUID.randomUUID().toString(),
+                    id = conversationId,
                     type = ConversationType.ONE_TO_ONE,
                     title = null,
                     lastMessageAt = Instant.now(),
                     createdAt = Instant.now(),
                     updatedAt = Instant.now()
                 )
+                
+                // Lưu local ngay
                 conversationDao.insert(newConversation.toEntity())
                 
-                // Thêm participants
                 participantDao.insert(
                     ConversationParticipantEntity(
-                        conversationId = newConversation.id,
+                        conversationId = conversationId,
                         userId = senderId,
                         joinedAt = Instant.now(),
                         lastViewedAt = Instant.now(),
@@ -79,7 +116,7 @@ class MessagingRepositoryImpl @Inject constructor(
                 )
                 participantDao.insert(
                     ConversationParticipantEntity(
-                        conversationId = newConversation.id,
+                        conversationId = conversationId,
                         userId = recipientId,
                         joinedAt = Instant.now(),
                         lastViewedAt = Instant.EPOCH,
@@ -87,15 +124,19 @@ class MessagingRepositoryImpl @Inject constructor(
                     )
                 )
                 
-                conversation = conversationDao.getConversationById(newConversation.id)
+                // Thử sync lên Firebase (không crash nếu fail)
+                try {
+                    firebaseMessaging.createConversation(
+                        type = ConversationType.ONE_TO_ONE.name,
+                        participantIds = listOf(senderId, recipientId),
+                        title = null
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.w("MessagingRepository", "Firebase sync failed: ${e.message}")
+                }
             }
 
-            if (conversation == null) {
-                emit(Resource.Error("Không thể tạo cuộc hội thoại"))
-                return@flow
-            }
-
-            // Tạo message
+            // Tạo message và lưu local
             val message = Message(
                 id = UUID.randomUUID().toString(),
                 senderId = senderId,
@@ -103,20 +144,31 @@ class MessagingRepositoryImpl @Inject constructor(
                 content = content,
                 sentAt = Instant.now(),
                 isRead = false,
-                conversationId = conversation.id,
+                conversationId = conversationId,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )
-
-            // Lưu message
+            
             messageDao.insert(message.toEntity())
-
-            // Cập nhật lastMessageAt của conversation
+            
+            // Cập nhật lastMessageAt
             conversationDao.updateLastMessageAt(
-                conversation.id,
+                conversationId,
                 message.sentAt.toEpochMilli(),
                 Instant.now().toEpochMilli()
             )
+
+            // Thử gửi lên Firebase (không crash nếu fail)
+            try {
+                firebaseMessaging.sendMessage(
+                    conversationId = conversationId,
+                    senderId = senderId,
+                    content = content,
+                    recipientId = recipientId
+                )
+            } catch (e: Exception) {
+                android.util.Log.w("MessagingRepository", "Firebase send failed: ${e.message}")
+            }
 
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
@@ -131,10 +183,11 @@ class MessagingRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             
-            // Cập nhật lastViewedAt
-            participantDao.updateLastViewed(conversationId, userId, Instant.now())
+            // Đánh dấu đã đọc trên Firebase
+            firebaseMessaging.markMessagesAsRead(conversationId, userId)
             
-            // Đánh dấu các tin nhắn là đã đọc
+            // Cập nhật local cache
+            participantDao.updateLastViewed(conversationId, userId, Instant.now())
             messageDao.markMessagesAsRead(conversationId, userId)
             
             emit(Resource.Success(Unit))
@@ -150,29 +203,39 @@ class MessagingRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             
-            // Kiểm tra xem conversation đã tồn tại chưa
-            val existing = conversationDao.findOneToOneConversation(user1Id, user2Id)
-            if (existing != null) {
-                emit(Resource.Success(existing.toDomain()))
-                return@flow
+            // Tìm conversation hiện có trên Firebase
+            var conversationId = firebaseMessaging.findOneToOneConversation(user1Id, user2Id)
+            
+            if (conversationId != null) {
+                // Conversation đã tồn tại, lấy từ local
+                val existing = conversationDao.getConversationById(conversationId)
+                if (existing != null) {
+                    emit(Resource.Success(existing.toDomain()))
+                    return@flow
+                }
             }
-
-            // Tạo mới
+            
+            // Tạo conversation mới trên Firebase
+            conversationId = firebaseMessaging.createConversation(
+                type = ConversationType.ONE_TO_ONE.name,
+                participantIds = listOf(user1Id, user2Id),
+                title = null
+            )
+            
             val newConversation = Conversation(
-                id = UUID.randomUUID().toString(),
+                id = conversationId,
                 type = ConversationType.ONE_TO_ONE,
                 title = null,
                 lastMessageAt = Instant.now(),
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )
-
+            
+            // Cache vào local
             conversationDao.insert(newConversation.toEntity())
-
-            // Thêm participants
             participantDao.insert(
                 ConversationParticipantEntity(
-                    conversationId = newConversation.id,
+                    conversationId = conversationId,
                     userId = user1Id,
                     joinedAt = Instant.now(),
                     lastViewedAt = Instant.now(),
@@ -181,17 +244,17 @@ class MessagingRepositoryImpl @Inject constructor(
             )
             participantDao.insert(
                 ConversationParticipantEntity(
-                    conversationId = newConversation.id,
+                    conversationId = conversationId,
                     userId = user2Id,
                     joinedAt = Instant.now(),
                     lastViewedAt = Instant.EPOCH,
                     isMuted = false
                 )
             )
-
+            
             emit(Resource.Success(newConversation))
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Không thể tạo hội thoại"))
+            emit(Resource.Error(e.message ?: "Không thể tạo cuộc hội thoại"))
         }
     }
 

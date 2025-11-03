@@ -1,6 +1,5 @@
-package com.example.datn.presentation.teacher.messaging
+package com.example.datn.presentation.parent.messaging
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.Message
@@ -24,18 +22,17 @@ import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(
+fun ParentChatScreen(
     conversationId: String,
     recipientId: String,
     recipientName: String,
-    viewModel: ChatViewModel = hiltViewModel(),
+    viewModel: ParentChatViewModel = hiltViewModel(),
     onBackClick: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
-    // Load conversation when screen opens
     LaunchedEffect(conversationId) {
         viewModel.onEvent(
             ChatEvent.LoadConversation(
@@ -46,7 +43,6 @@ fun ChatScreen(
         )
     }
 
-    // Auto scroll to bottom when new message arrives
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
             coroutineScope.launch {
@@ -77,7 +73,6 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Messages list
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -91,7 +86,6 @@ fun ChatScreen(
                 }
             }
 
-            // Input area
             MessageInputArea(
                 messageInput = state.messageInput,
                 isSending = state.isSending,

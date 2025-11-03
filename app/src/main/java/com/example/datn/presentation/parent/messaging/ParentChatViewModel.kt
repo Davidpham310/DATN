@@ -1,4 +1,4 @@
-package com.example.datn.presentation.teacher.messaging
+package com.example.datn.presentation.parent.messaging
 
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
@@ -24,10 +24,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ChatViewModel @Inject constructor(
+class ParentChatViewModel @Inject constructor(
     private val messagingUseCases: MessagingUseCases,
     private val authUseCases: AuthUseCases,
-    private val notificationManager: NotificationManager
+    notificationManager: NotificationManager
 ) : BaseViewModel<ChatState, ChatEvent>(ChatState(), notificationManager) {
 
     private val currentUserIdFlow: StateFlow<String> = authUseCases.getCurrentIdUser.invoke()
@@ -38,6 +38,7 @@ class ChatViewModel @Inject constructor(
             initialValue = ""
         )
     
+    // Job để quản lý message listener
     private var messageListenerJob: kotlinx.coroutines.Job? = null
 
     override fun onEvent(event: ChatEvent) {
@@ -51,8 +52,12 @@ class ChatViewModel @Inject constructor(
 
     private fun loadConversation(conversationId: String, recipientId: String, recipientName: String) {
         viewModelScope.launch {
+            // Debug log
+            android.util.Log.d("ParentChatVM", "LoadConversation - conversationId: $conversationId, recipientId: $recipientId, recipientName: $recipientName")
+            
             // Lấy userId từ StateFlow cached
             val currentUserId = currentUserIdFlow.value.ifBlank {
+                // Nếu chưa có, đợi giá trị hợp lệ
                 currentUserIdFlow.filter { it.isNotBlank() }.first()
             }
             
@@ -64,9 +69,17 @@ class ChatViewModel @Inject constructor(
                     currentUserId = currentUserId
                 )
             }
+            
+            // Verify state after set
+            android.util.Log.d("ParentChatVM", "State after set - conversationId: ${state.value.conversationId}, recipientId: ${state.value.recipientId}")
 
+            // Nếu là conversation mới (conversationId = "new"), không load messages
+            // Messages sẽ được load sau khi gửi tin nhắn đầu tiên
             if (conversationId != "new") {
+                // Start message listener
                 startMessageListener(conversationId)
+
+                // Mark as read
                 markAsRead()
             }
         }
@@ -81,6 +94,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             // Lấy userId từ StateFlow cached
             val currentUserId = currentUserIdFlow.value.ifBlank {
+                // Nếu chưa có, đợi giá trị hợp lệ
                 currentUserIdFlow.filter { it.isNotBlank() }.first()
             }
 
@@ -89,10 +103,10 @@ class ChatViewModel @Inject constructor(
             val recipientId = currentState.recipientId
             
             // Debug log
-            android.util.Log.d("TeacherChatVM", "SendMessage - conversationId: ${currentState.conversationId}, recipientId: $recipientId, recipientName: ${currentState.recipientName}")
+            android.util.Log.d("ParentChatVM", "SendMessage - conversationId: ${currentState.conversationId}, recipientId: $recipientId, recipientName: ${currentState.recipientName}")
             
             if (recipientId.isBlank()) {
-                showNotification("Không xác định được người nhận. Vui lòng chọn lại.", NotificationType.ERROR)
+                showNotification("Không xác định được người nhận. Vui lòng chọn lại giáo viên.", NotificationType.ERROR)
                 return@launch
             }
 
@@ -110,9 +124,12 @@ class ChatViewModel @Inject constructor(
                     is Resource.Success -> {
                         setState { copy(isSending = false, messageInput = "") }
                         
+                        // Nếu là conversation mới, cần load messages sau khi gửi thành công
                         if (state.value.conversationId == "new") {
+                            // Tìm conversation vừa tạo bằng cách query từ DAO
                             findAndLoadConversation(currentUserId, recipientId)
                         } else {
+                            // Conversation đã tồn tại, reload messages để hiển thị message mới
                             reloadMessages(state.value.conversationId)
                         }
                     }
@@ -127,9 +144,13 @@ class ChatViewModel @Inject constructor(
     
     private fun findAndLoadConversation(userId: String, recipientId: String) {
         viewModelScope.launch {
+            // Sau khi gửi message, repository đã tạo conversation
+            // Đợi một chút để đảm bảo conversation đã được tạo
             kotlinx.coroutines.delay(300)
             
             try {
+                // Load lại conversations và tìm conversation với recipientId
+                // Dùng take(1) thay vì first() để tránh Flow transparency violation
                 var foundConversation: com.example.datn.data.local.dao.ConversationWithListDetails? = null
                 
                 messagingUseCases.getConversations(userId)
@@ -143,23 +164,29 @@ class ChatViewModel @Inject constructor(
                     }
                 
                 if (foundConversation != null) {
+                    // Update conversationId và bắt đầu load messages
+                    // Giữ nguyên recipientId và recipientName
                     setState { 
                         copy(
                             conversationId = foundConversation!!.conversationId
+                            // recipientId và recipientName đã có từ loadConversation
                         ) 
                     }
                     
+                    // Start message listener với conversationId mới
                     startMessageListener(foundConversation!!.conversationId)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("TeacherChatVM", "Error finding conversation: ${e.message}")
+                android.util.Log.e("ParentChatVM", "Error finding conversation: ${e.message}")
             }
         }
     }
 
     private fun startMessageListener(conversationId: String) {
+        // Cancel listener cũ nếu có
         messageListenerJob?.cancel()
         
+        // Start listener mới
         messageListenerJob = viewModelScope.launch {
             messagingUseCases.getMessages(conversationId)
                 .onEach { message ->
@@ -177,11 +204,16 @@ class ChatViewModel @Inject constructor(
     private fun reloadMessages(conversationId: String) {
         viewModelScope.launch {
             try {
-                android.util.Log.d("TeacherChatVM", "Reloading messages for conversation: $conversationId")
+                android.util.Log.d("ParentChatVM", "Reloading messages for conversation: $conversationId")
+                
+                // Delay ngắn để đảm bảo message đã được insert vào DB
                 kotlinx.coroutines.delay(200)
+                
+                // Cancel và restart message listener để force reload
                 startMessageListener(conversationId)
+                
             } catch (e: Exception) {
-                android.util.Log.e("TeacherChatVM", "Error reloading messages: ${e.message}")
+                android.util.Log.e("ParentChatVM", "Error reloading messages: ${e.message}")
             }
         }
     }

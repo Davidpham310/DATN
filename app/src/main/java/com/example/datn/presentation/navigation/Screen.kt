@@ -96,10 +96,34 @@ sealed class Screen(val route: String) {
     // Parent routes
     object ParentHome : Screen("parent/home")
     object ParentAccount : Screen("parent/account")
+    object ParentStudentManagement : Screen("parent/student_management")
+    object ParentStudentDetail : Screen("parent/student_detail/{studentId}/{studentName}") {
+        fun createRoute(studentId: String, studentName: String): String =
+            "parent/student_detail/$studentId/$studentName"
+        val routeWithArgs = "parent/student_detail/{studentId}/{studentName}"
+    }
+    object ParentConversations : Screen("parent/conversations")
+    object ParentSelectTeacher : Screen("parent/select_teacher")
+    object ParentChat : Screen("parent/chat/{conversationId}/{recipientId}/{recipientName}") {
+        fun createRoute(conversationId: String, recipientId: String, recipientName: String): String {
+            val encodedName = java.net.URLEncoder.encode(recipientName, "UTF-8")
+            return "parent/chat/$conversationId/$recipientId/$encodedName"
+        }
+        val routeWithArgs = "parent/chat/{conversationId}/{recipientId}/{recipientName}"
+    }
     
     // Student routes
     object StudentHome : Screen("student/home")
     object StudentMyClasses : Screen("student/my_classes")
     object StudentJoinClass : Screen("student/join_class")
     object StudentAccount : Screen("student/account")
+    object StudentConversations : Screen("student/conversations")
+    object StudentSelectTeacher : Screen("student/select_teacher")
+    object StudentChat : Screen("student/chat/{conversationId}/{recipientId}/{recipientName}") {
+        fun createRoute(conversationId: String, recipientId: String, recipientName: String): String {
+            val encodedName = java.net.URLEncoder.encode(recipientName, "UTF-8")
+            return "student/chat/$conversationId/$recipientId/$encodedName"
+        }
+        val routeWithArgs = "student/chat/{conversationId}/{recipientId}/{recipientName}"
+    }
 }

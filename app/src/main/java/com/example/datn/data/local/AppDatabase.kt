@@ -49,6 +49,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun studentDao(): StudentDao // Giả định bạn có StudentDao
     abstract fun teacherDao(): TeacherDao // Giả định bạn có TeacherDao
+    abstract fun parentDao(): ParentDao
     abstract fun parentStudentDao(): ParentStudentDao
     abstract fun classStudentDao(): ClassStudentDao
 

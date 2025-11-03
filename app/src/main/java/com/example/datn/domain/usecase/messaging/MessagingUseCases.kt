@@ -5,5 +5,7 @@ data class MessagingUseCases(
     val getMessages: GetMessagesUseCase,
     val sendMessage: SendMessageUseCase,
     val createConversation: CreateConversationUseCase,
-    val markAsRead: MarkAsReadUseCase
+    val markAsRead: MarkAsReadUseCase,
+    val createGroupConversation: CreateGroupConversationUseCase,
+    val addParticipants: AddParticipantsUseCase
 )

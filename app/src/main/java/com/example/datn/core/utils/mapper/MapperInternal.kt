@@ -76,11 +76,19 @@ internal fun <T : Any> DocumentSnapshot.internalToDomain(clazz: Class<T>): T {
         "DocumentSnapshot data is null for ${clazz.simpleName}"
     )
     
+    // Ensure 'id' field matches document ID (for backward compatibility and safety)
+    val enrichedDataMap = dataMap.toMutableMap().apply {
+        val existingId = this["id"] as? String
+        if (existingId.isNullOrEmpty()) {
+            this["id"] = this@internalToDomain.id
+        }
+    }
+    
     // Log dữ liệu thô từ Firestore
     android.util.Log.d("MapperInternal", "Converting document ${id} to ${clazz.simpleName}")
-    android.util.Log.d("MapperInternal", "Raw data from Firestore: $dataMap")
+    android.util.Log.d("MapperInternal", "Raw data from Firestore: $enrichedDataMap")
     
-    val jsonString = JacksonMapper.writeValueAsString(dataMap)
+    val jsonString = JacksonMapper.writeValueAsString(enrichedDataMap)
     android.util.Log.d("MapperInternal", "JSON string: $jsonString")
 
     return try {
@@ -90,7 +98,7 @@ internal fun <T : Any> DocumentSnapshot.internalToDomain(clazz: Class<T>): T {
     } catch (e: Exception) {
         android.util.Log.e("MapperInternal", "Failed to parse document to ${clazz.simpleName}", e)
         android.util.Log.e("MapperInternal", "JSON string was: $jsonString")
-        android.util.Log.e("MapperInternal", "Data map was: $dataMap")
+        android.util.Log.e("MapperInternal", "Data map was: $enrichedDataMap")
         throw IllegalStateException("Failed to parse document to ${clazz.simpleName}", e)
     }
 }
