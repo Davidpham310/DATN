@@ -9,4 +9,11 @@ import com.example.datn.data.local.entities.ClassStudentEntity
 interface ClassStudentDao : BaseDao<ClassStudentEntity> {
     @Query("SELECT * FROM class_student WHERE classId = :classId")
     suspend fun getStudentsInClass(classId: String): List<ClassStudentEntity>
+    
+    // Alias for messaging compatibility
+    @Query("SELECT * FROM class_student WHERE classId = :classId")
+    suspend fun getStudentsByClassId(classId: String): List<ClassStudentEntity>
+    
+    @Query("SELECT * FROM class_student WHERE studentId = :studentId")
+    suspend fun getClassesByStudentId(studentId: String): List<ClassStudentEntity>
 }

@@ -1,33 +1,27 @@
 package com.example.datn.presentation.teacher.messaging
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.datn.data.local.dao.ConversationWithListDetails
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.example.datn.presentation.common.components.EnhancedConversationItem
+import com.example.datn.presentation.common.messaging.ConversationListEvent
+import com.example.datn.presentation.common.messaging.ConversationListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationListScreen(
     viewModel: ConversationListViewModel = hiltViewModel(),
-    onConversationClick: (String, String, String) -> Unit,
+    onConversationClick: (String, String, String) -> Unit, // conversationId, recipientId, recipientName
     onNewMessageClick: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
@@ -35,10 +29,33 @@ fun ConversationListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tin nhắn") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Tin nhắn")
+                        if (state.totalUnreadCount > 0) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Badge {
+                                Text("${state.totalUnreadCount}")
+                            }
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { viewModel.refresh() },
+                        enabled = !state.isLoading
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Làm mới",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
@@ -83,125 +100,47 @@ fun ConversationListScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(state.conversations) { conversation ->
-                            ConversationItem(
+                        items(
+                            items = state.conversations,
+                            key = { it.conversationId }
+                        ) { conversation ->
+                            EnhancedConversationItem(
                                 conversation = conversation,
                                 onClick = {
+                                    // Debug log
+                                    android.util.Log.d("TeacherConversationList", 
+                                        "Conversation clicked - ID: '${conversation.conversationId}', " +
+                                        "recipientId: '${conversation.participantUserId}', " +
+                                        "recipientName: '${conversation.participantName}'")
+                                    
+                                    val recipientId = conversation.participantUserId ?: ""
+                                    val recipientName = conversation.participantName ?: "Người dùng"
+                                    
+                                    if (recipientId.isBlank()) {
+                                        android.util.Log.e("TeacherConversationList", "ERROR: recipientId is blank!")
+                                    }
+                                    
                                     onConversationClick(
                                         conversation.conversationId,
-                                        conversation.participantUserId ?: "",
-                                        conversation.participantName ?: "Người dùng"
+                                        recipientId,
+                                        recipientName
+                                    )
+                                },
+                                onMarkAsRead = {
+                                    viewModel.onEvent(
+                                        ConversationListEvent.MarkAsRead(conversation.conversationId)
+                                    )
+                                },
+                                onMuteToggle = {
+                                    viewModel.onEvent(
+                                        ConversationListEvent.ToggleMute(conversation.conversationId)
                                     )
                                 }
                             )
-                            Divider()
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun ConversationItem(
-    conversation: ConversationWithListDetails,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Avatar
-        Surface(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape),
-            color = MaterialTheme.colorScheme.primary
-        ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.padding(12.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = conversation.participantName ?: conversation.title ?: "Nhóm",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Text(
-                    text = formatTime(conversation.lastMessageAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Nhấn để xem tin nhắn",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-
-                if (conversation.unreadCount > 0) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = conversation.unreadCount.toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun formatTime(instant: java.time.Instant): String {
-    val now = java.time.Instant.now()
-    val diff = java.time.Duration.between(instant, now)
-
-    return when {
-        diff.toMinutes() < 1 -> "Vừa xong"
-        diff.toMinutes() < 60 -> "${diff.toMinutes()} phút trước"
-        diff.toHours() < 24 -> "${diff.toHours()} giờ trước"
-        diff.toDays() < 7 -> "${diff.toDays()} ngày trước"
-        else -> {
-            val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-            instant.atZone(ZoneId.systemDefault()).format(formatter)
         }
     }
 }

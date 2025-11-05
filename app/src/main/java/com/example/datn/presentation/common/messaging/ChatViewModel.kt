@@ -1,4 +1,4 @@
-package com.example.datn.presentation.teacher.messaging
+package com.example.datn.presentation.common.messaging
 
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
@@ -6,8 +6,6 @@ import com.example.datn.core.utils.Resource
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.messaging.MessagingUseCases
 import com.example.datn.domain.usecase.messaging.SendMessageParams
-import com.example.datn.presentation.common.messaging.ChatEvent
-import com.example.datn.presentation.common.messaging.ChatState
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +25,7 @@ import javax.inject.Inject
 class ChatViewModel @Inject constructor(
     private val messagingUseCases: MessagingUseCases,
     private val authUseCases: AuthUseCases,
-    private val notificationManager: NotificationManager
+    notificationManager: NotificationManager
 ) : BaseViewModel<ChatState, ChatEvent>(ChatState(), notificationManager) {
 
     private val currentUserIdFlow: StateFlow<String> = authUseCases.getCurrentIdUser.invoke()
@@ -89,9 +87,10 @@ class ChatViewModel @Inject constructor(
             val recipientId = currentState.recipientId
             
             // Debug log
-            android.util.Log.d("TeacherChatVM", "SendMessage - conversationId: ${currentState.conversationId}, recipientId: $recipientId, recipientName: ${currentState.recipientName}")
+            android.util.Log.d("ChatViewModel", "SendMessage - conversationId: ${currentState.conversationId}, recipientId: $recipientId, recipientName: ${currentState.recipientName}")
             
-            if (recipientId.isBlank()) {
+            // Chỉ check recipientId khi tạo conversation mới (1-1 chat)
+            if (currentState.conversationId == "new" && recipientId.isBlank()) {
                 showNotification("Không xác định được người nhận. Vui lòng chọn lại.", NotificationType.ERROR)
                 return@launch
             }
@@ -152,7 +151,7 @@ class ChatViewModel @Inject constructor(
                     startMessageListener(foundConversation!!.conversationId)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("TeacherChatVM", "Error finding conversation: ${e.message}")
+                android.util.Log.e("ChatViewModel", "Error finding conversation: ${e.message}")
             }
         }
     }
@@ -168,6 +167,9 @@ class ChatViewModel @Inject constructor(
                         currentMessages.add(message)
                         currentMessages.sortBy { it.sentAt }
                         setState { copy(messages = currentMessages) }
+                        
+                        // Tự động đánh dấu đã đọc khi nhận tin nhắn mới
+                        markAsRead()
                     }
                 }
                 .launchIn(this)
@@ -177,11 +179,11 @@ class ChatViewModel @Inject constructor(
     private fun reloadMessages(conversationId: String) {
         viewModelScope.launch {
             try {
-                android.util.Log.d("TeacherChatVM", "Reloading messages for conversation: $conversationId")
+                android.util.Log.d("ChatViewModel", "Reloading messages for conversation: $conversationId")
                 kotlinx.coroutines.delay(200)
                 startMessageListener(conversationId)
             } catch (e: Exception) {
-                android.util.Log.e("TeacherChatVM", "Error reloading messages: ${e.message}")
+                android.util.Log.e("ChatViewModel", "Error reloading messages: ${e.message}")
             }
         }
     }

@@ -24,12 +24,20 @@ interface ConversationDao : BaseDao<ConversationEntity> {
         C.title,
         CP.lastViewedAt AS lastViewedAt,
         
-        -- WORKAROUND: Sử dụng Subquery để lấy ID người tham gia còn lại (thay thế cho U.id)
-        (SELECT U.id 
-         FROM user AS U
-         JOIN conversation_participant AS Other_CP
-         ON Other_CP.userId = U.id
-         WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
+        -- Lấy nội dung tin nhắn cuối cùng
+        (SELECT M.content 
+         FROM message AS M 
+         WHERE M.conversationId = C.id 
+         ORDER BY M.sentAt DESC 
+         LIMIT 1) AS lastMessage,
+        
+        -- Lấy trạng thái mute
+        COALESCE(CP.isMuted, 0) AS isMuted,
+        
+        -- Lấy ID người tham gia còn lại trực tiếp từ conversation_participant (không cần join user)
+        (SELECT userId 
+         FROM conversation_participant
+         WHERE conversationId = C.id AND userId <> :currentUserId
          LIMIT 1) AS participantUserId,
         
         -- WORKAROUND: Sử dụng Subquery để lấy Tên người tham gia còn lại (thay thế cho U.name)
@@ -39,6 +47,14 @@ interface ConversationDao : BaseDao<ConversationEntity> {
          ON Other_CP.userId = U.id
          WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
          LIMIT 1) AS participantName,
+        
+        -- Lấy danh sách tên tất cả participants (ngoại trừ current user) - dùng cho group chat
+        (SELECT GROUP_CONCAT(U.name, ', ')
+         FROM user AS U
+         JOIN conversation_participant AS Other_CP
+         ON Other_CP.userId = U.id
+         WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
+         LIMIT 3) AS participantNames,
         
         -- Truy vấn phụ đếm tin nhắn chưa đọc (Không cần thay đổi)
         (SELECT COUNT(M.id) 
@@ -86,6 +102,14 @@ interface ConversationDao : BaseDao<ConversationEntity> {
             C.title,
             CP.lastViewedAt AS lastViewedAt,
             
+            (SELECT M.content 
+             FROM message AS M 
+             WHERE M.conversationId = C.id 
+             ORDER BY M.sentAt DESC 
+             LIMIT 1) AS lastMessage,
+            
+            COALESCE(CP.isMuted, 0) AS isMuted,
+            
             (SELECT U.id 
              FROM user AS U
              JOIN conversation_participant AS Other_CP
@@ -132,6 +156,14 @@ interface ConversationDao : BaseDao<ConversationEntity> {
             C.lastMessageAt,
             C.title,
             CP.lastViewedAt AS lastViewedAt,
+            
+            (SELECT M.content 
+             FROM message AS M 
+             WHERE M.conversationId = C.id 
+             ORDER BY M.sentAt DESC 
+             LIMIT 1) AS lastMessage,
+            
+            COALESCE(CP.isMuted, 0) AS isMuted,
             
             (SELECT U.id 
              FROM user AS U
@@ -193,6 +225,16 @@ interface ConversationDao : BaseDao<ConversationEntity> {
     suspend fun conversationExists(conversationId: String): Boolean
 
     /**
+     * Lấy danh sách user IDs của tất cả participants trong một conversation
+     */
+    @Query("""
+        SELECT userId 
+        FROM conversation_participant 
+        WHERE conversationId = :conversationId
+    """)
+    suspend fun getParticipantIds(conversationId: String): List<String>
+
+    /**
      * Lấy danh sách cuộc hội thoại gần đây (giới hạn số lượng)
      */
     @Query("""
@@ -202,6 +244,14 @@ interface ConversationDao : BaseDao<ConversationEntity> {
             C.lastMessageAt,
             C.title,
             CP.lastViewedAt AS lastViewedAt,
+            
+            (SELECT M.content 
+             FROM message AS M 
+             WHERE M.conversationId = C.id 
+             ORDER BY M.sentAt DESC 
+             LIMIT 1) AS lastMessage,
+            
+            COALESCE(CP.isMuted, 0) AS isMuted,
             
             (SELECT Other_CP.userId
              FROM conversation_participant AS Other_CP
@@ -241,6 +291,14 @@ interface ConversationDao : BaseDao<ConversationEntity> {
             C.lastMessageAt,
             C.title,
             CP.lastViewedAt AS lastViewedAt,
+            
+            (SELECT M.content 
+             FROM message AS M 
+             WHERE M.conversationId = C.id 
+             ORDER BY M.sentAt DESC 
+             LIMIT 1) AS lastMessage,
+            
+            COALESCE(CP.isMuted, 0) AS isMuted,
             
             (SELECT Other_CP.userId
              FROM conversation_participant AS Other_CP
@@ -291,6 +349,14 @@ interface ConversationDao : BaseDao<ConversationEntity> {
             C.title,
             CP.lastViewedAt AS lastViewedAt,
             
+            (SELECT M.content 
+             FROM message AS M 
+             WHERE M.conversationId = C.id 
+             ORDER BY M.sentAt DESC 
+             LIMIT 1) AS lastMessage,
+            
+            COALESCE(CP.isMuted, 0) AS isMuted,
+            
             (SELECT Other_CP.userId
              FROM conversation_participant AS Other_CP
              WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
@@ -298,12 +364,10 @@ interface ConversationDao : BaseDao<ConversationEntity> {
             
             (SELECT U.name 
              FROM user AS U
-             WHERE U.id = (
-                 SELECT Other_CP.userId
-                 FROM conversation_participant AS Other_CP
-                 WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
-                 LIMIT 1
-             )) AS participantName,
+             JOIN conversation_participant AS Other_CP
+             ON Other_CP.userId = U.id
+             WHERE Other_CP.conversationId = C.id AND Other_CP.userId <> :currentUserId
+             LIMIT 1) AS participantName,
             
             (SELECT COUNT(M.id) 
              FROM message AS M 

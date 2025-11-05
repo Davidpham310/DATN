@@ -1,4 +1,4 @@
-package com.example.datn.presentation.student.messaging
+package com.example.datn.presentation.common.messaging.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,23 +17,26 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.Message
 import com.example.datn.presentation.common.messaging.ChatEvent
+import com.example.datn.presentation.common.messaging.ChatViewModel
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentChatScreen(
+fun ChatScreen(
     conversationId: String,
     recipientId: String,
     recipientName: String,
-    viewModel: StudentChatViewModel = hiltViewModel(),
-    onBackClick: () -> Unit
+    viewModel: ChatViewModel = hiltViewModel(),
+    onNavigateBack: () -> Unit,
+    onNavigateToGroupDetails: (String, String) -> Unit = { _, _ -> }
 ) {
     val state by viewModel.state.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
+    // Load conversation when screen opens
     LaunchedEffect(conversationId) {
         viewModel.onEvent(
             ChatEvent.LoadConversation(
@@ -43,6 +47,7 @@ fun StudentChatScreen(
         )
     }
 
+    // Auto scroll to bottom when new message arrives
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
             coroutineScope.launch {
@@ -56,14 +61,31 @@ fun StudentChatScreen(
             TopAppBar(
                 title = { Text(recipientName) },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại")
+                    }
+                },
+                actions = {
+                    // Show group info button only for group chats
+                    if (conversationId != "new" && recipientName.contains("Nhóm", ignoreCase = true)) {
+                        IconButton(
+                            onClick = {
+                                onNavigateToGroupDetails(conversationId, recipientName)
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Thông tin nhóm",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         }
@@ -73,6 +95,7 @@ fun StudentChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Messages list
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -81,11 +104,12 @@ fun StudentChatScreen(
                 state = listState
             ) {
                 items(state.messages) { message ->
-                    MessageBubble(message = message, currentUserId = state.currentUserId)
+                    MessageBubble(message = message)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 
+            // Input area
             MessageInputArea(
                 messageInput = state.messageInput,
                 isSending = state.isSending,
@@ -101,11 +125,10 @@ fun StudentChatScreen(
 }
 
 @Composable
-fun MessageBubble(
-    message: Message,
-    currentUserId: String
+private fun MessageBubble(
+    message: Message
 ) {
-    val isCurrentUser = message.senderId == currentUserId
+    val isCurrentUser = message.senderId != message.recipientId // Simplified logic
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -152,7 +175,7 @@ fun MessageBubble(
 }
 
 @Composable
-fun MessageInputArea(
+private fun MessageInputArea(
     messageInput: String,
     isSending: Boolean,
     onMessageChange: (String) -> Unit,

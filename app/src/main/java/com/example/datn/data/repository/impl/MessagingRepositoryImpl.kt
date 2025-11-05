@@ -6,9 +6,11 @@ import com.example.datn.data.local.dao.ConversationDao
 import com.example.datn.data.local.dao.ConversationParticipantDao
 import com.example.datn.data.local.dao.ConversationWithListDetails
 import com.example.datn.data.local.dao.MessageDao
+import com.example.datn.data.local.entities.ConversationEntity
 import com.example.datn.data.local.entities.ConversationParticipantEntity
-import com.example.datn.data.mapper.toEntity
+import com.example.datn.data.local.entities.MessageEntity
 import com.example.datn.data.mapper.toDomain
+import com.example.datn.data.mapper.toEntity
 import com.example.datn.domain.models.Conversation
 import com.example.datn.domain.models.ConversationType
 import com.example.datn.domain.models.Message
@@ -24,13 +26,60 @@ class MessagingRepositoryImpl @Inject constructor(
     private val conversationDao: ConversationDao,
     private val messageDao: MessageDao,
     private val participantDao: ConversationParticipantDao,
-    private val firebaseMessaging: FirebaseMessagingService
+    private val firebaseMessaging: FirebaseMessagingService,
+    private val firebaseAuthDataSource: com.example.datn.core.network.datasource.FirebaseAuthDataSource,
+    private val userDao: com.example.datn.data.local.dao.UserDao
 ) : IMessagingRepository {
 
     override fun getConversations(userId: String): Flow<Resource<List<ConversationWithListDetails>>> = flow {
         try {
             emit(Resource.Loading())
             conversationDao.getConversationsWithDetails(userId).collect { conversations ->
+                // Auto-fetch missing user data from Firebase
+                conversations.forEach { conv ->
+                    // Debug: Log conversation details
+                    android.util.Log.d("MessagingRepo", "Conversation ${conv.conversationId}: type=${conv.type}, participantId=${conv.participantUserId}, participantName=${conv.participantName}, title=${conv.title}, participantNames=${conv.participantNames}")
+                    
+                    // Nếu là ONE_TO_ONE và thiếu participantName, tự động fetch từ Firebase
+                    if (conv.type == com.example.datn.domain.models.ConversationType.ONE_TO_ONE && 
+                        conv.participantName == null && 
+                        !conv.participantUserId.isNullOrBlank()) {  // Check cả null VÀ blank!
+                        try {
+                            android.util.Log.d("MessagingRepo", "Fetching user info for: ${conv.participantUserId}")
+                            val userProfile = firebaseAuthDataSource.getUserProfile(conv.participantUserId!!)
+                            userDao.insert(userProfile.toEntity())
+                            android.util.Log.d("MessagingRepo", "Saved user: ${userProfile.name} to Room")
+                        } catch (e: Exception) {
+                            android.util.Log.e("MessagingRepo", "Failed to fetch user ${conv.participantUserId}: ${e.message}")
+                        }
+                    }
+                    
+                    // Nếu là GROUP và thiếu participantNames, tự động fetch all participants từ Firebase
+                    if (conv.type == com.example.datn.domain.models.ConversationType.GROUP && 
+                        conv.participantNames.isNullOrBlank()) {
+                        try {
+                            android.util.Log.d("MessagingRepo", "Fetching group participants for conversation: ${conv.conversationId}")
+                            // Get all participant IDs from conversation_participant collection
+                            val participants = conversationDao.getParticipantIds(conv.conversationId)
+                            android.util.Log.d("MessagingRepo", "Found ${participants.size} participants")
+                            
+                            // Fetch each participant's user data from Firebase
+                            participants.forEach { participantId ->
+                                if (participantId != userId) { // Skip current user
+                                    try {
+                                        val userProfile = firebaseAuthDataSource.getUserProfile(participantId)
+                                        userDao.insert(userProfile.toEntity())
+                                        android.util.Log.d("MessagingRepo", "Saved group participant: ${userProfile.name}")
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("MessagingRepo", "Failed to fetch participant $participantId: ${e.message}")
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MessagingRepo", "Failed to fetch group participants for ${conv.conversationId}: ${e.message}")
+                        }
+                    }
+                }
                 emit(Resource.Success(conversations))
             }
         } catch (e: Exception) {

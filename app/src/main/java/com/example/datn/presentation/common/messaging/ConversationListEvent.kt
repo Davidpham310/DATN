@@ -7,4 +7,9 @@ sealed class ConversationListEvent : BaseEvent {
     data class SelectConversation(val conversationId: String) : ConversationListEvent()
     data class CreateNewConversation(val recipientId: String) : ConversationListEvent()
     object RefreshConversations : ConversationListEvent()
+    
+    // New events for enhanced functionality
+    data class MarkAsRead(val conversationId: String) : ConversationListEvent()
+    data class ToggleMute(val conversationId: String) : ConversationListEvent()
+    object LoadUnreadCount : ConversationListEvent()
 }

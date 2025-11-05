@@ -83,11 +83,29 @@ sealed class Screen(val route: String) {
 
     // Messaging routes
     object TeacherMessages : Screen("teacher/messages")
+    object TeacherSelectRecipient : Screen("teacher/select_recipient")
+    object TeacherSelectGroupParticipants : Screen("teacher/select_group_participants")
     object TeacherChat : Screen("teacher/chat/{conversationId}/{recipientId}/{recipientName}") {
-        fun createRoute(conversationId: String, recipientId: String, recipientName: String): String =
-            "teacher/chat/$conversationId/$recipientId/$recipientName"
+        fun createRoute(conversationId: String, recipientId: String, recipientName: String): String {
+            val encodedName = java.net.URLEncoder.encode(recipientName, "UTF-8")
+            return "teacher/chat/$conversationId/$recipientId/$encodedName"
+        }
 
         val routeWithArgs = "teacher/chat/{conversationId}/{recipientId}/{recipientName}"
+    }
+    object TeacherGroupDetails : Screen("teacher/group_details/{conversationId}/{groupTitle}") {
+        fun createRoute(conversationId: String, groupTitle: String): String {
+            val encodedTitle = java.net.URLEncoder.encode(groupTitle, "UTF-8")
+            return "teacher/group_details/$conversationId/$encodedTitle"
+        }
+
+        val routeWithArgs = "teacher/group_details/{conversationId}/{groupTitle}"
+    }
+    object TeacherAddMembersToGroup : Screen("teacher/add_members/{conversationId}") {
+        fun createRoute(conversationId: String): String =
+            "teacher/add_members/$conversationId"
+
+        val routeWithArgs = "teacher/add_members/{conversationId}"
     }
     
     // Teacher Account
@@ -104,12 +122,27 @@ sealed class Screen(val route: String) {
     }
     object ParentConversations : Screen("parent/conversations")
     object ParentSelectTeacher : Screen("parent/select_teacher")
+    object ParentSelectGroupParticipants : Screen("parent/select_group_participants")
     object ParentChat : Screen("parent/chat/{conversationId}/{recipientId}/{recipientName}") {
         fun createRoute(conversationId: String, recipientId: String, recipientName: String): String {
             val encodedName = java.net.URLEncoder.encode(recipientName, "UTF-8")
             return "parent/chat/$conversationId/$recipientId/$encodedName"
         }
         val routeWithArgs = "parent/chat/{conversationId}/{recipientId}/{recipientName}"
+    }
+    object ParentGroupDetails : Screen("parent/group_details/{conversationId}/{groupTitle}") {
+        fun createRoute(conversationId: String, groupTitle: String): String {
+            val encodedTitle = java.net.URLEncoder.encode(groupTitle, "UTF-8")
+            return "parent/group_details/$conversationId/$encodedTitle"
+        }
+
+        val routeWithArgs = "parent/group_details/{conversationId}/{groupTitle}"
+    }
+    object ParentAddMembersToGroup : Screen("parent/add_members/{conversationId}") {
+        fun createRoute(conversationId: String): String =
+            "parent/add_members/$conversationId"
+
+        val routeWithArgs = "parent/add_members/{conversationId}"
     }
     
     // Student routes
@@ -119,11 +152,26 @@ sealed class Screen(val route: String) {
     object StudentAccount : Screen("student/account")
     object StudentConversations : Screen("student/conversations")
     object StudentSelectTeacher : Screen("student/select_teacher")
+    object StudentSelectGroupParticipants : Screen("student/select_group_participants")
     object StudentChat : Screen("student/chat/{conversationId}/{recipientId}/{recipientName}") {
         fun createRoute(conversationId: String, recipientId: String, recipientName: String): String {
             val encodedName = java.net.URLEncoder.encode(recipientName, "UTF-8")
             return "student/chat/$conversationId/$recipientId/$encodedName"
         }
         val routeWithArgs = "student/chat/{conversationId}/{recipientId}/{recipientName}"
+    }
+    object StudentGroupDetails : Screen("student/group_details/{conversationId}/{groupTitle}") {
+        fun createRoute(conversationId: String, groupTitle: String): String {
+            val encodedTitle = java.net.URLEncoder.encode(groupTitle, "UTF-8")
+            return "student/group_details/$conversationId/$encodedTitle"
+        }
+
+        val routeWithArgs = "student/group_details/{conversationId}/{groupTitle}"
+    }
+    object StudentAddMembersToGroup : Screen("student/add_members/{conversationId}") {
+        fun createRoute(conversationId: String): String =
+            "student/add_members/$conversationId"
+
+        val routeWithArgs = "student/add_members/{conversationId}"
     }
 }

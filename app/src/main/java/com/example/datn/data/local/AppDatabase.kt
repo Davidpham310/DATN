@@ -37,7 +37,7 @@ import com.example.datn.data.local.entities.*
         StudentLessonProgressEntity::class, DailyStudyTimeEntity::class, NotificationEntity::class,
         ConversationEntity::class, MessageEntity::class
     ],
-    version = 2, // Tăng phiên bản khi thay đổi cấu trúc DB
+    version = 3, // Tăng phiên bản khi thay đổi cấu trúc DB
     exportSchema = false
 )
 @TypeConverters(DateTimeConverter::class, EnumConverter::class)
@@ -98,6 +98,19 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration từ version 2 sang 3:
+         * Thêm trường enrollmentStatus vào bảng class_student
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Thêm cột enrollmentStatus vào bảng class_student
+                database.execSQL(
+                    "ALTER TABLE class_student ADD COLUMN enrollmentStatus TEXT NOT NULL DEFAULT 'ACTIVE'"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -105,7 +118,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                 INSTANCE = instance
                 instance

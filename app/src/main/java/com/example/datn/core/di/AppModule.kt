@@ -71,6 +71,9 @@ import com.example.datn.domain.usecase.parentstudent.*
 import com.example.datn.core.network.service.student.StudentService
 import com.example.datn.core.network.service.parent.ParentService
 import com.example.datn.core.network.service.parent.ParentStudentService
+import com.example.datn.data.local.dao.ClassStudentDao
+import com.example.datn.data.repository.impl.MessagingPermissionRepositoryImpl
+import com.example.datn.domain.repository.IMessagingPermissionRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -157,8 +160,13 @@ object AppModule {
     @Singleton
     fun provideLessonDao(db: AppDatabase): LessonDao = db.lessonDao()
 
+    @Provides
+    @Singleton
+    fun provideClassStudentDao(db: AppDatabase): ClassStudentDao = db.classStudentDao()
 
-
+    @Provides
+    @Singleton
+    fun provideParentStudentDao(db: AppDatabase): ParentStudentDao = db.parentStudentDao()
 
     @Provides
     @Singleton
@@ -425,10 +433,6 @@ object AppModule {
     @Provides
     @Singleton
     fun provideParentDao(db: AppDatabase): ParentDao = db.parentDao()
-    
-    @Provides
-    @Singleton
-    fun provideParentStudentDao(db: AppDatabase): ParentStudentDao = db.parentStudentDao()
 
     // Firebase Messaging Service
     @Provides
@@ -444,12 +448,31 @@ object AppModule {
         conversationDao: ConversationDao,
         messageDao: MessageDao,
         participantDao: ConversationParticipantDao,
-        firebaseMessaging: FirebaseMessagingService
+        firebaseMessaging: FirebaseMessagingService,
+        firebaseAuthDataSource: FirebaseAuthDataSource,
+        userDao: UserDao
     ): IMessagingRepository = MessagingRepositoryImpl(
         conversationDao,
         messageDao,
         participantDao,
-        firebaseMessaging
+        firebaseMessaging,
+        firebaseAuthDataSource,
+        userDao
+    )
+
+    // Messaging Permission Repository
+    @Provides
+    @Singleton
+    fun provideMessagingPermissionRepository(
+        classDao: ClassDao,
+        classStudentDao: ClassStudentDao,
+        parentStudentDao: ParentStudentDao,
+        userDao: UserDao
+    ): IMessagingPermissionRepository = MessagingPermissionRepositoryImpl(
+        classDao,
+        classStudentDao,
+        parentStudentDao,
+        userDao
     )
 
     // Messaging Use Cases
@@ -457,15 +480,26 @@ object AppModule {
     @Singleton
     fun provideMessagingUseCases(
         repository: IMessagingRepository,
-        firebaseMessaging: FirebaseMessagingService
+        permissionRepository: IMessagingPermissionRepository,
+        userRepository: IUserRepository,
+        firebaseMessaging: FirebaseMessagingService,
+        conversationDao: ConversationDao,
+        participantDao: ConversationParticipantDao,
+        firebaseAuthDataSource: FirebaseAuthDataSource
     ): MessagingUseCases = MessagingUseCases(
         getConversations = GetConversationsUseCase(repository),
         getMessages = GetMessagesUseCase(repository),
         sendMessage = SendMessageUseCase(repository),
         createConversation = CreateConversationUseCase(repository),
         markAsRead = MarkAsReadUseCase(repository),
-        createGroupConversation = CreateGroupConversationUseCase(firebaseMessaging),
-        addParticipants = AddParticipantsUseCase(firebaseMessaging)
+        createGroupConversation = CreateGroupConversationUseCase(firebaseMessaging, conversationDao, participantDao),
+        addParticipants = AddParticipantsUseCase(firebaseMessaging),
+        leaveGroup = LeaveGroupUseCase(firebaseMessaging, participantDao),
+        getGroupParticipants = GetGroupParticipantsUseCase(participantDao, firebaseAuthDataSource),
+        getAllowedRecipients = GetAllowedRecipientsUseCase(permissionRepository, userRepository),
+        checkMessagingPermission = CheckMessagingPermissionUseCase(permissionRepository),
+        toggleMuteConversation = ToggleMuteConversationUseCase(repository),
+        getUnreadCount = GetUnreadCountUseCase(repository)
     )
 
     // Notification Service

@@ -50,4 +50,11 @@ interface ClassDao {
 
     @Query("DELETE FROM class_student WHERE classId = :classId")
     suspend fun deleteAllStudentsFromClass(classId: String)
+
+    @Query("SELECT * FROM class WHERE teacherId = :teacherId")
+    suspend fun getClassesByTeacherId(teacherId: String): List<ClassEntity>
+
+    @Query("SELECT * FROM class_student WHERE classId = :classId")
+    suspend fun getStudentsByClassId(classId: String): List<ClassStudentEntity>
+
 }

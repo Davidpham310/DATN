@@ -27,10 +27,16 @@ import com.example.datn.presentation.teacher.minigame.screens.MiniGameOptionMana
 import com.example.datn.presentation.teacher.test.screens.LessonTestManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestQuestionManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestOptionManagerScreen
-import com.example.datn.presentation.teacher.messaging.screens.ConversationListScreen
-import com.example.datn.presentation.teacher.messaging.screens.ChatScreen
 import com.example.datn.presentation.teacher.account.TeacherAccountScreen
 import com.example.datn.presentation.teacher.notification.TeacherNotificationScreen
+import com.example.datn.presentation.common.messaging.ChatViewModel
+import com.example.datn.presentation.common.messaging.ConversationListViewModel
+import com.example.datn.presentation.common.messaging.screens.ChatScreen
+import com.example.datn.presentation.common.messaging.screens.ConversationListScreen
+import com.example.datn.presentation.common.messaging.screens.GroupDetailsScreen
+import com.example.datn.presentation.common.messaging.screens.AddMembersToGroupScreen
+import com.example.datn.presentation.common.messaging.screens.SelectGroupParticipantsScreen
+import com.example.datn.presentation.teacher.messaging.SelectRecipientViewModel
 
 @Composable
 fun TeacherNavGraph(
@@ -262,7 +268,63 @@ fun TeacherNavGraph(
                         Screen.TeacherChat.createRoute(conversationId, recipientId, recipientName)
                     )
                 },
+                onNewMessageClick = {
+                    navController.navigate(Screen.TeacherSelectRecipient.route)
+                },
+                onGroupChatClick = {
+                    navController.navigate(Screen.TeacherSelectGroupParticipants.route)
+                },
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable(Screen.TeacherSelectRecipient.route) {
+            com.example.datn.presentation.teacher.messaging.SelectRecipientScreen(
+                onRecipientSelected = { recipientId, recipientName ->
+                    // Debug log
+                    android.util.Log.d("TeacherNavGraph", "onRecipientSelected - recipientId: '$recipientId', recipientName: '$recipientName'")
+                    
+                    if (recipientId.isBlank()) {
+                        android.util.Log.e("TeacherNavGraph", "ERROR: recipientId is blank! Cannot navigate.")
+                        return@SelectRecipientScreen
+                    }
+                    
+                    val route = Screen.TeacherChat.createRoute(
+                        conversationId = "new",
+                        recipientId = recipientId,
+                        recipientName = recipientName
+                    )
+                    
+                    android.util.Log.d("TeacherNavGraph", "Navigating to route: $route")
+                    navController.navigate(route)
+                },
+                onDismiss = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.TeacherSelectGroupParticipants.route) {
+            val selectViewModel: SelectRecipientViewModel = hiltViewModel()
+            val conversationViewModel: ConversationListViewModel = hiltViewModel()
+            
+            SelectGroupParticipantsScreen(
+                selectRecipientViewModel = selectViewModel,
+                conversationViewModel = conversationViewModel,
+                onGroupCreated = { conversationId ->
+                    navController.navigate(
+                        Screen.TeacherChat.createRoute(
+                            conversationId = conversationId,
+                            recipientId = "",
+                            recipientName = "Nhóm"
+                        )
+                    ) {
+                        popUpTo(Screen.TeacherMessages.route)
+                    }
+                },
+                onDismiss = {
+                    navController.popBackStack()
+                }
             )
         }
 
@@ -276,12 +338,73 @@ fun TeacherNavGraph(
         ) { backStackEntry ->
             val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
             val recipientId = backStackEntry.arguments?.getString("recipientId") ?: ""
-            val recipientName = backStackEntry.arguments?.getString("recipientName") ?: ""
+            val encodedName = backStackEntry.arguments?.getString("recipientName") ?: ""
+            val recipientName = try {
+                java.net.URLDecoder.decode(encodedName, "UTF-8")
+            } catch (e: Exception) {
+                android.util.Log.e("TeacherNavGraph", "Error decoding recipientName: ${e.message}")
+                encodedName
+            }
+            
+            // Debug log
+            android.util.Log.d("TeacherNavGraph", "ChatScreen arguments - conversationId: '$conversationId', recipientId: '$recipientId', recipientName: '$recipientName'")
+            
+            if (recipientId.isBlank()) {
+                android.util.Log.e("TeacherNavGraph", "ERROR: recipientId is blank in ChatScreen!")
+            }
+            
             ChatScreen(
                 conversationId = conversationId,
                 recipientId = recipientId,
                 recipientName = recipientName,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToGroupDetails = { convId, groupTitle ->
+                    navController.navigate(
+                        Screen.TeacherGroupDetails.createRoute(convId, groupTitle)
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = Screen.TeacherGroupDetails.routeWithArgs,
+            arguments = listOf(
+                navArgument("conversationId") { type = NavType.StringType },
+                navArgument("groupTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+            val encodedTitle = backStackEntry.arguments?.getString("groupTitle") ?: ""
+            val groupTitle = try {
+                java.net.URLDecoder.decode(encodedTitle, "UTF-8")
+            } catch (e: Exception) {
+                encodedTitle
+            }
+
+            GroupDetailsScreen(
+                conversationId = conversationId,
+                groupTitle = groupTitle,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAddMembers = { convId ->
+                    navController.navigate(
+                        Screen.TeacherAddMembersToGroup.createRoute(convId)
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = Screen.TeacherAddMembersToGroup.routeWithArgs,
+            arguments = listOf(
+                navArgument("conversationId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+
+            AddMembersToGroupScreen(
+                conversationId = conversationId,
+                onMembersAdded = { navController.popBackStack() },
+                onDismiss = { navController.popBackStack() }
             )
         }
 

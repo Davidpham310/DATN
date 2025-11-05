@@ -7,5 +7,6 @@ data class ConversationListState(
     override val isLoading: Boolean = false,
     override val error: String? = null,
     val conversations: List<ConversationWithListDetails> = emptyList(),
-    val selectedConversationId: String? = null
+    val selectedConversationId: String? = null,
+    val totalUnreadCount: Int = 0 // Total unread messages across all conversations
 ) : BaseState

@@ -2,9 +2,14 @@ package com.example.datn.domain.usecase.messaging
 
 import com.example.datn.core.network.service.FirebaseMessagingService
 import com.example.datn.core.utils.Resource
+import com.example.datn.data.local.dao.ConversationDao
+import com.example.datn.data.local.dao.ConversationParticipantDao
+import com.example.datn.data.local.entities.ConversationEntity
+import com.example.datn.data.local.entities.ConversationParticipantEntity
 import com.example.datn.domain.models.ConversationType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import java.time.Instant
 import javax.inject.Inject
 
 data class CreateGroupParams(
@@ -13,7 +18,9 @@ data class CreateGroupParams(
 )
 
 class CreateGroupConversationUseCase @Inject constructor(
-    private val firebaseMessaging: FirebaseMessagingService
+    private val firebaseMessaging: FirebaseMessagingService,
+    private val conversationDao: ConversationDao,
+    private val participantDao: ConversationParticipantDao
 ) {
     operator fun invoke(params: CreateGroupParams): Flow<Resource<String>> = flow {
         try {
@@ -29,11 +36,42 @@ class CreateGroupConversationUseCase @Inject constructor(
                 return@flow
             }
             
+            // 1. Tạo conversation trên Firebase
             val conversationId = firebaseMessaging.createConversation(
                 type = ConversationType.GROUP.name,
                 participantIds = params.participantIds,
                 title = params.groupTitle
             )
+            
+            // 2. Sync vào Room database ngay lập tức để hiển thị
+            val now = Instant.now()
+            
+            // Insert conversation entity
+            conversationDao.insert(
+                ConversationEntity(
+                    id = conversationId,
+                    type = ConversationType.GROUP,
+                    title = params.groupTitle,
+                    lastMessageAt = now,
+                    createdAt = now,
+                    updatedAt = now
+                )
+            )
+            
+            // Insert participants
+            params.participantIds.forEach { userId ->
+                participantDao.insert(
+                    ConversationParticipantEntity(
+                        conversationId = conversationId,
+                        userId = userId,
+                        joinedAt = now,
+                        lastViewedAt = now,
+                        isMuted = false
+                    )
+                )
+            }
+            
+            android.util.Log.d("CreateGroupUseCase", "Group conversation synced to Room: $conversationId")
             
             emit(Resource.Success(conversationId))
         } catch (e: Exception) {

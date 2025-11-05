@@ -1,11 +1,9 @@
 package com.example.datn.presentation.teacher.messaging
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
@@ -13,14 +11,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.datn.domain.models.Message
+import com.example.datn.presentation.common.components.DateHeader
+import com.example.datn.presentation.common.components.MessageBubble
 import com.example.datn.presentation.common.messaging.ChatEvent
+import com.example.datn.presentation.common.messaging.ChatViewModel
+import com.example.datn.presentation.common.utils.groupByDate
 import kotlinx.coroutines.launch
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,7 +75,7 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Messages list
+            // Messages list grouped by date
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -85,9 +83,27 @@ fun ChatScreen(
                     .padding(horizontal = 8.dp),
                 state = listState
             ) {
-                items(state.messages) { message ->
-                    MessageBubble(message = message, currentUserId = state.currentUserId)
-                    Spacer(modifier = Modifier.height(8.dp))
+                val groupedMessages = state.messages.groupByDate()
+                
+                groupedMessages.forEach { (date, messages) ->
+                    // Date header
+                    item(key = "date_$date") {
+                        DateHeader(date = date)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    
+                    // Messages for this date
+                    items(
+                        items = messages,
+                        key = { it.id }
+                    ) { message ->
+                        MessageBubble(
+                            message = message,
+                            isFromCurrentUser = message.senderId == state.currentUserId,
+                            isGroupChat = false
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
             }
 
@@ -102,57 +118,6 @@ fun ChatScreen(
                     }
                 }
             )
-        }
-    }
-}
-
-@Composable
-fun MessageBubble(
-    message: Message,
-    currentUserId: String
-) {
-    val isCurrentUser = message.senderId == currentUserId
-    
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
-    ) {
-        Surface(
-            shape = RoundedCornerShape(
-                topStart = 12.dp,
-                topEnd = 12.dp,
-                bottomStart = if (isCurrentUser) 12.dp else 4.dp,
-                bottomEnd = if (isCurrentUser) 4.dp else 12.dp
-            ),
-            color = if (isCurrentUser) 
-                MaterialTheme.colorScheme.primary 
-            else 
-                MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.widthIn(max = 280.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp)
-            ) {
-                Text(
-                    text = message.content,
-                    color = if (isCurrentUser) 
-                        MaterialTheme.colorScheme.onPrimary 
-                    else 
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Text(
-                    text = formatMessageTime(message.sentAt),
-                    color = if (isCurrentUser) 
-                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                    else 
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
         }
     }
 }
@@ -208,9 +173,4 @@ fun MessageInputArea(
             }
         }
     }
-}
-
-private fun formatMessageTime(instant: java.time.Instant): String {
-    val formatter = DateTimeFormatter.ofPattern("HH:mm")
-    return instant.atZone(ZoneId.systemDefault()).format(formatter)
 }

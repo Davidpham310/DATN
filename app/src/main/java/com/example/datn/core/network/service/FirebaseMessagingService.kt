@@ -308,6 +308,19 @@ class FirebaseMessagingService @Inject constructor(
     }
 
     /**
+     * Xóa participant khỏi group (rời nhóm)
+     */
+    suspend fun removeParticipant(conversationId: String, userId: String) {
+        firestore
+            .collection(CONVERSATIONS_COLLECTION)
+            .document(conversationId)
+            .collection(PARTICIPANTS_COLLECTION)
+            .document(userId)
+            .delete()
+            .await()
+    }
+
+    /**
      * Đếm unread messages
      */
     suspend fun getUnreadCount(conversationId: String, userId: String): Int {

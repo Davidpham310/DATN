@@ -2,6 +2,7 @@ package com.example.datn.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -9,11 +10,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.datn.presentation.parent.account.ParentAccountScreen
 import com.example.datn.presentation.parent.home.ParentHomeScreen
-import com.example.datn.presentation.parent.messaging.ParentChatScreen
-import com.example.datn.presentation.parent.messaging.ParentConversationListScreen
 import com.example.datn.presentation.parent.messaging.SelectTeacherScreen
+import com.example.datn.presentation.parent.messaging.ParentSelectRecipientViewModel
 import com.example.datn.presentation.parent.studentmanagement.ParentStudentManagementScreen
 import com.example.datn.presentation.parent.studentprofile.StudentDetailScreen
+import com.example.datn.presentation.common.messaging.ChatViewModel
+import com.example.datn.presentation.common.messaging.ConversationListViewModel
+import com.example.datn.presentation.common.messaging.screens.ChatScreen
+import com.example.datn.presentation.common.messaging.screens.ConversationListScreen
+import com.example.datn.presentation.common.messaging.screens.GroupDetailsScreen
+import com.example.datn.presentation.common.messaging.screens.AddMembersToGroupScreen
+import com.example.datn.presentation.common.messaging.screens.SelectGroupParticipantsScreen
 
 @Composable
 fun ParentNavGraph(
@@ -55,7 +62,22 @@ fun ParentNavGraph(
         }
         
         composable(Screen.ParentConversations.route) {
-            ParentConversationListScreen(navController = navController)
+            val viewModel: ConversationListViewModel = hiltViewModel()
+            ConversationListScreen(
+                viewModel = viewModel,
+                onConversationClick = { conversationId, recipientId, recipientName ->
+                    navController.navigate(
+                        Screen.ParentChat.createRoute(conversationId, recipientId, recipientName)
+                    )
+                },
+                onNewMessageClick = {
+                    navController.navigate(Screen.ParentSelectTeacher.route)
+                },
+                onGroupChatClick = {
+                    navController.navigate(Screen.ParentSelectGroupParticipants.route)
+                },
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         
         composable(Screen.ParentSelectTeacher.route) {
@@ -84,6 +106,30 @@ fun ParentNavGraph(
                 }
             )
         }
+
+        composable(Screen.ParentSelectGroupParticipants.route) {
+            val selectViewModel: ParentSelectRecipientViewModel = hiltViewModel()
+            val conversationViewModel: ConversationListViewModel = hiltViewModel()
+            
+            SelectGroupParticipantsScreen(
+                selectRecipientViewModel = selectViewModel,
+                conversationViewModel = conversationViewModel,
+                onGroupCreated = { conversationId ->
+                    navController.navigate(
+                        Screen.ParentChat.createRoute(
+                            conversationId = conversationId,
+                            recipientId = "",
+                            recipientName = "Nhóm"
+                        )
+                    ) {
+                        popUpTo(Screen.ParentConversations.route)
+                    }
+                },
+                onDismiss = {
+                    navController.popBackStack()
+                }
+            )
+        }
         
         composable(
             route = Screen.ParentChat.routeWithArgs,
@@ -103,18 +149,57 @@ fun ParentNavGraph(
                 encodedName
             }
             
-            // Debug log
-            android.util.Log.d("ParentNavGraph", "ChatScreen arguments - conversationId: '$conversationId', recipientId: '$recipientId', recipientName: '$recipientName'")
-            
-            if (recipientId.isBlank()) {
-                android.util.Log.e("ParentNavGraph", "ERROR: recipientId is blank in ChatScreen!")
-            }
-            
-            ParentChatScreen(
+            val viewModel: ChatViewModel = hiltViewModel()
+            ChatScreen(
                 conversationId = conversationId,
                 recipientId = recipientId,
                 recipientName = recipientName,
-                onBackClick = { navController.popBackStack() }
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToGroupDetails = { convId, groupTitle ->
+                    navController.navigate(
+                        Screen.ParentGroupDetails.createRoute(convId, groupTitle)
+                    )
+                }
+            )
+        }
+        
+        composable(
+            route = Screen.ParentGroupDetails.routeWithArgs,
+            arguments = listOf(
+                navArgument("conversationId") { type = NavType.StringType },
+                navArgument("groupTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+            val groupTitle = java.net.URLDecoder.decode(
+                backStackEntry.arguments?.getString("groupTitle") ?: "", "UTF-8"
+            )
+            
+            GroupDetailsScreen(
+                conversationId = conversationId,
+                groupTitle = groupTitle,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAddMembers = { convId ->
+                    navController.navigate(
+                        Screen.ParentAddMembersToGroup.createRoute(convId)
+                    )
+                }
+            )
+        }
+        
+        composable(
+            route = Screen.ParentAddMembersToGroup.routeWithArgs,
+            arguments = listOf(
+                navArgument("conversationId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+            
+            AddMembersToGroupScreen(
+                conversationId = conversationId,
+                onMembersAdded = { navController.popBackStack() },
+                onDismiss = { navController.popBackStack() }
             )
         }
     }

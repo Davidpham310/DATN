@@ -10,6 +10,6 @@ interface ParentDao : BaseDao<ParentEntity> {
     @Query("SELECT * FROM parent WHERE id = :parentId")
     suspend fun getParentById(parentId: String): ParentEntity?
 
-    @Query("SELECT * FROM student WHERE userId = :userId")
+    @Query("SELECT * FROM parent WHERE userId = :userId")
     suspend fun getParentByUserId(userId: String): ParentEntity?
 }
