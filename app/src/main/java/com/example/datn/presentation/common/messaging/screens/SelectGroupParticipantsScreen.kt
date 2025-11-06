@@ -57,9 +57,10 @@ fun SelectGroupParticipantsScreen(
         }
     }
 
-    // Handle conversation creation success
-    LaunchedEffect(conversationState.selectedConversationId) {
-        if (conversationState.selectedConversationId != null) {
+    // Handle conversation creation success - pass both conversationId and groupTitle
+    LaunchedEffect(conversationState.selectedConversationId, conversationState.createdGroupTitle) {
+        if (conversationState.selectedConversationId != null && conversationState.createdGroupTitle != null) {
+            // Note: onGroupCreated signature needs to be updated in NavGraph to accept groupTitle
             onGroupCreated(conversationState.selectedConversationId!!)
         }
     }

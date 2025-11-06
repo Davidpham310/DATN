@@ -8,5 +8,6 @@ data class ConversationListState(
     override val error: String? = null,
     val conversations: List<ConversationWithListDetails> = emptyList(),
     val selectedConversationId: String? = null,
+    val createdGroupTitle: String? = null, // Tên nhóm vừa tạo để navigate
     val totalUnreadCount: Int = 0 // Total unread messages across all conversations
 ) : BaseState

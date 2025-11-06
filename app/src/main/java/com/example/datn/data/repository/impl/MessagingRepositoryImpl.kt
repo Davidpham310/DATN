@@ -18,6 +18,7 @@ import com.example.datn.domain.repository.IMessagingRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.tasks.await
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -34,7 +35,56 @@ class MessagingRepositoryImpl @Inject constructor(
     override fun getConversations(userId: String): Flow<Resource<List<ConversationWithListDetails>>> = flow {
         try {
             emit(Resource.Loading())
+            
+            // Auto-sync: Nếu Room trống, fetch từ Firebase
+            val conversationCount = conversationDao.getConversationCount(userId)
+            android.util.Log.d("MessagingRepo", "▶️ getConversations called for user: $userId")
+            android.util.Log.d("MessagingRepo", "▶️ Room has $conversationCount conversations")
+            
+            if (conversationCount == 0) {
+                android.util.Log.d("MessagingRepo", "▶️ Room is empty, triggering Firebase sync...")
+                syncConversationsFromFirebase(userId)
+                
+                // Check lại sau sync
+                val newCount = conversationDao.getConversationCount(userId)
+                android.util.Log.d("MessagingRepo", "▶️ After sync, Room has $newCount conversations")
+            }
+            
             conversationDao.getConversationsWithDetails(userId).collect { conversations ->
+                android.util.Log.d("MessagingRepo", "▶️ Emitting ${conversations.size} conversations to Flow")
+                // Debug unread count cho GROUP conversations
+                conversations.filter { it.type == com.example.datn.domain.models.ConversationType.GROUP }
+                    .forEach { conv ->
+                        try {
+                            val totalMessages = messageDao.countMessages(conv.conversationId)
+                            val participant = participantDao.getParticipantStatus(conv.conversationId, userId)
+                            val lastViewedAtMillis = participant?.lastViewedAt?.toEpochMilli() ?: 0L
+                            val unreadByQuery = messageDao.countUnreadMessagesBySentAt(conv.conversationId, lastViewedAtMillis)
+                            
+                            android.util.Log.d("MessagingRepo", 
+                                "DEBUG GROUP [${conv.title}]: " +
+                                "Total messages: $totalMessages | " +
+                                "LastViewedAt: ${participant?.lastViewedAt} | " +
+                                "Unread (query): $unreadByQuery | " +
+                                "Unread (conv): ${conv.unreadCount}"
+                            )
+                            
+                            // List all messages with details
+                            val allMessages = messageDao.getMessagesByConversation(conv.conversationId)
+                            allMessages.forEach { msg ->
+                                val isUnread = msg.sentAt.toEpochMilli() > lastViewedAtMillis
+                                android.util.Log.d("MessagingRepo",
+                                    "  Message: ${msg.id.take(8)}... | " +
+                                    "SentAt: ${msg.sentAt} | " +
+                                    "IsUnread: $isUnread | " +
+                                    "Content: ${msg.content.take(20)}..."
+                                )
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MessagingRepo", "Debug error: ${e.message}")
+                        }
+                    }
+                
                 // Auto-fetch missing user data from Firebase
                 conversations.forEach { conv ->
                     // Debug: Log conversation details
@@ -88,12 +138,56 @@ class MessagingRepositoryImpl @Inject constructor(
     }
 
     override fun getMessages(conversationId: String): Flow<Message> = flow {
+        android.util.Log.d("MessagingRepository", "⭐ getMessages listener started for conversation: $conversationId")
+        
+        // Track các message IDs đã emit để tránh duplicate
+        val emittedMessageIds = mutableSetOf<String>()
+        
+        // Load cached messages TRƯỚC để user thấy ngay lập tức
         try {
-            // Thử lắng nghe từ Firebase real-time
+            val cachedMessages = messageDao.getMessagesByConversation(conversationId)
+            android.util.Log.d("MessagingRepository", "📦 Loading ${cachedMessages.size} cached messages for: $conversationId")
+            
+            // Auto-sync: Nếu Room trống, fetch từ Firebase
+            if (cachedMessages.isEmpty()) {
+                android.util.Log.d("MessagingRepository", "🔄 Room empty, syncing messages from Firebase...")
+                syncMessagesFromFirebase(conversationId)
+                
+                // Load lại sau khi sync
+                val syncedMessages = messageDao.getMessagesByConversation(conversationId)
+                android.util.Log.d("MessagingRepository", "✅ After sync: ${syncedMessages.size} messages in Room")
+                syncedMessages.forEach { entity ->
+                    android.util.Log.d("MessagingRepository", "  📨 Synced msg: ${entity.id.take(8)}... | Content: ${entity.content.take(20)}...")
+                    emit(entity.toDomain())
+                    emittedMessageIds.add(entity.id)
+                }
+            } else {
+                // Load từ cache nếu đã có
+                cachedMessages.forEach { entity ->
+                    android.util.Log.d("MessagingRepository", "  📨 Cached msg: ${entity.id.take(8)}... | From: ${entity.senderId.take(8)}... | Content: ${entity.content.take(20)}...")
+                    emit(entity.toDomain())
+                    emittedMessageIds.add(entity.id) // Track đã emit
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MessagingRepository", "❌ Failed to load cached messages: ${e.message}")
+        }
+        
+        // Sau đó listen Firebase real-time cho messages MỚI
+        try {
+            android.util.Log.d("MessagingRepository", "🔥 Starting Firebase listener for: $conversationId")
             firebaseMessaging.getMessages(conversationId).collect { messageData ->
                 try {
+                    val messageId = messageData["id"] as? String ?: ""
+                    
+                    // SKIP nếu message đã được emit từ cache
+                    if (emittedMessageIds.contains(messageId)) {
+                        android.util.Log.d("MessagingRepository", "⏭️ Message already emitted from cache, skip: ${messageId.take(8)}...")
+                        return@collect
+                    }
+                    
                     val message = Message(
-                        id = messageData["id"] as? String ?: "",
+                        id = messageId,
                         senderId = messageData["senderId"] as? String ?: "",
                         recipientId = messageData["recipientId"] as? String ?: "",
                         content = messageData["content"] as? String ?: "",
@@ -104,32 +198,29 @@ class MessagingRepositoryImpl @Inject constructor(
                         updatedAt = Instant.ofEpochMilli(messageData["updatedAt"] as? Long ?: 0L)
                     )
                     
-                    // Check if message already exists to prevent duplicates
-                    val existingMessage = messageDao.getMessageById(message.id)
-                    if (existingMessage == null) {
-                        // Lưu vào local cache
-                        messageDao.insert(message.toEntity())
-                        android.util.Log.d("MessagingRepository", "New message inserted: ${message.id}")
-                    } else {
-                        android.util.Log.d("MessagingRepository", "Duplicate message skipped: ${message.id}")
-                    }
+                    android.util.Log.d("MessagingRepository", "🔥 Firebase NEW message: ${message.id.take(8)}... | From: ${message.senderId.take(8)}... | Content: ${message.content.take(20)}...")
                     
-                    // Emit message
-                    emit(message)
+                    // Check xem message đã tồn tại trong Room chưa
+                    val existsInRoom = messageDao.getMessageById(messageId) != null
+                    
+                    if (!existsInRoom) {
+                        // Lưu vào local cache chỉ khi chưa có (sử dụng IGNORE strategy)
+                        messageDao.insertMessage(message.toEntity())
+                        android.util.Log.d("MessagingRepository", "💾 Inserted to Room: ${messageId.take(8)}...")
+                        
+                        // CHỈ emit message mới (chưa có trong Room)
+                        emit(message)
+                        emittedMessageIds.add(messageId)
+                        android.util.Log.d("MessagingRepository", "✅ New message inserted & emitted: ${message.id.take(8)}...")
+                    } else {
+                        android.util.Log.d("MessagingRepository", "⏭️ Message already in Room, skip insert & emit: ${messageId.take(8)}...")
+                    }
                 } catch (e: Exception) {
-                    // Skip invalid messages
+                    android.util.Log.e("MessagingRepository", "❌ Error processing Firebase message: ${e.message}")
                 }
             }
         } catch (e: Exception) {
-            // Nếu Firebase fail (index chưa có), fallback về local database
-            android.util.Log.w("MessagingRepository", "Firebase failed, using local cache: ${e.message}")
-            
-            // Load từ local cache
-            messageDao.getMessagesFlow(conversationId).collect { entities ->
-                entities.forEach { entity ->
-                    emit(entity.toDomain())
-                }
-            }
+            android.util.Log.w("MessagingRepository", "⚠️ Firebase listener failed: ${e.message}")
         }
     }
 
@@ -186,53 +277,78 @@ class MessagingRepositoryImpl @Inject constructor(
                     )
                 )
                 
-                // Thử sync lên Firebase (không crash nếu fail)
-                try {
-                    firebaseMessaging.createConversation(
-                        type = ConversationType.ONE_TO_ONE.name,
-                        participantIds = listOf(senderId, recipientId),
-                        title = null
-                    )
-                } catch (e: Exception) {
-                    android.util.Log.w("MessagingRepository", "Firebase sync failed: ${e.message}")
-                }
+                // Đồng bộ lên Firebase với cùng conversationId
+                android.util.Log.d("MessagingRepository", "Creating conversation on Firebase: $targetConversationId")
+                firebaseMessaging.createConversation(
+                    conversationId = targetConversationId,  // ✅ Truyền conversationId đã tạo
+                    type = ConversationType.ONE_TO_ONE.name,
+                    participantIds = listOf(senderId, recipientId),
+                    title = null
+                )
             }
 
-            // Tạo message và lưu local
+            // Check for duplicate message (cùng content, sender trong vòng 5s)
+            val now = Instant.now()
+            val duplicateMessage = messageDao.findDuplicateMessage(
+                conversationId = targetConversationId,
+                senderId = senderId,
+                content = content,
+                sentAtMillis = now.toEpochMilli()
+            )
+            
+            if (duplicateMessage != null) {
+                android.util.Log.w("MessagingRepository", "Duplicate message detected, skipping send: ${duplicateMessage.id}")
+                emit(Resource.Success(Unit))
+                return@flow
+            }
+            
+            // TẠO messageId TRƯỚC để đồng bộ giữa Room và Firebase
+            val messageId = UUID.randomUUID().toString()
+            
+            // Tạo message object
             val message = Message(
-                id = UUID.randomUUID().toString(),
+                id = messageId,
                 senderId = senderId,
                 recipientId = recipientId,
                 content = content,
-                sentAt = Instant.now(),
+                sentAt = now,
                 isRead = false,
                 conversationId = targetConversationId,
-                createdAt = Instant.now(),
-                updatedAt = Instant.now()
+                createdAt = now,
+                updatedAt = now
             )
             
-            messageDao.insert(message.toEntity())
+            android.util.Log.d("MessagingRepository", "📤 Uploading message to Firebase: ${message.id.take(8)}... | Content: ${content.take(20)}...")
             
-            // Cập nhật lastMessageAt
-            conversationDao.updateLastMessageAt(
-                targetConversationId,
-                message.sentAt.toEpochMilli(),
-                Instant.now().toEpochMilli()
-            )
-
-            // Thử gửi lên Firebase (không crash nếu fail)
+            // GỬI LÊN FIREBASE TRƯỚC với messageId đã tạo
             try {
                 firebaseMessaging.sendMessage(
+                    messageId = messageId,  // ✅ Truyền messageId đã tạo
                     conversationId = targetConversationId,
                     senderId = senderId,
                     content = content,
                     recipientId = recipientId
                 )
+                
+                android.util.Log.d("MessagingRepository", "✅ Firebase upload success, saving to Room...")
+                
+                // CHỈ lưu vào Room KHI Firebase thành công
+                messageDao.insertMessage(message.toEntity())
+                
+                // Cập nhật lastMessageAt
+                conversationDao.updateLastMessageAt(
+                    targetConversationId,
+                    message.sentAt.toEpochMilli(),
+                    Instant.now().toEpochMilli()
+                )
+                
+                android.util.Log.d("MessagingRepository", "💾 Message saved to Room: ${message.id.take(8)}...")
+                emit(Resource.Success(Unit))
+                
             } catch (e: Exception) {
-                android.util.Log.w("MessagingRepository", "Firebase send failed: ${e.message}")
+                android.util.Log.e("MessagingRepository", "❌ Firebase upload failed: ${e.message}")
+                emit(Resource.Error("Không thể gửi tin nhắn: ${e.message}"))
             }
-
-            emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Không thể gửi tin nhắn"))
         }
@@ -291,8 +407,12 @@ class MessagingRepositoryImpl @Inject constructor(
                 }
             }
             
-            // Tạo conversation mới trên Firebase
-            conversationId = firebaseMessaging.createConversation(
+            // Tạo conversationId trước để đồng bộ
+            conversationId = UUID.randomUUID().toString()
+            
+            // Tạo conversation mới trên Firebase với ID đã tạo
+            firebaseMessaging.createConversation(
+                conversationId = conversationId,  // ✅ Truyền conversationId đã tạo
                 type = ConversationType.ONE_TO_ONE.name,
                 participantIds = listOf(user1Id, user2Id),
                 title = null
@@ -460,6 +580,98 @@ class MessagingRepositoryImpl @Inject constructor(
             Resource.Success(conversation?.toDomain())
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Không thể lấy thông tin cuộc hội thoại")
+        }
+    }
+    
+    private suspend fun syncConversationsFromFirebase(userId: String) {
+        try {
+            android.util.Log.d("MessagingRepo", "🔄 Starting Firebase sync for user: $userId")
+            val conversations = firebaseMessaging.fetchConversationsForUser(userId)
+            android.util.Log.d("MessagingRepo", "🔄 Firebase returned ${conversations.size} conversations")
+            
+            if (conversations.isEmpty()) {
+                android.util.Log.w("MessagingRepo", "⚠️ No conversations found in Firebase for this user")
+                return
+            }
+            
+            conversations.forEach { data ->
+                val id = data["id"] as? String ?: return@forEach
+                val type = if (data["type"] == "GROUP") ConversationType.GROUP else ConversationType.ONE_TO_ONE
+                
+                android.util.Log.d("MessagingRepo", "🔄 Syncing conversation: $id (${type.name})")
+                
+                conversationDao.insert(ConversationEntity(
+                    id = id,
+                    type = type,
+                    title = data["title"] as? String,
+                    lastMessageAt = Instant.ofEpochMilli((data["lastMessageAt"] as? Long) ?: 0L),
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now()
+                ))
+                participantDao.insert(ConversationParticipantEntity(
+                    conversationId = id,
+                    userId = userId,
+                    joinedAt = Instant.now(),
+                    lastViewedAt = Instant.EPOCH,
+                    isMuted = false
+                ))
+                
+                // Đồng bộ luôn messages của conversation này
+                android.util.Log.d("MessagingRepo", "📨 Syncing messages for conversation: $id")
+                syncMessagesFromFirebase(id)
+            }
+            android.util.Log.d("MessagingRepo", "✅ Successfully synced ${conversations.size} conversations to Room")
+        } catch (e: Exception) {
+            android.util.Log.e("MessagingRepo", "❌ Sync failed: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Sync messages từ Firebase vào Room database
+     */
+    private suspend fun syncMessagesFromFirebase(conversationId: String) {
+        try {
+            android.util.Log.d("MessagingRepo", "🔄 Fetching messages from Firebase for: $conversationId")
+            
+            // Fetch all messages for this conversation from Firebase
+            val messagesSnapshot = firebaseMessaging.firestore
+                .collection("messages")
+                .whereEqualTo("conversationId", conversationId)
+                .orderBy("sentAt", com.google.firebase.firestore.Query.Direction.ASCENDING)
+                .get()
+                .await()
+            
+            android.util.Log.d("MessagingRepo", "🔄 Firebase returned ${messagesSnapshot.size()} messages")
+            
+            messagesSnapshot.documents.forEach { doc ->
+                try {
+                    val data = doc.data ?: return@forEach
+                    val messageId = data["id"] as? String ?: doc.id
+                    
+                    // Parse message data
+                    val message = Message(
+                        id = messageId,
+                        senderId = data["senderId"] as? String ?: "",
+                        recipientId = data["recipientId"] as? String ?: "",
+                        content = data["content"] as? String ?: "",
+                        sentAt = Instant.ofEpochMilli((data["sentAt"] as? Long) ?: 0L),
+                        isRead = data["isRead"] as? Boolean ?: false,
+                        conversationId = conversationId,
+                        createdAt = Instant.ofEpochMilli((data["createdAt"] as? Long) ?: 0L),
+                        updatedAt = Instant.ofEpochMilli((data["updatedAt"] as? Long) ?: 0L)
+                    )
+                    
+                    // Insert to Room (IGNORE strategy will skip if exists)
+                    messageDao.insertMessage(message.toEntity())
+                    android.util.Log.d("MessagingRepo", "🔄 Synced message: ${messageId.take(8)}...")
+                } catch (e: Exception) {
+                    android.util.Log.e("MessagingRepo", "Error syncing message: ${e.message}")
+                }
+            }
+            
+            android.util.Log.d("MessagingRepo", "✅ Message sync completed")
+        } catch (e: Exception) {
+            android.util.Log.e("MessagingRepo", "❌ Message sync failed: ${e.message}", e)
         }
     }
 }

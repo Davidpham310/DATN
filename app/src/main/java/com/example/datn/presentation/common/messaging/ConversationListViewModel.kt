@@ -1,5 +1,6 @@
 package com.example.datn.presentation.common.messaging
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
 import com.example.datn.core.utils.Resource
@@ -66,14 +67,36 @@ class ConversationListViewModel @Inject constructor(
                 .onEach { result ->
                     when (result) {
                         is Resource.Loading -> setState { copy(isLoading = true, error = null) }
-                        is Resource.Success -> setState {
-                            copy(
-                                isLoading = false,
-                                conversations = result.data ?: emptyList(),
-                                error = null
+                        is Resource.Success -> {
+                            val conversations = result.data ?: emptyList()
+                            
+                            // Log unread count cho mỗi conversation
+                            android.util.Log.d("ConversationListVM", "=== LOADED ${conversations.size} CONVERSATIONS ===")
+                            conversations.forEach { conv ->
+                                android.util.Log.d(
+                                    "ConversationListVM",
+                                    "Conversation: ${conv.conversationId.take(8)}... | " +
+                                    "Type: ${conv.type} | " +
+                                    "Title/Name: ${conv.title ?: conv.participantName ?: "Unknown"} | " +
+                                    "UnreadCount: ${conv.unreadCount} | " +
+                                    "LastMessage: ${conv.lastMessage?.take(30) ?: "None"}"
+                                )
+                            }
+                            android.util.Log.d(
+                                "ConversationListVM", 
+                                "Total unread messages across all conversations: ${conversations.sumOf { it.unreadCount }}"
                             )
+                            
+                            setState {
+                                copy(
+                                    isLoading = false,
+                                    conversations = conversations,
+                                    error = null
+                                )
+                            }
                         }
                         is Resource.Error -> {
+                            android.util.Log.e("ConversationListVM", "Error loading conversations: ${result.message}")
                             setState { copy(isLoading = false, error = result.message) }
                             showNotification(result.message ?: "Không thể tải danh sách hội thoại", NotificationType.ERROR)
                         }
@@ -142,7 +165,12 @@ class ConversationListViewModel @Inject constructor(
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
-                        setState { copy(isLoading = false) }
+                        setState { 
+                            copy(
+                                isLoading = false,
+                                createdGroupTitle = groupTitle // Lưu tên nhóm để navigate
+                            ) 
+                        }
                         result.data?.let { conversationId ->
                             selectConversation(conversationId)
                         }

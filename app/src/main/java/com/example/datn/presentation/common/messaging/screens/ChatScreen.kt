@@ -1,9 +1,11 @@
 package com.example.datn.presentation.common.messaging.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -13,7 +15,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.ConversationType
 import com.example.datn.domain.models.Message
@@ -96,17 +102,31 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Messages list
-            LazyColumn(
+            // Messages list with background
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                state = listState
+                    .background(Color(0xFFF5F5F5)) // Light gray background như Zalo
             ) {
-                items(state.messages) { message ->
-                    MessageBubble(message = message)
-                    Spacer(modifier = Modifier.height(8.dp))
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    state = listState
+                ) {
+                    items(
+                        items = state.messages,
+                        key = { message -> message.id }  // ← Unique key để tránh duplicate rendering
+                    ) { message ->
+                        MessageBubble(
+                            message = message,
+                            isCurrentUser = message.senderId == state.currentUserId,
+                            isGroupChat = state.conversationType == ConversationType.GROUP,
+                            senderName = state.senderNames[message.senderId]
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
             }
 
@@ -127,49 +147,90 @@ fun ChatScreen(
 
 @Composable
 private fun MessageBubble(
-    message: Message
+    message: Message,
+    isCurrentUser: Boolean,
+    isGroupChat: Boolean,
+    senderName: String?
 ) {
-    val isCurrentUser = message.senderId != message.recipientId // Simplified logic
-    
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp),
         horizontalArrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
     ) {
-        Surface(
-            shape = RoundedCornerShape(
-                topStart = 12.dp,
-                topEnd = 12.dp,
-                bottomStart = if (isCurrentUser) 12.dp else 4.dp,
-                bottomEnd = if (isCurrentUser) 4.dp else 12.dp
-            ),
-            color = if (isCurrentUser) 
-                MaterialTheme.colorScheme.primary 
-            else 
-                MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.widthIn(max = 280.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp)
+        if (!isCurrentUser && isGroupChat) {
+            // Avatar cho tin nhắn từ người khác trong group chat
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = message.content,
-                    color = if (isCurrentUser) 
-                        MaterialTheme.colorScheme.onPrimary 
-                    else 
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
+                    text = senderName?.firstOrNull()?.uppercase() ?: "?",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
                 )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        
+        Column(
+            horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start,
+            modifier = Modifier.widthIn(max = 280.dp)
+        ) {
+            // Hiển thị tên người gửi trong group chat (chỉ cho tin nhắn từ người khác)
+            if (!isCurrentUser && isGroupChat && !senderName.isNullOrBlank()) {
                 Text(
-                    text = formatMessageTime(message.sentAt),
-                    color = if (isCurrentUser) 
-                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                    else 
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.labelSmall
+                    text = senderName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(start = 12.dp, bottom = 2.dp)
                 )
+            }
+            
+            // Message bubble
+            Surface(
+                shape = RoundedCornerShape(
+                    topStart = if (!isCurrentUser && isGroupChat) 4.dp else 16.dp,
+                    topEnd = if (isCurrentUser) 4.dp else 16.dp,
+                    bottomStart = 16.dp,
+                    bottomEnd = 16.dp
+                ),
+                color = if (isCurrentUser) 
+                    Color(0xFF0068FF) // Màu xanh Zalo cho tin nhắn của mình
+                else 
+                    Color(0xFFF0F0F0), // Màu xám nhạt cho tin nhắn người khác
+                shadowElevation = 1.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = message.content,
+                        color = if (isCurrentUser) Color.White else Color.Black,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 15.sp,
+                            lineHeight = 20.sp
+                        )
+                    )
+                    
+                    Spacer(modifier = Modifier.height(2.dp))
+                    
+                    Text(
+                        text = formatMessageTime(message.sentAt),
+                        color = if (isCurrentUser) 
+                            Color.White.copy(alpha = 0.8f)
+                        else 
+                            Color.Black.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 11.sp
+                        )
+                    )
+                }
             }
         }
     }
@@ -183,45 +244,77 @@ private fun MessageInputArea(
     onSendClick: () -> Unit
 ) {
     Surface(
-        tonalElevation = 3.dp,
+        tonalElevation = 2.dp,
+        color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            OutlinedTextField(
-                value = messageInput,
-                onValueChange = onMessageChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp),
-                placeholder = { Text("Nhập tin nhắn...") },
-                maxLines = 4,
-                enabled = !isSending
-            )
-            
-            IconButton(
-                onClick = onSendClick,
-                enabled = messageInput.isNotBlank() && !isSending,
-                modifier = Modifier.size(48.dp)
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.weight(1f)
             ) {
-                if (isSending) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Send,
-                        contentDescription = "Gửi",
-                        tint = if (messageInput.isNotBlank()) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    )
+                TextField(
+                    value = messageInput,
+                    onValueChange = onMessageChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { 
+                        Text(
+                            "Nhập tin nhắn...",
+                            style = MaterialTheme.typography.bodyMedium
+                        ) 
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent
+                    ),
+                    maxLines = 4,
+                    enabled = !isSending,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            // Send button với style Zalo
+            Surface(
+                shape = CircleShape,
+                color = if (messageInput.isNotBlank() && !isSending) 
+                    Color(0xFF0068FF) 
+                else 
+                    MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.size(40.dp)
+            ) {
+                IconButton(
+                    onClick = onSendClick,
+                    enabled = messageInput.isNotBlank() && !isSending
+                ) {
+                    if (isSending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = "Gửi",
+                            tint = if (messageInput.isNotBlank()) 
+                                Color.White 
+                            else 
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

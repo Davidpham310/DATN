@@ -13,7 +13,7 @@ import javax.inject.Singleton
 
 @Singleton
 class FirebaseMessagingService @Inject constructor(
-    private val firestore: FirebaseFirestore
+    val firestore: FirebaseFirestore  // Changed to public for direct access
 ) {
     companion object {
         private const val CONVERSATIONS_COLLECTION = "conversations"
@@ -24,14 +24,14 @@ class FirebaseMessagingService @Inject constructor(
     // ==================== CONVERSATIONS ====================
 
     /**
-     * Tạo conversation mới (1-1 hoặc group)
+     * Tạo conversation mới với pre-generated conversationId để đồng bộ với Room
      */
     suspend fun createConversation(
+        conversationId: String,
         type: String,
         participantIds: List<String>,
         title: String? = null
     ): String {
-        val conversationId = firestore.collection(CONVERSATIONS_COLLECTION).document().id
         val now = Instant.now().toEpochMilli()
 
         val conversationData = hashMapOf(
@@ -43,7 +43,7 @@ class FirebaseMessagingService @Inject constructor(
             "updatedAt" to now
         )
 
-        // Tạo conversation
+        // Tạo conversation với conversationId đã truyền vào
         firestore.collection(CONVERSATIONS_COLLECTION)
             .document(conversationId)
             .set(conversationData)
@@ -101,6 +101,72 @@ class FirebaseMessagingService @Inject constructor(
     }
 
     /**
+     * Lấy tất cả conversations của user từ Firebase (one-time fetch)
+     * Query conversations where participants array contains userId
+     */
+    suspend fun fetchConversationsForUser(userId: String): List<Map<String, Any?>> {
+        val conversations = mutableListOf<Map<String, Any?>>()
+        
+        try {
+            android.util.Log.d("FirebaseMessaging", "Fetching conversations for user: $userId")
+            
+            // Query participants subcollection across all conversations
+            val participantSnapshot = firestore.collectionGroup(PARTICIPANTS_COLLECTION)
+                .get()
+                .await()
+            
+            android.util.Log.d("FirebaseMessaging", "Total participant documents: ${participantSnapshot.size()}")
+            
+            // Debug: Check participant documents structure
+            participantSnapshot.documents.take(3).forEach { participantDoc ->
+                android.util.Log.d("FirebaseMessaging", "Participant doc ID: ${participantDoc.id}")
+                android.util.Log.d("FirebaseMessaging", "  Data: ${participantDoc.data}")
+                android.util.Log.d("FirebaseMessaging", "  Parent: ${participantDoc.reference.parent.parent?.id}")
+            }
+            
+            // Get conversations where user is participant
+            val conversationIds = mutableSetOf<String>()
+            participantSnapshot.documents.forEach { participantDoc ->
+                // Check if this participant document matches our user
+                val docUserId = participantDoc.id  // Document ID is the userId
+                
+                if (docUserId == userId) {
+                    val conversationId = participantDoc.reference.parent.parent?.id
+                    if (conversationId != null) {
+                        conversationIds.add(conversationId)
+                        android.util.Log.d("FirebaseMessaging", "✅ Found user in conversation: $conversationId")
+                    }
+                }
+            }
+            
+            android.util.Log.d("FirebaseMessaging", "User participates in ${conversationIds.size} conversations")
+            
+            // Fetch conversation details
+            conversationIds.forEach { conversationId ->
+                val conversationDoc = firestore.collection(CONVERSATIONS_COLLECTION)
+                    .document(conversationId)
+                    .get()
+                    .await()
+                
+                if (conversationDoc.exists()) {
+                    val data = conversationDoc.data?.toMutableMap() ?: mutableMapOf()
+                    data["conversationId"] = conversationId
+                    data["id"] = conversationId
+                    conversations.add(data)
+                    android.util.Log.d("FirebaseMessaging", "  - ${conversationId}: ${data["title"] ?: data["type"]}")
+                }
+            }
+            
+            android.util.Log.d("FirebaseMessaging", "Fetched ${conversations.size} conversations from Firebase")
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessaging", "Error fetching conversations: ${e.message}", e)
+            e.printStackTrace()
+        }
+        
+        return conversations
+    }
+    
+    /**
      * Lấy conversations của user (real-time)
      */
     fun getConversationsForUser(userId: String): Flow<List<Map<String, Any?>>> = callbackFlow {
@@ -145,11 +211,12 @@ class FirebaseMessagingService @Inject constructor(
     suspend fun updateLastMessageAt(conversationId: String, timestamp: Long) {
         firestore.collection(CONVERSATIONS_COLLECTION)
             .document(conversationId)
-            .update(
+            .set(
                 mapOf(
                     "lastMessageAt" to timestamp,
                     "updatedAt" to Instant.now().toEpochMilli()
-                )
+                ),
+                com.google.firebase.firestore.SetOptions.merge()
             )
             .await()
     }
@@ -157,15 +224,15 @@ class FirebaseMessagingService @Inject constructor(
     // ==================== MESSAGES ====================
 
     /**
-     * Gửi message
+     * Gửi message với pre-generated messageId để tránh duplicate
      */
     suspend fun sendMessage(
+        messageId: String,
         conversationId: String,
         senderId: String,
         content: String,
         recipientId: String? = null
     ): String {
-        val messageId = firestore.collection(MESSAGES_COLLECTION).document().id
         val now = Instant.now().toEpochMilli()
 
         val messageData = hashMapOf(
@@ -180,6 +247,7 @@ class FirebaseMessagingService @Inject constructor(
             "updatedAt" to now
         )
 
+        // Sử dụng messageId được truyền vào thay vì tự generate
         firestore.collection(MESSAGES_COLLECTION)
             .document(messageId)
             .set(messageData)

@@ -1,6 +1,8 @@
 package com.example.datn.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -114,16 +116,19 @@ fun StudentNavGraph(
         composable(Screen.StudentSelectGroupParticipants.route) {
             val selectViewModel: StudentSelectRecipientViewModel = hiltViewModel()
             val conversationViewModel: ConversationListViewModel = hiltViewModel()
+            val conversationState by conversationViewModel.state.collectAsState()
             
             SelectGroupParticipantsScreen(
                 selectRecipientViewModel = selectViewModel,
                 conversationViewModel = conversationViewModel,
                 onGroupCreated = { conversationId ->
+                    // Sử dụng tên nhóm thực tế từ state
+                    val groupTitle = conversationState.createdGroupTitle ?: "Nhóm"
                     navController.navigate(
                         Screen.StudentChat.createRoute(
                             conversationId = conversationId,
                             recipientId = "",
-                            recipientName = "Nhóm"
+                            recipientName = groupTitle
                         )
                     ) {
                         popUpTo(Screen.StudentConversations.route)

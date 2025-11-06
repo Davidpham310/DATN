@@ -36,14 +36,18 @@ class CreateGroupConversationUseCase @Inject constructor(
                 return@flow
             }
             
-            // 1. Tạo conversation trên Firebase
-            val conversationId = firebaseMessaging.createConversation(
+            // 1. Tạo conversationId trước để đồng bộ giữa Room và Firebase
+            val conversationId = java.util.UUID.randomUUID().toString()
+            
+            // 2. Tạo conversation trên Firebase với ID đã tạo
+            firebaseMessaging.createConversation(
+                conversationId = conversationId,  // ✅ Truyền conversationId đã tạo
                 type = ConversationType.GROUP.name,
                 participantIds = params.participantIds,
                 title = params.groupTitle
             )
             
-            // 2. Sync vào Room database ngay lập tức để hiển thị
+            // 3. Sync vào Room database ngay lập tức để hiển thị
             val now = Instant.now()
             
             // Insert conversation entity

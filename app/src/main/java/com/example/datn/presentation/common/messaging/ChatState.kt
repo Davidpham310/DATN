@@ -14,5 +14,6 @@ data class ChatState(
     val messages: List<Message> = emptyList(),
     val messageInput: String = "",
     val isSending: Boolean = false,
-    val conversationType: ConversationType = ConversationType.ONE_TO_ONE
+    val conversationType: ConversationType = ConversationType.ONE_TO_ONE,
+    val senderNames: Map<String, String> = emptyMap() // Map của senderId -> senderName cho nhóm chat
 ) : BaseState

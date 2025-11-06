@@ -1,6 +1,8 @@
 package com.example.datn.data.local.dao
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.example.datn.core.base.BaseDao
 import com.example.datn.data.local.entities.MessageEntity
@@ -8,6 +10,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MessageDao : BaseDao<MessageEntity> {
+    
+    /**
+     * Custom insert với IGNORE strategy thay vì REPLACE từ BaseDao
+     * Tránh duplicate messages và preserve existing data
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMessage(entity: MessageEntity)
+    
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMessages(entities: List<MessageEntity>)
+    
     @Query("SELECT * FROM message WHERE conversationId = :conversationId ORDER BY sentAt DESC LIMIT 50")
     suspend fun getMessagesByConversation(conversationId: String): List<MessageEntity>
 
@@ -47,4 +60,38 @@ interface MessageDao : BaseDao<MessageEntity> {
      */
     @Query("SELECT * FROM message WHERE id = :messageId")
     suspend fun getMessageById(messageId: String): MessageEntity?
+    
+    /**
+     * Debug: Đếm tổng số messages trong conversation
+     */
+    @Query("SELECT COUNT(*) FROM message WHERE conversationId = :conversationId")
+    suspend fun countMessages(conversationId: String): Int
+    
+    /**
+     * Debug: Đếm messages chưa đọc trong conversation (theo sentAt > lastViewedAt)
+     */
+    @Query("""
+        SELECT COUNT(*) FROM message AS M
+        WHERE M.conversationId = :conversationId
+        AND M.sentAt > :lastViewedAt
+    """)
+    suspend fun countUnreadMessagesBySentAt(conversationId: String, lastViewedAt: Long): Int
+    
+    /**
+     * Tìm message duplicate (cùng sender, content, conversation, trong vòng 5 giây)
+     */
+    @Query("""
+        SELECT * FROM message 
+        WHERE conversationId = :conversationId 
+        AND senderId = :senderId 
+        AND content = :content
+        AND ABS(sentAt - :sentAtMillis) < 5000
+        LIMIT 1
+    """)
+    suspend fun findDuplicateMessage(
+        conversationId: String,
+        senderId: String,
+        content: String,
+        sentAtMillis: Long
+    ): MessageEntity?
 }

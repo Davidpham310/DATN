@@ -11,6 +11,7 @@ import com.example.datn.domain.usecase.messaging.SendMessageParams
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -27,8 +28,12 @@ import javax.inject.Inject
 class ChatViewModel @Inject constructor(
     private val messagingUseCases: MessagingUseCases,
     private val authUseCases: AuthUseCases,
+    private val userDao: com.example.datn.data.local.dao.UserDao,
     notificationManager: NotificationManager
 ) : BaseViewModel<ChatState, ChatEvent>(ChatState(), notificationManager) {
+
+    private var messageListenerJob: Job? = null
+    private var markAsReadJob: Job? = null
 
     private val currentUserIdFlow: StateFlow<String> = authUseCases.getCurrentIdUser.invoke()
         .distinctUntilChanged()
@@ -37,8 +42,6 @@ class ChatViewModel @Inject constructor(
             started = SharingStarted.Eagerly,
             initialValue = ""
         )
-    
-    private var messageListenerJob: kotlinx.coroutines.Job? = null
 
     override fun onEvent(event: ChatEvent) {
         when (event) {
@@ -178,23 +181,44 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun startMessageListener(conversationId: String) {
+        // Cancel existing listener để tránh multiple listeners
         messageListenerJob?.cancel()
+        
+        Log.d("ChatViewModel", "🎧 Starting message listener for: $conversationId")
+        
+        // Chỉ clear messages nếu CHUYỂN conversation khác
+        if (state.value.conversationId != conversationId) {
+            Log.d("ChatViewModel", "🔄 Different conversation, clearing messages")
+            setState { copy(messages = emptyList()) }
+        } else {
+            Log.d("ChatViewModel", "♻️ Same conversation, keeping messages")
+        }
         
         messageListenerJob = viewModelScope.launch {
             messagingUseCases.getMessages(conversationId)
                 .onEach { message ->
                     val currentMessages = state.value.messages.toMutableList()
-                    if (!currentMessages.any { it.id == message.id }) {
+                    val exists = currentMessages.any { it.id == message.id }
+                    
+                    Log.d("ChatViewModel", "📩 Received message: ${message.id.take(8)}... | Exists in list: $exists | Current total: ${currentMessages.size}")
+                    
+                    if (!exists) {
                         currentMessages.add(message)
                         currentMessages.sortBy { it.sentAt }
                         setState { copy(messages = currentMessages) }
                         
-                        Log.d("ChatViewModel", "Message added: ${message.id}, total: ${currentMessages.size}, sender: ${message.senderId}")
+                        Log.d("ChatViewModel", "✅ Message added: ${message.id.take(8)}... | New total: ${currentMessages.size} | Sender: ${message.senderId.take(8)}...")
+                        
+                        // Fetch sender name nếu là group chat và chưa có trong map
+                        if (state.value.conversationType == ConversationType.GROUP && 
+                            !state.value.senderNames.containsKey(message.senderId)) {
+                            fetchSenderName(message.senderId)
+                        }
                         
                         // Tự động đánh dấu đã đọc khi nhận tin nhắn mới
                         markAsRead()
                     } else {
-                        Log.d("ChatViewModel", "Duplicate message skipped: ${message.id}")
+                        Log.d("ChatViewModel", "⏭️ Duplicate message skipped: ${message.id.take(8)}...")
                     }
                 }
                 .launchIn(this)
@@ -214,7 +238,13 @@ class ChatViewModel @Inject constructor(
     }
     
     private fun markAsRead() {
-        viewModelScope.launch {
+        // Cancel previous job để debounce - tránh gọi quá nhiều lần
+        markAsReadJob?.cancel()
+        
+        markAsReadJob = viewModelScope.launch {
+            // Delay 500ms để gom nhiều calls thành 1
+            kotlinx.coroutines.delay(500)
+            
             val currentUserId = currentUserIdFlow.value
             val conversationId = state.value.conversationId
 
@@ -233,6 +263,22 @@ class ChatViewModel @Inject constructor(
                         }
                     }
                     .launchIn(viewModelScope)
+            }
+        }
+    }
+    
+    private fun fetchSenderName(senderId: String) {
+        viewModelScope.launch {
+            try {
+                val user = userDao.getUserById(senderId)
+                if (user != null) {
+                    val currentMap = state.value.senderNames.toMutableMap()
+                    currentMap[senderId] = user.name
+                    setState { copy(senderNames = currentMap) }
+                    Log.d("ChatViewModel", "Fetched sender name: ${user.name} for $senderId")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error fetching sender name: ${e.message}")
             }
         }
     }
