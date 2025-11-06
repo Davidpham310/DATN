@@ -16,7 +16,7 @@ interface IMessagingRepository {
     fun getMessages(conversationId: String): Flow<Message>
     
     // Gửi tin nhắn
-    fun sendMessage(senderId: String, recipientId: String, content: String): Flow<Resource<Unit>>
+    fun sendMessage(senderId: String, recipientId: String, content: String, conversationId: String? = null): Flow<Resource<Unit>>
     
     // Đánh dấu đã đọc
     fun markConversationAsRead(conversationId: String, userId: String): Flow<Resource<Unit>>

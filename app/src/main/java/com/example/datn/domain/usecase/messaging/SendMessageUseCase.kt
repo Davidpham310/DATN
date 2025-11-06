@@ -8,7 +8,8 @@ import javax.inject.Inject
 data class SendMessageParams(
     val senderId: String,
     val recipientId: String,
-    val content: String
+    val content: String,
+    val conversationId: String? = null // Optional: dùng khi gửi vào conversation có sẵn (group chat)
 )
 
 class SendMessageUseCase @Inject constructor(
@@ -18,7 +19,8 @@ class SendMessageUseCase @Inject constructor(
         return repository.sendMessage(
             senderId = params.senderId,
             recipientId = params.recipientId,
-            content = params.content
+            content = params.content,
+            conversationId = params.conversationId
         )
     }
 }

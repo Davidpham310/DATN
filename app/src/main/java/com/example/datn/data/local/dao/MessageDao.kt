@@ -25,8 +25,9 @@ interface MessageDao : BaseDao<MessageEntity> {
 
     /**
      * Đánh dấu tin nhắn là đã đọc
+     * Không check recipientId để hỗ trợ group chat (recipientId = null)
      */
-    @Query("UPDATE message SET isRead = 1 WHERE conversationId = :conversationId AND recipientId = :userId")
+    @Query("UPDATE message SET isRead = 1 WHERE conversationId = :conversationId AND senderId != :userId")
     suspend fun markMessagesAsRead(conversationId: String, userId: String)
 
     /**

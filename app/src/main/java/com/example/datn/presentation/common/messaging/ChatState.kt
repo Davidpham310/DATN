@@ -1,6 +1,7 @@
 package com.example.datn.presentation.common.messaging
 
 import com.example.datn.core.base.BaseState
+import com.example.datn.domain.models.ConversationType
 import com.example.datn.domain.models.Message
 
 data class ChatState(
@@ -12,5 +13,6 @@ data class ChatState(
     val currentUserId: String = "",
     val messages: List<Message> = emptyList(),
     val messageInput: String = "",
-    val isSending: Boolean = false
+    val isSending: Boolean = false,
+    val conversationType: ConversationType = ConversationType.ONE_TO_ONE
 ) : BaseState

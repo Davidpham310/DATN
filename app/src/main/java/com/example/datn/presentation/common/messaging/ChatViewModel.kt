@@ -1,8 +1,10 @@
 package com.example.datn.presentation.common.messaging
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
 import com.example.datn.core.utils.Resource
+import com.example.datn.domain.models.ConversationType
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.messaging.MessagingUseCases
 import com.example.datn.domain.usecase.messaging.SendMessageParams
@@ -54,16 +56,27 @@ class ChatViewModel @Inject constructor(
                 currentUserIdFlow.filter { it.isNotBlank() }.first()
             }
             
+            // Xác định conversation type: nếu recipientId rỗng thì là GROUP, ngược lại là ONE_TO_ONE
+            val conversationType = if (recipientId.isBlank()) {
+                ConversationType.GROUP
+            } else {
+                ConversationType.ONE_TO_ONE
+            }
+            
+            Log.d("ChatViewModel", "loadConversation - conversationId: $conversationId, recipientId: '$recipientId', recipientName: $recipientName, type: $conversationType")
+            
             setState {
                 copy(
                     conversationId = conversationId,
                     recipientId = recipientId,
                     recipientName = recipientName,
-                    currentUserId = currentUserId
+                    currentUserId = currentUserId,
+                    conversationType = conversationType
                 )
             }
 
             if (conversationId != "new") {
+                Log.d("ChatViewModel", "Starting message listener for conversation: $conversationId")
                 startMessageListener(conversationId)
                 markAsRead()
             }
@@ -87,7 +100,7 @@ class ChatViewModel @Inject constructor(
             val recipientId = currentState.recipientId
             
             // Debug log
-            android.util.Log.d("ChatViewModel", "SendMessage - conversationId: ${currentState.conversationId}, recipientId: $recipientId, recipientName: ${currentState.recipientName}")
+            Log.d("ChatViewModel", "SendMessage - conversationId: ${currentState.conversationId}, recipientId: $recipientId, recipientName: ${currentState.recipientName}")
             
             // Chỉ check recipientId khi tạo conversation mới (1-1 chat)
             if (currentState.conversationId == "new" && recipientId.isBlank()) {
@@ -97,11 +110,19 @@ class ChatViewModel @Inject constructor(
 
             setState { copy(isSending = true) }
 
+            // Nếu đã có conversationId (không phải "new"), truyền conversationId để gửi vào conversation có sẵn
+            val targetConversationId = if (currentState.conversationId != "new") {
+                currentState.conversationId
+            } else {
+                null
+            }
+
             messagingUseCases.sendMessage(
                 SendMessageParams(
                     senderId = currentUserId,
                     recipientId = recipientId,
-                    content = content
+                    content = content,
+                    conversationId = targetConversationId
                 )
             ).onEach { result ->
                 when (result) {
@@ -168,8 +189,12 @@ class ChatViewModel @Inject constructor(
                         currentMessages.sortBy { it.sentAt }
                         setState { copy(messages = currentMessages) }
                         
+                        Log.d("ChatViewModel", "Message added: ${message.id}, total: ${currentMessages.size}, sender: ${message.senderId}")
+                        
                         // Tự động đánh dấu đã đọc khi nhận tin nhắn mới
                         markAsRead()
+                    } else {
+                        Log.d("ChatViewModel", "Duplicate message skipped: ${message.id}")
                     }
                 }
                 .launchIn(this)
@@ -194,7 +219,19 @@ class ChatViewModel @Inject constructor(
             val conversationId = state.value.conversationId
 
             if (currentUserId.isNotBlank() && conversationId.isNotBlank() && conversationId != "new") {
+                Log.d("ChatViewModel", "Marking conversation as read: $conversationId for user: $currentUserId")
                 messagingUseCases.markAsRead(conversationId, currentUserId)
+                    .onEach { result ->
+                        when (result) {
+                            is Resource.Success -> {
+                                Log.d("ChatViewModel", "Successfully marked as read: $conversationId")
+                            }
+                            is Resource.Error -> {
+                                Log.e("ChatViewModel", "Failed to mark as read: ${result.message}")
+                            }
+                            else -> {}
+                        }
+                    }
                     .launchIn(viewModelScope)
             }
         }

@@ -160,10 +160,23 @@ fun ConversationListScreen(
                             ConversationItem(
                                 conversation = conversation,
                                 onClick = {
+                                    // Phân biệt giữa ONE_TO_ONE và GROUP
+                                    val recipientId = if (conversation.conversationType == ConversationType.ONE_TO_ONE) {
+                                        conversation.participantUserId ?: ""
+                                    } else {
+                                        "" // Group chat không có recipientId
+                                    }
+                                    
+                                    val displayName = if (conversation.conversationType == ConversationType.ONE_TO_ONE) {
+                                        conversation.participantName ?: "Người dùng"
+                                    } else {
+                                        conversation.title ?: "Nhóm"
+                                    }
+                                    
                                     onConversationClick(
                                         conversation.conversationId,
-                                        conversation.participantUserId ?: "",
-                                        conversation.participantName ?: "Người dùng"
+                                        recipientId,
+                                        displayName
                                     )
                                 }
                             )

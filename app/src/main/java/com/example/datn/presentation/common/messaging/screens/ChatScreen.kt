@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.datn.domain.models.ConversationType
 import com.example.datn.domain.models.Message
 import com.example.datn.presentation.common.messaging.ChatEvent
 import com.example.datn.presentation.common.messaging.ChatViewModel
@@ -67,7 +68,7 @@ fun ChatScreen(
                 },
                 actions = {
                     // Show group info button only for group chats
-                    if (conversationId != "new" && recipientName.contains("Nhóm", ignoreCase = true)) {
+                    if (conversationId != "new" && state.conversationType == ConversationType.GROUP) {
                         IconButton(
                             onClick = {
                                 onNavigateToGroupDetails(conversationId, recipientName)

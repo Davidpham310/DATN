@@ -104,8 +104,15 @@ class MessagingRepositoryImpl @Inject constructor(
                         updatedAt = Instant.ofEpochMilli(messageData["updatedAt"] as? Long ?: 0L)
                     )
                     
-                    // Lưu vào local cache
-                    messageDao.insert(message.toEntity())
+                    // Check if message already exists to prevent duplicates
+                    val existingMessage = messageDao.getMessageById(message.id)
+                    if (existingMessage == null) {
+                        // Lưu vào local cache
+                        messageDao.insert(message.toEntity())
+                        android.util.Log.d("MessagingRepository", "New message inserted: ${message.id}")
+                    } else {
+                        android.util.Log.d("MessagingRepository", "Duplicate message skipped: ${message.id}")
+                    }
                     
                     // Emit message
                     emit(message)
@@ -129,21 +136,27 @@ class MessagingRepositoryImpl @Inject constructor(
     override fun sendMessage(
         senderId: String,
         recipientId: String,
-        content: String
+        content: String,
+        conversationId: String?
     ): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
             
-            // Tìm conversation local trước
-            var conversation = conversationDao.findOneToOneConversation(senderId, recipientId)
-            var conversationId = conversation?.id
+            // Nếu đã có conversationId (group chat hoặc existing conversation), dùng luôn
+            var targetConversationId = conversationId
             
-            // Nếu chưa có, tạo mới
-            if (conversationId == null) {
-                conversationId = UUID.randomUUID().toString()
+            // Nếu chưa có conversationId, tìm hoặc tạo conversation 1-1
+            if (targetConversationId == null) {
+                var conversation = conversationDao.findOneToOneConversation(senderId, recipientId)
+                targetConversationId = conversation?.id
+            }
+            
+            // Nếu vẫn chưa có (1-1 chat mới), tạo mới
+            if (targetConversationId == null) {
+                targetConversationId = UUID.randomUUID().toString()
                 
                 val newConversation = Conversation(
-                    id = conversationId,
+                    id = targetConversationId,
                     type = ConversationType.ONE_TO_ONE,
                     title = null,
                     lastMessageAt = Instant.now(),
@@ -156,7 +169,7 @@ class MessagingRepositoryImpl @Inject constructor(
                 
                 participantDao.insert(
                     ConversationParticipantEntity(
-                        conversationId = conversationId,
+                        conversationId = targetConversationId,
                         userId = senderId,
                         joinedAt = Instant.now(),
                         lastViewedAt = Instant.now(),
@@ -165,7 +178,7 @@ class MessagingRepositoryImpl @Inject constructor(
                 )
                 participantDao.insert(
                     ConversationParticipantEntity(
-                        conversationId = conversationId,
+                        conversationId = targetConversationId,
                         userId = recipientId,
                         joinedAt = Instant.now(),
                         lastViewedAt = Instant.EPOCH,
@@ -193,7 +206,7 @@ class MessagingRepositoryImpl @Inject constructor(
                 content = content,
                 sentAt = Instant.now(),
                 isRead = false,
-                conversationId = conversationId,
+                conversationId = targetConversationId,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )
@@ -202,7 +215,7 @@ class MessagingRepositoryImpl @Inject constructor(
             
             // Cập nhật lastMessageAt
             conversationDao.updateLastMessageAt(
-                conversationId,
+                targetConversationId,
                 message.sentAt.toEpochMilli(),
                 Instant.now().toEpochMilli()
             )
@@ -210,7 +223,7 @@ class MessagingRepositoryImpl @Inject constructor(
             // Thử gửi lên Firebase (không crash nếu fail)
             try {
                 firebaseMessaging.sendMessage(
-                    conversationId = conversationId,
+                    conversationId = targetConversationId,
                     senderId = senderId,
                     content = content,
                     recipientId = recipientId
@@ -232,15 +245,29 @@ class MessagingRepositoryImpl @Inject constructor(
         try {
             emit(Resource.Loading())
             
-            // Đánh dấu đã đọc trên Firebase
-            firebaseMessaging.markMessagesAsRead(conversationId, userId)
+            // Sử dụng timestamp hiện tại + 1 giây để chắc chắn bao gồm tất cả messages hiện tại
+            val markReadTime = Instant.now().plusSeconds(1)
             
-            // Cập nhật local cache
-            participantDao.updateLastViewed(conversationId, userId, Instant.now())
+            android.util.Log.d("MessagingRepository", "Marking as read - conversationId: $conversationId, userId: $userId, time: $markReadTime")
+            
+            // CẬP NHẬT LOCAL CACHE TRƯỚC (ưu tiên offline-first)
+            participantDao.updateLastViewed(conversationId, userId, markReadTime)
             messageDao.markMessagesAsRead(conversationId, userId)
+            
+            android.util.Log.d("MessagingRepository", "Local cache updated for: $conversationId")
+            
+            // Thử đồng bộ lên Firebase (không crash nếu fail)
+            try {
+                firebaseMessaging.markMessagesAsRead(conversationId, userId)
+                android.util.Log.d("MessagingRepository", "Firebase sync successful for: $conversationId")
+            } catch (firebaseError: Exception) {
+                android.util.Log.w("MessagingRepository", "Firebase sync failed (ignoring): ${firebaseError.message}")
+                // Không throw - local cache đã update thành công
+            }
             
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
+            android.util.Log.e("MessagingRepository", "Mark as read failed: ${e.message}")
             emit(Resource.Error(e.message ?: "Không thể đánh dấu đã đọc"))
         }
     }
