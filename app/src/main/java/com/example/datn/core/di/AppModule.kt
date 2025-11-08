@@ -34,6 +34,7 @@ import com.example.datn.data.local.dao.NotificationDao
 import com.example.datn.data.local.dao.StudentDao
 import com.example.datn.data.local.dao.ParentDao
 import com.example.datn.data.local.dao.ParentStudentDao
+import com.example.datn.data.local.dao.TeacherDao
 import com.example.datn.data.repository.impl.AuthRepositoryImpl
 import com.example.datn.data.repository.impl.ClassRepositoryImpl
 import com.example.datn.data.repository.impl.LessonContentRepositoryImpl
@@ -259,17 +260,29 @@ object AppModule {
         parentService: ParentService,
         parentStudentService: ParentStudentService,
         studentService: StudentService,
+        classService: ClassService,
+        userService: UserService,
         parentDao: ParentDao,
         studentDao: StudentDao,
-        parentStudentDao: ParentStudentDao
+        parentStudentDao: ParentStudentDao,
+        classDao: ClassDao,
+        classStudentDao: ClassStudentDao,
+        teacherDao: TeacherDao,
+        userDao: UserDao
     ): IParentRepository = ParentRepositoryImpl(
         firebaseDataSource,
         parentService,
         parentStudentService,
         studentService,
+        classService,
+        userService,
         parentDao,
         studentDao,
-        parentStudentDao
+        parentStudentDao,
+        classDao,
+        classStudentDao,
+        teacherDao,
+        userDao
     )
 
 
@@ -433,6 +446,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideParentDao(db: AppDatabase): ParentDao = db.parentDao()
+    
+    @Provides
+    @Singleton
+    fun provideTeacherDao(db: AppDatabase): TeacherDao = db.teacherDao()
 
     // Firebase Messaging Service
     @Provides
@@ -591,7 +608,8 @@ object AppModule {
             studentService,
             firebaseDataSource
         ),
-        updateRelationship = UpdateRelationshipUseCase(parentStudentService)
+        updateRelationship = UpdateRelationshipUseCase(parentStudentService),
+        getStudentClassesForParent = GetStudentClassesForParentUseCase(parentRepository)
     )
 
 }

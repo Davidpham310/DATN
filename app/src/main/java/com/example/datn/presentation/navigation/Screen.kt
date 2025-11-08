@@ -38,6 +38,30 @@ sealed class Screen(val route: String) {
     object TeacherSendNotification : Screen("teacher/send_notification")
     object TeacherTestManager : Screen("teacher/test_manager")
     
+    // Enrollment Management
+    object TeacherEnrollmentManagement : Screen("teacher/enrollment_management/{classId}/{className}") {
+        fun createRoute(classId: String, className: String): String =
+            "teacher/enrollment_management/$classId/$className"
+        
+        val routeWithArgs = "teacher/enrollment_management/{classId}/{className}"
+    }
+    
+    // Class Members
+    object TeacherClassMembers : Screen("teacher/class_members/{classId}/{className}") {
+        fun createRoute(classId: String, className: String): String =
+            "teacher/class_members/$classId/$className"
+        
+        val routeWithArgs = "teacher/class_members/{classId}/{className}"
+    }
+    
+    // Student Detail
+    object TeacherStudentDetail : Screen("teacher/student_detail/{studentId}/{classId}/{studentName}") {
+        fun createRoute(studentId: String, classId: String, studentName: String): String =
+            "teacher/student_detail/$studentId/$classId/${java.net.URLEncoder.encode(studentName, "UTF-8")}"
+        
+        val routeWithArgs = "teacher/student_detail/{studentId}/{classId}/{studentName}"
+    }
+    
     // MiniGame routes trong context của LessonContent
     object TeacherLessonMiniGameManager : Screen("teacher/lesson_minigame_manager/{lessonId}/{lessonTitle}") {
         fun createRoute(lessonId: String, lessonTitle: String): String =
@@ -120,6 +144,8 @@ sealed class Screen(val route: String) {
             "parent/student_detail/$studentId/$studentName"
         val routeWithArgs = "parent/student_detail/{studentId}/{studentName}"
     }
+    object ParentClassList : Screen("parent/class_list")
+    object ParentJoinClass : Screen("parent/join_class")
     object ParentConversations : Screen("parent/conversations")
     object ParentSelectTeacher : Screen("parent/select_teacher")
     object ParentSelectGroupParticipants : Screen("parent/select_group_participants")

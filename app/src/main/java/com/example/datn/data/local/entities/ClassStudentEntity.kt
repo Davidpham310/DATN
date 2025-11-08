@@ -12,6 +12,8 @@ data class ClassStudentEntity(
     val classId: String,
     val studentId: String,
     val enrollmentStatus: EnrollmentStatus = EnrollmentStatus.APPROVED,
-    val joinedAt: Instant = Instant.now(),
+    val enrolledDate: Instant = Instant.now(), // Renamed from joinedAt for consistency
+    val approvedBy: String = "",
+    val rejectionReason: String = "",
     val isLocked: Boolean = false
 )

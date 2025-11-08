@@ -17,6 +17,8 @@ import com.example.datn.presentation.teacher.classes.components.AddEditClassDial
 @Composable
 fun ClassManagerScreen(
     onNavigateToLessonManager: (classId: String, className: String) -> Unit,
+    onNavigateToEnrollmentManagement: ((classId: String, className: String) -> Unit)? = null,
+    onNavigateToClassMembers: ((classId: String, className: String) -> Unit)? = null,
     viewModel: ClassManagerViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -41,6 +43,12 @@ fun ClassManagerScreen(
                 onDelete = { classObj -> viewModel.onEvent(ClassManagerEvent.DeleteClass(classObj)) },
                 onClick = { selectedClass ->
                     onNavigateToLessonManager(selectedClass.id, selectedClass.name)
+                },
+                onManageEnrollment = onNavigateToEnrollmentManagement?.let { callback ->
+                    { classObj -> callback(classObj.id, classObj.name) }
+                },
+                onViewMembers = onNavigateToClassMembers?.let { callback ->
+                    { classObj -> callback(classObj.id, classObj.name) }
                 },
                 modifier = Modifier.fillMaxSize()
             )

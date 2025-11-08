@@ -9,6 +9,6 @@ data class ParentStudentUseCases @Inject constructor(
     val getLinkedStudents: GetLinkedStudentsUseCase,
     val unlinkStudent: UnlinkStudentUseCase,
     val searchStudent: SearchStudentUseCase,
-    val updateRelationship: UpdateRelationshipUseCase
+    val updateRelationship: UpdateRelationshipUseCase,
+    val getStudentClassesForParent: GetStudentClassesForParentUseCase
 )
-

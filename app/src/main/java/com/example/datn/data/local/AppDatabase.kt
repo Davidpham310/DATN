@@ -37,7 +37,7 @@ import com.example.datn.data.local.entities.*
         StudentLessonProgressEntity::class, DailyStudyTimeEntity::class, NotificationEntity::class,
         ConversationEntity::class, MessageEntity::class
     ],
-    version = 3, // Tăng phiên bản khi thay đổi cấu trúc DB
+    version = 4, // Tăng phiên bản khi thay đổi cấu trúc DB
     exportSchema = false
 )
 @TypeConverters(DateTimeConverter::class, EnumConverter::class)
@@ -111,6 +111,42 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration từ version 3 sang 4:
+         * - Đổi tên joinedAt thành enrolledDate
+         * - Thêm approvedBy và rejectionReason vào bảng class_student
+         */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Tạo bảng mới với schema mới
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS class_student_new (
+                        classId TEXT NOT NULL,
+                        studentId TEXT NOT NULL,
+                        enrollmentStatus TEXT NOT NULL,
+                        enrolledDate INTEGER NOT NULL,
+                        approvedBy TEXT,
+                        rejectionReason TEXT,
+                        isLocked INTEGER NOT NULL,
+                        PRIMARY KEY(classId, studentId)
+                    )
+                """.trimIndent())
+                
+                // Copy data từ bảng cũ sang bảng mới (joinedAt -> enrolledDate)
+                database.execSQL("""
+                    INSERT INTO class_student_new (classId, studentId, enrollmentStatus, enrolledDate, approvedBy, rejectionReason, isLocked)
+                    SELECT classId, studentId, enrollmentStatus, joinedAt, NULL, NULL, isLocked
+                    FROM class_student
+                """.trimIndent())
+                
+                // Xóa bảng cũ
+                database.execSQL("DROP TABLE class_student")
+                
+                // Đổi tên bảng mới thành tên cũ
+                database.execSQL("ALTER TABLE class_student_new RENAME TO class_student")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -118,7 +154,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                 INSTANCE = instance
                 instance

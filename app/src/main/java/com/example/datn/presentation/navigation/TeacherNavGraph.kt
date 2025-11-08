@@ -17,6 +17,7 @@ import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.User
 import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.presentation.teacher.classes.screens.ClassManagerScreen
+import com.example.datn.presentation.teacher.enrollment.EnrollmentManagementScreen
 import com.example.datn.presentation.teacher.home.TeacherHomeScreen
 import com.example.datn.presentation.teacher.lessons.LessonContentManagerViewModel
 import com.example.datn.presentation.teacher.lessons.screens.LessonContentDetailScreen
@@ -57,9 +58,85 @@ fun TeacherNavGraph(
                     navController.navigate(
                         Screen.TeacherLessonManager.createRoute(classId, className)
                     )
+                },
+                onNavigateToEnrollmentManagement = { classId, className ->
+                    navController.navigate(
+                        Screen.TeacherEnrollmentManagement.createRoute(classId, className)
+                    )
+                },
+                onNavigateToClassMembers = { classId, className ->
+                    navController.navigate(
+                        Screen.TeacherClassMembers.createRoute(classId, className)
+                    )
                 }
             )
         }
+        
+        // Enrollment Management Screen
+        composable(
+            route = Screen.TeacherEnrollmentManagement.routeWithArgs,
+            arguments = listOf(
+                navArgument("classId") { type = NavType.StringType },
+                navArgument("className") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val classId = backStackEntry.arguments?.getString("classId") ?: ""
+            val className = java.net.URLDecoder.decode(
+                backStackEntry.arguments?.getString("className") ?: "", "UTF-8"
+            )
+            EnrollmentManagementScreen(
+                classId = classId,
+                className = className,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Class Members - View approved students in class
+        composable(
+            route = Screen.TeacherClassMembers.routeWithArgs,
+            arguments = listOf(
+                navArgument("classId") { type = NavType.StringType },
+                navArgument("className") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val classId = backStackEntry.arguments?.getString("classId") ?: ""
+            val className = java.net.URLDecoder.decode(
+                backStackEntry.arguments?.getString("className") ?: "", "UTF-8"
+            )
+            com.example.datn.presentation.teacher.classmembers.ClassMembersScreen(
+                classId = classId,
+                className = className,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToStudentDetail = { studentId, studentName ->
+                    navController.navigate(
+                        Screen.TeacherStudentDetail.createRoute(studentId, classId, studentName)
+                    )
+                }
+            )
+        }
+        
+        // Student Detail - View comprehensive student information
+        composable(
+            route = Screen.TeacherStudentDetail.routeWithArgs,
+            arguments = listOf(
+                navArgument("studentId") { type = NavType.StringType },
+                navArgument("classId") { type = NavType.StringType },
+                navArgument("studentName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val studentId = backStackEntry.arguments?.getString("studentId") ?: ""
+            val classId = backStackEntry.arguments?.getString("classId") ?: ""
+            val studentName = java.net.URLDecoder.decode(
+                backStackEntry.arguments?.getString("studentName") ?: "", "UTF-8"
+            )
+            com.example.datn.presentation.teacher.studentdetail.StudentDetailScreen(
+                studentId = studentId,
+                classId = classId,
+                studentName = studentName,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
         // Removed standalone TeacherTestManager - tests are now managed per lesson
         composable(
             route = Screen.TeacherLessonManager.routeWithArgs,

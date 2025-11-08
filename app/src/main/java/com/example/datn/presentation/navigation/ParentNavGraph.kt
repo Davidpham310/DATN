@@ -16,6 +16,8 @@ import com.example.datn.presentation.parent.messaging.SelectTeacherScreen
 import com.example.datn.presentation.parent.messaging.ParentSelectRecipientViewModel
 import com.example.datn.presentation.parent.studentmanagement.ParentStudentManagementScreen
 import com.example.datn.presentation.parent.studentprofile.StudentDetailScreen
+import com.example.datn.presentation.parent.classlist.ParentClassListScreen
+import com.example.datn.presentation.parent.classmanager.ParentJoinClassScreen
 import com.example.datn.presentation.common.messaging.ChatViewModel
 import com.example.datn.presentation.common.messaging.ConversationListViewModel
 import com.example.datn.presentation.common.messaging.screens.ChatScreen
@@ -59,6 +61,25 @@ fun ParentNavGraph(
             StudentDetailScreen(
                 studentId = studentId,
                 studentName = studentName,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable(Screen.ParentClassList.route) {
+            ParentClassListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToClassDetail = { classId ->
+                    // TODO: Navigate to class detail screen when implemented
+                    // navController.navigate(Screen.ParentClassDetail.createRoute(classId))
+                },
+                onNavigateToJoinClass = {
+                    navController.navigate(Screen.ParentJoinClass.route)
+                }
+            )
+        }
+        
+        composable(Screen.ParentJoinClass.route) {
+            ParentJoinClassScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
