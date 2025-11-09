@@ -24,6 +24,9 @@ data class ParentJoinClassState(
     // Enrollment status
     val enrollment: ClassStudent? = null,
     
+    // Map of all enrollments for selected student: classId -> ClassStudent
+    val studentEnrollments: Map<String, ClassStudent> = emptyMap(),
+    
     // Dialog states
     val showStudentSelectionDialog: Boolean = false,
     val showClassDetailsDialog: Boolean = false,

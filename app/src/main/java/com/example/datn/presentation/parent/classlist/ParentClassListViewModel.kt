@@ -37,8 +37,19 @@ class ParentClassListViewModel @Inject constructor(
         )
 
     init {
-        loadLinkedStudents()
-        loadClasses()
+        android.util.Log.d("ParentClassListVM", "🚀 ViewModel initialized - Loading data...")
+        
+        // Log current parentId để debug
+        viewModelScope.launch {
+            currentParentIdFlow.collect { parentId ->
+                android.util.Log.d("ParentClassListVM", "👤 Current parentId changed: '$parentId' (isBlank: ${parentId.isBlank()})")
+                if (parentId.isNotBlank()) {
+                    android.util.Log.i("ParentClassListVM", "✅ ParentId available - Reloading data...")
+                    loadLinkedStudents()
+                    loadClasses()
+                }
+            }
+        }
     }
 
     override fun onEvent(event: ParentClassListEvent) {
@@ -65,15 +76,25 @@ class ParentClassListViewModel @Inject constructor(
     private fun loadLinkedStudents() {
         viewModelScope.launch {
             val parentId = currentParentIdFlow.value
-            if (parentId.isBlank()) return@launch
+            if (parentId.isBlank()) {
+                android.util.Log.w("ParentClassListVM", "⚠️ Cannot load students: parentId is blank")
+                return@launch
+            }
+
+            android.util.Log.d("ParentClassListVM", "👨‍👩‍👧 Loading linked students for parent: $parentId")
 
             parentStudentUseCases.getLinkedStudents(parentId).collect { resource ->
                 when (resource) {
                     is Resource.Loading -> {
+                        android.util.Log.d("ParentClassListVM", "⏳ Loading students...")
                         setState { copy(isLoadingStudents = true, studentsError = null) }
                     }
                     is Resource.Success -> {
                         val students = resource.data?.map { it.student } ?: emptyList()
+                        android.util.Log.i("ParentClassListVM", "✅ Loaded ${students.size} linked students")
+                        students.forEachIndexed { index, student ->
+                            android.util.Log.d("ParentClassListVM", "  [$index] StudentID: ${student.id}, UserID: ${student.userId}, Grade: ${student.gradeLevel}")
+                        }
                         setState {
                             copy(
                                 linkedStudents = students,
@@ -105,10 +126,15 @@ class ParentClassListViewModel @Inject constructor(
     private fun loadClasses() {
         viewModelScope.launch {
             val parentId = currentParentIdFlow.value
-            if (parentId.isBlank()) return@launch
+            if (parentId.isBlank()) {
+                android.util.Log.w("ParentClassListVM", "⚠️ Cannot load classes: parentId is blank")
+                return@launch
+            }
 
             val studentId = state.value.selectedStudentId
             val enrollmentStatus = state.value.selectedEnrollmentStatus
+
+            android.util.Log.d("ParentClassListVM", "🔄 Loading classes for parent: $parentId, student: $studentId, status: $enrollmentStatus")
 
             parentStudentUseCases.getStudentClassesForParent(
                 parentId = parentId,
@@ -117,12 +143,18 @@ class ParentClassListViewModel @Inject constructor(
             ).collect { resource ->
                 when (resource) {
                     is Resource.Loading -> {
+                        android.util.Log.d("ParentClassListVM", "⏳ Loading classes...")
                         setState { copy(isLoadingClasses = true, classesError = null) }
                     }
                     is Resource.Success -> {
+                        val classes = resource.data ?: emptyList()
+                        android.util.Log.i("ParentClassListVM", "✅ Loaded ${classes.size} classes successfully")
+                        classes.forEachIndexed { index, enrollment ->
+                            android.util.Log.d("ParentClassListVM", "  [$index] ${enrollment.className} - ${enrollment.enrollmentStatus} - ${enrollment.studentName}")
+                        }
                         setState {
                             copy(
-                                classEnrollments = resource.data ?: emptyList(),
+                                classEnrollments = classes,
                                 isLoadingClasses = false,
                                 classesError = null,
                                 refreshing = false
@@ -130,6 +162,7 @@ class ParentClassListViewModel @Inject constructor(
                         }
                     }
                     is Resource.Error -> {
+                        android.util.Log.e("ParentClassListVM", "❌ Error loading classes: ${resource.message}")
                         setState {
                             copy(
                                 isLoadingClasses = false,

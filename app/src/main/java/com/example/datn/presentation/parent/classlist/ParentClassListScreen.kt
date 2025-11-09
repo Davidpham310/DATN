@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +32,23 @@ fun ParentClassListScreen(
     viewModel: ParentClassListViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    
+    // Auto-refresh khi màn hình được mở để sync data từ Firestore
+    LaunchedEffect(Unit) {
+        android.util.Log.d("ParentClassListScreen", "🔄 Screen launched - Triggering refresh")
+        viewModel.onEvent(ParentClassListEvent.Refresh)
+    }
+    
+    // Log state changes
+    LaunchedEffect(state.classEnrollments.size, state.isLoadingClasses, state.classesError) {
+        android.util.Log.d("ParentClassListScreen", """
+            📊 UI State Updated:
+            - Classes: ${state.classEnrollments.size}
+            - Loading: ${state.isLoadingClasses}
+            - Error: ${state.classesError ?: "None"}
+            - Students: ${state.linkedStudents.size}
+        """.trimIndent())
+    }
 
     Scaffold(
         topBar = {

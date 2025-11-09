@@ -3,6 +3,7 @@ package com.example.datn.presentation.parent.classmanager
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
 import com.example.datn.core.utils.Resource
+import com.example.datn.domain.models.ClassStudent
 import com.example.datn.domain.models.EnrollmentStatus
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.classmanager.ClassUseCases
@@ -140,6 +141,9 @@ class ParentJoinClassViewModel @Inject constructor(
                     }
                     if (classes.isEmpty()) {
                         showNotification("Không tìm thấy lớp học với mã: $classCode", NotificationType.ERROR)
+                    } else {
+                        // Load enrollments for selected student
+                        loadAllStudentEnrollments()
                     }
                 }
                 is Resource.Error -> {
@@ -261,6 +265,24 @@ class ParentJoinClassViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+    
+    private fun loadAllStudentEnrollments() {
+        // Load enrollments for each class in search results
+        launch {
+            val studentId = state.value.selectedStudent?.student?.id ?: return@launch
+            val enrollmentMap = mutableMapOf<String, ClassStudent>()
+            
+            state.value.searchResults.forEach { classItem ->
+                classUseCases.getEnrollment(classItem.id, studentId).first().let { result ->
+                    if (result is Resource.Success && result.data != null) {
+                        enrollmentMap[classItem.id] = result.data
+                    }
+                }
+            }
+            
+            setState { copy(studentEnrollments = enrollmentMap) }
         }
     }
 }

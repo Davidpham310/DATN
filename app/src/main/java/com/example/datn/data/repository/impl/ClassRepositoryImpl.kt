@@ -370,23 +370,8 @@ class ClassRepositoryImpl @Inject constructor(
             when (result) {
                 is Resource.Success -> {
                     if (result.data) {
-                        // Cập nhật Room cache theo status
-                        val classStudent = ClassStudentEntity(classId, studentId)
-                        when (status) {
-                            EnrollmentStatus.APPROVED -> {
-                                classDao.addStudentToClass(classStudent)
-                            }
-                            EnrollmentStatus.REJECTED, EnrollmentStatus.WITHDRAWN -> {
-                                classDao.removeStudentFromClass(classStudent)
-                            }
-                            EnrollmentStatus.PENDING -> {
-                                // Không cache pending trong Room
-                            }
-
-                            EnrollmentStatus.NOT_ENROLLED -> {
-
-                            }
-                        }
+                        // ✅ KHÔNG cache vào Room vì parent sẽ query trực tiếp từ Firebase
+                        // Room cache chỉ local trên một thiết bị, không giúp gì cho devices khác
                         emit(Resource.Success(true))
                     } else {
                         emit(Resource.Error("Failed to update enrollment status"))

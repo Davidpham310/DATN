@@ -256,8 +256,10 @@ fun ParentJoinClassScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(state.searchResults) { classItem ->
+                        val enrollment = state.studentEnrollments[classItem.id]
                         ClassResultCard(
                             classItem = classItem,
+                            enrollmentStatus = enrollment?.enrollmentStatus,
                             onClick = {
                                 viewModel.onEvent(ParentJoinClassEvent.SelectClass(classItem))
                                 viewModel.onEvent(ParentJoinClassEvent.ShowClassDetailsDialog)
@@ -288,6 +290,7 @@ fun ParentJoinClassScreen(
 @Composable
 private fun ClassResultCard(
     classItem: com.example.datn.domain.models.Class,
+    enrollmentStatus: com.example.datn.domain.models.EnrollmentStatus? = null,
     onClick: () -> Unit
 ) {
     Card(
@@ -359,6 +362,69 @@ private fun ClassResultCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            
+            // Enrollment status badge
+            if (enrollmentStatus != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                EnrollmentStatusBadge(status = enrollmentStatus)
+            }
+        }
+    }
+}
+
+@Composable
+private fun EnrollmentStatusBadge(status: com.example.datn.domain.models.EnrollmentStatus) {
+    val (text, icon, color) = when (status) {
+        com.example.datn.domain.models.EnrollmentStatus.APPROVED -> Triple(
+            "Đã tham gia",
+            Icons.Default.CheckCircle,
+            MaterialTheme.colorScheme.primary
+        )
+        com.example.datn.domain.models.EnrollmentStatus.PENDING -> Triple(
+            "Chờ duyệt",
+            Icons.Default.Schedule,
+            MaterialTheme.colorScheme.tertiary
+        )
+        com.example.datn.domain.models.EnrollmentStatus.REJECTED -> Triple(
+            "Đã từ chối",
+            Icons.Default.Cancel,
+            MaterialTheme.colorScheme.error
+        )
+        com.example.datn.domain.models.EnrollmentStatus.WITHDRAWN -> Triple(
+            "Đã rút",
+            Icons.Default.RemoveCircle,
+            MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        com.example.datn.domain.models.EnrollmentStatus.NOT_ENROLLED -> Triple(
+            "Chưa tham gia",
+            Icons.Default.Info,
+            MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+    
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = color.copy(alpha = 0.12f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                color = color,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

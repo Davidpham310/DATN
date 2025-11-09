@@ -37,6 +37,7 @@ class GetStudentClassesForParentUseCase @Inject constructor(
         studentId: String? = null,
         enrollmentStatus: EnrollmentStatus? = null
     ): Flow<Resource<List<ClassEnrollmentInfo>>> {
+        android.util.Log.d("GetStudentClassesUseCase", "🔍 UseCase called: parentId=$parentId, studentId=$studentId, status=$enrollmentStatus")
         return parentRepository.getStudentClassesForParent(
             parentId = parentId,
             studentId = studentId,

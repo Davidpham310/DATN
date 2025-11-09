@@ -103,6 +103,55 @@ class ClassService @Inject constructor() :
     }
 
     /**
+     * Lấy tất cả enrollments của học sinh từ Firebase (bất kỳ status nào)
+     */
+    suspend fun getEnrollmentsByStudent(
+        studentId: String,
+        enrollmentStatus: EnrollmentStatus? = null
+    ): List<ClassStudent> {
+        Log.d(TAG, "Fetching enrollments for student: $studentId, status: $enrollmentStatus")
+        return try {
+            var query = classStudentRef.whereEqualTo("studentId", studentId)
+            
+            // Filter theo status nếu có
+            if (enrollmentStatus != null) {
+                query = query.whereEqualTo("enrollmentStatus", enrollmentStatus.name)
+            }
+            
+            val snapshot = query.get().await()
+            
+            val enrollments = snapshot.documents.mapNotNull { doc ->
+                try {
+                    ClassStudent(
+                        classId = doc.getString("classId") ?: "",
+                        studentId = doc.getString("studentId") ?: "",
+                        enrollmentStatus = EnrollmentStatus.valueOf(
+                            doc.getString("enrollmentStatus") ?: EnrollmentStatus.NOT_ENROLLED.name
+                        ),
+                        enrolledDate = doc.get("enrolledDate")?.let {
+                            when (it) {
+                                is com.google.firebase.Timestamp -> it.toDate().toInstant()
+                                else -> Instant.now()
+                            }
+                        } ?: Instant.now(),
+                        approvedBy = doc.getString("approvedBy") ?: "",
+                        rejectionReason = doc.getString("rejectionReason") ?: ""
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to parse enrollment doc ${doc.id}", e)
+                    null
+                }
+            }
+            
+            Log.d(TAG, "Found ${enrollments.size} enrollments for student $studentId")
+            enrollments
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching enrollments for student: $studentId", e)
+            emptyList()
+        }
+    }
+    
+    /**
      * Lấy tất cả lớp học sinh tham gia (status = APPROVED)
      */
     suspend fun getClassesByStudent(studentId: String): List<Class> {

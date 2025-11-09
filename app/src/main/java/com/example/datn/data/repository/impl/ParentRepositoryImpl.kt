@@ -116,6 +116,7 @@ class ParentRepositoryImpl @Inject constructor(
         studentId: String?,
         enrollmentStatus: EnrollmentStatus?
     ): Flow<Resource<List<ClassEnrollmentInfo>>> = flow {
+        Log.d(TAG, "🔍 getStudentClassesForParent CALLED: parentId=$parentId, studentId=$studentId, status=$enrollmentStatus")
         emit(Resource.Loading())
         
         try {
@@ -123,14 +124,18 @@ class ParentRepositoryImpl @Inject constructor(
             
             // 1. Validate input
             if (parentId.isBlank()) {
+                Log.e(TAG, "❌ Parent ID is blank!")
                 emit(Resource.Error("Parent ID không được rỗng"))
                 return@flow
             }
             
-            // 2. Lấy danh sách con của phụ huynh
-            val parentStudents = parentStudentDao.getStudentsOfParent(parentId)
+            // 2. ✅ Lấy danh sách con của phụ huynh từ FIREBASE
+            Log.d(TAG, "📚 Loading students from FIREBASE for parent: $parentId")
+            val parentStudents = parentStudentService.getParentStudentLinks(parentId)
+            Log.i(TAG, "✅ Found ${parentStudents.size} students from FIREBASE")
+            
             if (parentStudents.isEmpty()) {
-                Log.i(TAG, "Parent has no linked students")
+                Log.w(TAG, "⚠️ Parent has no linked students in FIREBASE - returning empty list")
                 emit(Resource.Success(emptyList()))
                 return@flow
             }
@@ -154,50 +159,59 @@ class ParentRepositoryImpl @Inject constructor(
             val classEnrollments = mutableListOf<ClassEnrollmentInfo>()
             
             for (stdId in targetStudentIds) {
-                // Lấy enrollments của học sinh này
-                var enrollments = classStudentDao.getClassesByStudentId(stdId)
+                // ✅ Lấy enrollments từ FIREBASE thay vì Room
+                Log.d(TAG, "📋 Loading enrollments from Firebase for student: $stdId, filter status: $enrollmentStatus")
+                val enrollments = classService.getEnrollmentsByStudent(
+                    studentId = stdId,
+                    enrollmentStatus = enrollmentStatus
+                )
                 
-                // Filter theo enrollment status nếu có
-                if (enrollmentStatus != null) {
-                    enrollments = enrollments.filter { it.enrollmentStatus == enrollmentStatus }
+                Log.i(TAG, "✅ Found ${enrollments.size} enrollments from Firebase for student $stdId")
+                enrollments.forEachIndexed { index, enrollment ->
+                    Log.d(TAG, "  [$index] ClassID: ${enrollment.classId}, Status: ${enrollment.enrollmentStatus}, Date: ${enrollment.enrolledDate}")
                 }
                 
-                Log.d(TAG, "Found ${enrollments.size} enrollments for student $stdId")
+                // 4. ✅ Lấy thông tin học sinh từ FIREBASE
+                Log.d(TAG, "👤 Loading student info from FIREBASE for: $stdId")
+                val studentUser = studentService.getStudentById(stdId)?.let { student ->
+                    userService.getUserById(student.userId)
+                }
                 
-                // 4. Lấy thông tin học sinh
-                val studentEntity = studentDao.getStudentById(stdId)
-                val studentUser = studentEntity?.let { userDao.getUserById(it.userId) }
-                
-                if (studentEntity == null || studentUser == null) {
-                    Log.w(TAG, "Student or user info not found for $stdId, skipping")
+                if (studentUser == null) {
+                    Log.w(TAG, "  ⚠️ Student or user info not found from FIREBASE for $stdId, skipping")
                     continue
                 }
+                Log.d(TAG, "  ✓ Student loaded: ${studentUser.name}")
                 
                 // 5. Xử lý từng enrollment
                 for (enrollment in enrollments) {
-                    // Lấy thông tin lớp
-                    val classEntity = classDao.getClassById(enrollment.classId)
-                    if (classEntity == null) {
-                        Log.w(TAG, "Class ${enrollment.classId} not found, skipping")
+                    Log.d(TAG, "  📚 Processing enrollment: ClassID=${enrollment.classId}, Status=${enrollment.enrollmentStatus}")
+                    
+                    // ✅ Lấy thông tin lớp từ FIREBASE
+                    val classObj = classService.getClassById(enrollment.classId)
+                    if (classObj == null) {
+                        Log.w(TAG, "  ⚠️ Class ${enrollment.classId} not found from Firebase, skipping")
                         continue
                     }
+                    Log.d(TAG, "  ✓ Class loaded: ${classObj.name} (${classObj.classCode})")
                     
-                    // Lấy thông tin giáo viên
-                    val teacherEntity = teacherDao.getTeacherById(classEntity.teacherId)
-                    val teacherUser = teacherEntity?.let { userDao.getUserById(it.userId) }
+                    // ✅ Lấy thông tin giáo viên từ FIREBASE
+                    val teacherUser = userService.getUserById(classObj.teacherId)
                     
                     val teacherName = teacherUser?.name ?: "(Đã rời)"
                     val teacherAvatar = teacherUser?.avatarUrl
-                    val teacherSpecialization = teacherEntity?.specialization ?: ""
+                    val teacherSpecialization = "" // Teacher specialization không cần thiết
+                    
+                    Log.d(TAG, "  ✓ Teacher: $teacherName")
                     
                     // Tạo ClassEnrollmentInfo
                     val enrollmentInfo = ClassEnrollmentInfo(
-                        classId = classEntity.id,
-                        className = classEntity.name,
-                        classCode = classEntity.classCode,
-                        subject = classEntity.subject,
-                        gradeLevel = classEntity.gradeLevel,
-                        teacherId = classEntity.teacherId,
+                        classId = classObj.id,
+                        className = classObj.name,
+                        classCode = classObj.classCode,
+                        subject = classObj.subject,
+                        gradeLevel = classObj.gradeLevel,
+                        teacherId = classObj.teacherId,
                         teacherName = teacherName,
                         teacherAvatar = teacherAvatar,
                         teacherSpecialization = teacherSpecialization,
@@ -208,8 +222,8 @@ class ParentRepositoryImpl @Inject constructor(
                         enrolledDate = enrollment.enrolledDate,
                         approvedBy = enrollment.approvedBy.ifBlank { null },
                         rejectionReason = enrollment.rejectionReason.ifBlank { null },
-                        classCreatedAt = classEntity.createdAt,
-                        classUpdatedAt = classEntity.updatedAt
+                        classCreatedAt = classObj.createdAt,
+                        classUpdatedAt = classObj.updatedAt
                     )
                     
                     classEnrollments.add(enrollmentInfo)
@@ -217,6 +231,7 @@ class ParentRepositoryImpl @Inject constructor(
             }
             
             // 6. Sắp xếp kết quả
+            Log.d(TAG, "📊 Sorting ${classEnrollments.size} class enrollments...")
             val sortedEnrollments = classEnrollments.sortedWith(
                 compareBy<ClassEnrollmentInfo> {
                     // Sắp xếp theo status: APPROVED trước, PENDING sau, REJECTED/WITHDRAWN cuối
@@ -233,7 +248,11 @@ class ParentRepositoryImpl @Inject constructor(
                 }
             )
             
-            Log.i(TAG, "Successfully retrieved ${sortedEnrollments.size} class enrollments")
+            Log.i(TAG, "🎉 Successfully retrieved ${sortedEnrollments.size} class enrollments for parent $parentId")
+            Log.d(TAG, "📋 Final class list:")
+            sortedEnrollments.forEachIndexed { index, info ->
+                Log.d(TAG, "  [$index] ${info.className} (${info.classCode}) - ${info.enrollmentStatus} - Student: ${info.studentName}")
+            }
             emit(Resource.Success(sortedEnrollments))
             
         } catch (e: Exception) {
