@@ -5,11 +5,17 @@ import com.example.datn.core.utils.Resource
 import com.example.datn.data.local.dao.MiniGameDao
 import com.example.datn.data.local.dao.MiniGameQuestionDao
 import com.example.datn.data.local.dao.MiniGameOptionDao
+import com.example.datn.data.local.dao.StudentMiniGameResultDao
+import com.example.datn.data.local.dao.StudentMiniGameAnswerDao
+import com.example.datn.data.local.entities.toEntity
+import com.example.datn.data.local.entities.toDomain
 import com.example.datn.data.mapper.toDomain
 import com.example.datn.data.mapper.toEntity
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.domain.models.MiniGameQuestion
 import com.example.datn.domain.models.MiniGameOption
+import com.example.datn.domain.models.StudentMiniGameResult
+import com.example.datn.domain.models.StudentMiniGameAnswer
 import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.repository.IMiniGameRepository
@@ -25,7 +31,9 @@ class MiniGameRepositoryImpl @Inject constructor(
     private val firebaseDataSource: FirebaseDataSource,
     private val miniGameDao: MiniGameDao,
     private val miniGameQuestionDao: MiniGameQuestionDao,
-    private val miniGameOptionDao: MiniGameOptionDao
+    private val miniGameOptionDao: MiniGameOptionDao,
+    private val studentMiniGameResultDao: StudentMiniGameResultDao,
+    private val studentMiniGameAnswerDao: StudentMiniGameAnswerDao
 ) : IMiniGameRepository {
 
     override fun createGame(game: MiniGame): Flow<Resource<MiniGame>> = flow {
@@ -411,6 +419,108 @@ class MiniGameRepositoryImpl @Inject constructor(
             emit(Resource.Success(option))
         } catch (e: Exception) {
             emit(Resource.Error("Lỗi khi lấy đáp án: ${e.message}"))
+        }
+    }
+
+    // ==================== RESULT & ANSWER OPERATIONS ====================
+
+    override fun submitMiniGameResult(
+        result: StudentMiniGameResult,
+        answers: List<StudentMiniGameAnswer>
+    ): Flow<Resource<StudentMiniGameResult>> = flow {
+        emit(Resource.Loading())
+        try {
+            // Get current attempt count
+            val count = studentMiniGameResultDao.getAttemptCount(
+                result.studentId,
+                result.miniGameId
+            )
+            
+            // Create result with incremented attempt number
+            val newResult = result.copy(attemptNumber = count + 1)
+            
+            // Save to Room
+            studentMiniGameResultDao.insert(newResult.toEntity())
+            
+            // Save answers
+            val answerEntities = answers.map { it.toEntity() }
+            studentMiniGameAnswerDao.insertAll(answerEntities)
+            
+            emit(Resource.Success(newResult))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error submitting result: ${e.message}"))
+        }
+    }
+
+    override fun getAllStudentResults(
+        studentId: String,
+        miniGameId: String
+    ): Flow<Resource<List<StudentMiniGameResult>>> = flow {
+        emit(Resource.Loading())
+        try {
+            val entities = studentMiniGameResultDao
+                .getResultsByStudentAndGame(studentId, miniGameId)
+            val results = entities.map { it.toDomain() }
+            emit(Resource.Success(results))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error loading results: ${e.message}"))
+        }
+    }
+
+    override fun getStudentResult(
+        resultId: String
+    ): Flow<Resource<StudentMiniGameResult?>> = flow {
+        emit(Resource.Loading())
+        try {
+            val entity = studentMiniGameResultDao.getResultById(resultId)
+            val result = entity?.toDomain()
+            emit(Resource.Success(result))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error loading result: ${e.message}"))
+        }
+    }
+
+    override fun getLatestResult(
+        studentId: String,
+        miniGameId: String
+    ): Flow<Resource<StudentMiniGameResult?>> = flow {
+        emit(Resource.Loading())
+        try {
+            val entity = studentMiniGameResultDao
+                .getLatestResult(studentId, miniGameId)
+            val result = entity?.toDomain()
+            emit(Resource.Success(result))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error loading latest result: ${e.message}"))
+        }
+    }
+
+    override fun getBestResult(
+        studentId: String,
+        miniGameId: String
+    ): Flow<Resource<StudentMiniGameResult?>> = flow {
+        emit(Resource.Loading())
+        try {
+            val entity = studentMiniGameResultDao
+                .getBestResult(studentId, miniGameId)
+            val result = entity?.toDomain()
+            emit(Resource.Success(result))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error loading best result: ${e.message}"))
+        }
+    }
+
+    override fun getStudentAnswers(
+        resultId: String
+    ): Flow<Resource<List<StudentMiniGameAnswer>>> = flow {
+        emit(Resource.Loading())
+        try {
+            val entities = studentMiniGameAnswerDao
+                .getAnswersByResultId(resultId)
+            val answers = entities.map { it.toDomain() }
+            emit(Resource.Success(answers))
+        } catch (e: Exception) {
+            emit(Resource.Error("Error loading answers: ${e.message}"))
         }
     }
 }

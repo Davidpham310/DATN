@@ -21,4 +21,10 @@ interface TestDao : BaseDao<TestEntity> {
 
     @Query("SELECT * FROM test WHERE title LIKE '%' || :query || '%' AND (:lessonId IS NULL OR lessonId = :lessonId)")
     suspend fun searchByTitle(query: String, lessonId: String? = null): List<TestEntity>
+
+    @Query("SELECT * FROM test WHERE classId IN (:classIds)")
+    suspend fun getTestsByClasses(classIds: List<String>): List<TestEntity>
+
+    @Query("SELECT * FROM test")
+    suspend fun getAllTests(): List<TestEntity>
 }

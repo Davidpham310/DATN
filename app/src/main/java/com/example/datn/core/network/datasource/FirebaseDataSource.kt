@@ -447,6 +447,10 @@ class FirebaseDataSource @Inject constructor(
         testService.getTestsByLesson(lessonId)
     }.toResource()
 
+    suspend fun getTestsByClassId(classId: String): Resource<List<Test>> = safeCallWithResult {
+        testService.getTestsByClassId(classId)
+    }.toResource()
+
     suspend fun updateTest(test: Test): Resource<Test?> = safeCallWithResult {
         testService.updateTest(test.id, test)
         test
@@ -488,6 +492,18 @@ class FirebaseDataSource @Inject constructor(
 
     suspend fun getResultsByTest(testId: String): Resource<List<com.example.datn.domain.models.StudentTestResult>> = safeCallWithResult {
         testService.getResultsByTest(testId)
+    }.toResource()
+
+    suspend fun getResultsByStudent(studentId: String): Resource<List<com.example.datn.domain.models.StudentTestResult>> = safeCallWithResult {
+        testService.getResultsByStudent(studentId)
+    }.toResource()
+    
+    suspend fun saveStudentAnswers(answers: List<com.example.datn.domain.models.StudentTestAnswer>): Resource<Boolean> = safeCallWithResult {
+        testService.saveStudentAnswers(answers)
+    }.toResource()
+    
+    suspend fun getAnswersByResultId(resultId: String): Resource<List<com.example.datn.domain.models.StudentTestAnswer>> = safeCallWithResult {
+        testService.getAnswersByResultId(resultId)
     }.toResource()
 
     // ==================== MESSAGING OPERATIONS ====================

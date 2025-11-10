@@ -38,6 +38,23 @@ class StudentRepositoryImpl @Inject constructor(
         emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
     }
 
+    override fun getStudentProfileByUserId(userId: String): Flow<Resource<Student?>> = flow {
+        emit(Resource.Loading())
+        try {
+            val student = studentService.getStudentByUserId(userId)
+            if (student != null) {
+                studentDao.insert(student.toEntity())
+            }
+            emit(Resource.Success(student))
+        } catch (e: Exception) {
+            // Fallback to local
+            val local = studentDao.getStudentByUserId(userId)?.toDomain()
+            emit(Resource.Success(local))
+        }
+    }.catch { e ->
+        emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
+    }
+
     override fun getStudentUser(studentId: String): Flow<Resource<User?>> = flow {
         emit(Resource.Loading())
         try {

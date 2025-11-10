@@ -26,6 +26,9 @@ import com.example.datn.data.local.dao.MessageDao
 import com.example.datn.data.local.dao.MiniGameDao
 import com.example.datn.data.local.dao.MiniGameQuestionDao
 import com.example.datn.data.local.dao.MiniGameOptionDao
+import com.example.datn.data.local.dao.StudentMiniGameResultDao
+import com.example.datn.data.local.dao.StudentMiniGameAnswerDao
+import com.example.datn.data.local.dao.StudentTestAnswerDao
 import com.example.datn.data.local.dao.StudentTestResultDao
 import com.example.datn.data.local.dao.TestDao
 import com.example.datn.data.local.dao.TestQuestionDao
@@ -187,6 +190,14 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideStudentMiniGameResultDao(db: AppDatabase): StudentMiniGameResultDao = db.studentMiniGameResultDao()
+
+    @Provides
+    @Singleton
+    fun provideStudentMiniGameAnswerDao(db: AppDatabase): StudentMiniGameAnswerDao = db.studentMiniGameAnswerDao()
+
+    @Provides
+    @Singleton
     fun provideTestDao(db: AppDatabase): TestDao = db.testDao()
 
     @Provides
@@ -196,6 +207,14 @@ object AppModule {
     @Provides
     @Singleton
     fun provideStudentTestResultDao(db: AppDatabase): StudentTestResultDao = db.studentTestResultDao()
+
+    @Provides
+    @Singleton
+    fun provideTestOptionDao(db: AppDatabase): com.example.datn.data.local.dao.TestOptionDao = db.testOptionDao()
+
+    @Provides
+    @Singleton
+    fun provideStudentTestAnswerDao(db: AppDatabase): com.example.datn.data.local.dao.StudentTestAnswerDao = db.studentTestAnswerDao()
 
     // Firebase data sources
     @Provides
@@ -318,12 +337,16 @@ object AppModule {
         firebaseDataSource: FirebaseDataSource,
         miniGameDao: MiniGameDao,
         miniGameQuestionDao: MiniGameQuestionDao,
-        miniGameOptionDao: MiniGameOptionDao
+        miniGameOptionDao: MiniGameOptionDao,
+        studentMiniGameResultDao: StudentMiniGameResultDao,
+        studentMiniGameAnswerDao: StudentMiniGameAnswerDao
     ): IMiniGameRepository = MiniGameRepositoryImpl(
         firebaseDataSource,
         miniGameDao,
         miniGameQuestionDao,
-        miniGameOptionDao
+        miniGameOptionDao,
+        studentMiniGameResultDao,
+        studentMiniGameAnswerDao
     )
 
     @Provides
@@ -338,16 +361,46 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideSyncManager(
+        firebaseDataSource: FirebaseDataSource,
+        testDao: TestDao,
+        testQuestionDao: TestQuestionDao,
+        testOptionDao: com.example.datn.data.local.dao.TestOptionDao,
+        miniGameDao: MiniGameDao,
+        miniGameQuestionDao: MiniGameQuestionDao,
+        miniGameOptionDao: MiniGameOptionDao,
+        studentTestResultDao: StudentTestResultDao,
+        studentTestAnswerDao: com.example.datn.data.local.dao.StudentTestAnswerDao
+    ): com.example.datn.data.sync.FirebaseRoomSyncManager = com.example.datn.data.sync.FirebaseRoomSyncManager(
+        firebaseDataSource,
+        testDao,
+        testQuestionDao,
+        testOptionDao,
+        miniGameDao,
+        miniGameQuestionDao,
+        miniGameOptionDao,
+        studentTestResultDao,
+        studentTestAnswerDao
+    )
+
+    @Provides
+    @Singleton
     fun provideTestRepository(
         firebaseDataSource: FirebaseDataSource,
         testDao: TestDao,
         testQuestionDao: TestQuestionDao,
-        studentTestResultDao: StudentTestResultDao
+        studentTestResultDao: StudentTestResultDao,
+        testOptionDao: com.example.datn.data.local.dao.TestOptionDao,
+        studentTestAnswerDao: com.example.datn.data.local.dao.StudentTestAnswerDao,
+        syncManager: com.example.datn.data.sync.FirebaseRoomSyncManager
     ): ITestRepository = TestRepositoryImpl(
         firebaseDataSource,
         testDao,
         testQuestionDao,
-        studentTestResultDao
+        studentTestResultDao,
+        testOptionDao,
+        studentTestAnswerDao,
+        syncManager
     )
 
     @Provides

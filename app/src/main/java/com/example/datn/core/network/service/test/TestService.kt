@@ -22,6 +22,7 @@ class TestService @Inject constructor() :
     private val questionRef = FirebaseFirestore.getInstance().collection("test_questions")
     private val optionRef = FirebaseFirestore.getInstance().collection("test_options")
     private val resultRef = FirebaseFirestore.getInstance().collection("student_test_results")
+    private val answerRef = FirebaseFirestore.getInstance().collection("student_test_answers")
 
     // ==================== QUESTIONS ====================
     suspend fun getQuestionsByTest(testId: String): List<TestQuestion> = try {
@@ -139,6 +140,22 @@ class TestService @Inject constructor() :
         Log.e(TAG, "Error getTestsByLesson", e); emptyList()
     }
 
+    suspend fun getTestsByClassId(classId: String): List<Test> = try {
+        Log.d(TAG, "getTestsByClassId - classId: $classId")
+        val snapshot = firestore.collection("tests")
+            .whereEqualTo("classId", classId)
+            .get()
+            .await()
+        val tests = snapshot.documents.mapNotNull { d ->
+            try { d.internalToDomain(clazz) } catch (e: Exception) { Log.e(TAG, "map test ${d.id}", e); null }
+        }
+        Log.d(TAG, "getTestsByClassId - found ${tests.size} tests")
+        tests
+    } catch (e: Exception) {
+        Log.e(TAG, "Error getTestsByClassId", e)
+        emptyList()
+    }
+
     suspend fun addTest(test: Test): Test? = try {
         val docRef = if (test.id.isNotEmpty()) collectionRef.document(test.id) else collectionRef.document()
         val now = Instant.now()
@@ -179,15 +196,34 @@ class TestService @Inject constructor() :
         Log.e(TAG, "Error submitResult", e); null
     }
 
-    suspend fun getResultByStudentAndTest(studentId: String, testId: String): com.example.datn.domain.models.StudentTestResult? = try {
-        val snapshot = resultRef
-            .whereEqualTo("studentId", studentId)
-            .whereEqualTo("testId", testId)
-            .get().await()
-        val doc = snapshot.documents.firstOrNull() ?: return null
-        doc.internalToDomain(com.example.datn.domain.models.StudentTestResult::class.java)
-    } catch (e: Exception) {
-        Log.e(TAG, "Error getResultByStudentAndTest", e); null
+    suspend fun getResultByStudentAndTest(studentId: String, testId: String): com.example.datn.domain.models.StudentTestResult? {
+        return try {
+            Log.d(TAG, "getResultByStudentAndTest - studentId: $studentId, testId: $testId")
+            val snapshot = resultRef
+                .whereEqualTo("studentId", studentId)
+                .whereEqualTo("testId", testId)
+                .get().await()
+            Log.d(TAG, "getResultByStudentAndTest - found ${snapshot.documents.size} results")
+            val doc = snapshot.documents.firstOrNull()
+            if (doc == null) {
+                Log.w(TAG, "getResultByStudentAndTest - No result found, trying alternative query...")
+                // Fallback: get all results for this test and filter
+                val allResults = resultRef.whereEqualTo("testId", testId).get().await()
+                Log.d(TAG, "getResultByStudentAndTest - alternative found ${allResults.documents.size} total results for test")
+                val matchedDoc = allResults.documents.firstOrNull { it.getString("studentId") == studentId }
+                if (matchedDoc != null) {
+                    Log.d(TAG, "getResultByStudentAndTest - Found match via fallback!")
+                    matchedDoc.internalToDomain(com.example.datn.domain.models.StudentTestResult::class.java)
+                } else {
+                    null
+                }
+            } else {
+                doc.internalToDomain(com.example.datn.domain.models.StudentTestResult::class.java)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getResultByStudentAndTest", e)
+            null
+        }
     }
 
     suspend fun getResultsByTest(testId: String): List<com.example.datn.domain.models.StudentTestResult> = try {
@@ -197,6 +233,47 @@ class TestService @Inject constructor() :
         }
     } catch (e: Exception) {
         Log.e(TAG, "Error getResultsByTest", e); emptyList()
+    }
+
+    suspend fun getResultsByStudent(studentId: String): List<com.example.datn.domain.models.StudentTestResult> = try {
+        Log.d(TAG, "getResultsByStudent - studentId: $studentId")
+        val snapshot = resultRef.whereEqualTo("studentId", studentId).get().await()
+        val results = snapshot.documents.mapNotNull { d ->
+            try { d.internalToDomain(com.example.datn.domain.models.StudentTestResult::class.java) } catch (_: Exception) { null }
+        }
+        Log.d(TAG, "getResultsByStudent - found ${results.size} results")
+        results
+    } catch (e: Exception) {
+        Log.e(TAG, "Error getResultsByStudent", e)
+        emptyList()
+    }
+    
+    // ==================== STUDENT ANSWERS ====================
+    suspend fun saveStudentAnswers(answers: List<com.example.datn.domain.models.StudentTestAnswer>): Boolean = try {
+        answers.forEach { answer ->
+            val docRef = if (answer.id.isNotEmpty()) answerRef.document(answer.id) else answerRef.document()
+            val data = answer.copy(id = docRef.id)
+            docRef.set(data).await()
+        }
+        true
+    } catch (e: Exception) {
+        Log.e(TAG, "Error saveStudentAnswers", e)
+        false
+    }
+    
+    suspend fun getAnswersByResultId(resultId: String): List<com.example.datn.domain.models.StudentTestAnswer> = try {
+        val snapshot = answerRef.whereEqualTo("resultId", resultId).get().await()
+        snapshot.documents.mapNotNull { doc ->
+            try {
+                doc.internalToDomain(com.example.datn.domain.models.StudentTestAnswer::class.java)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to map answer ${doc.id}", e)
+                null
+            }
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "Error getAnswersByResultId", e)
+        emptyList()
     }
 }
 

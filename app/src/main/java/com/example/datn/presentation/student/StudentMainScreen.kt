@@ -19,6 +19,7 @@ fun StudentMainScreen(
     val items = listOf(
         Screen.StudentHome,
         Screen.StudentMyClasses,
+        Screen.StudentTestList,
         Screen.StudentConversations,
         Screen.StudentAccount
     )
@@ -41,6 +42,7 @@ fun StudentMainScreen(
                             when (screen) {
                                 Screen.StudentHome -> Icon(Icons.Default.Home, null)
                                 Screen.StudentMyClasses -> Icon(Icons.Default.School, null)
+                                Screen.StudentTestList -> Icon(Icons.Default.Assignment, null)
                                 Screen.StudentConversations -> Icon(Icons.Default.Chat, null)
                                 Screen.StudentAccount -> Icon(Icons.Default.Person, null)
                                 else -> Icon(Icons.Default.Home, null)
@@ -51,6 +53,7 @@ fun StudentMainScreen(
                                 when (screen) {
                                     Screen.StudentHome -> "Trang chủ"
                                     Screen.StudentMyClasses -> "Lớp học"
+                                    Screen.StudentTestList -> "Kiểm tra"
                                     Screen.StudentConversations -> "Tin nhắn"
                                     Screen.StudentAccount -> "Tài khoản"
                                     else -> ""

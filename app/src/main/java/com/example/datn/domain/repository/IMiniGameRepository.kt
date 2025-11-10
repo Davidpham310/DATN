@@ -4,6 +4,8 @@ import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.domain.models.MiniGameQuestion
 import com.example.datn.domain.models.MiniGameOption
+import com.example.datn.domain.models.StudentMiniGameResult
+import com.example.datn.domain.models.StudentMiniGameAnswer
 import kotlinx.coroutines.flow.Flow
 
 interface IMiniGameRepository {
@@ -30,4 +32,53 @@ interface IMiniGameRepository {
     fun deleteOption(optionId: String): Flow<Resource<Unit>>
     fun getOptionsByQuestion(questionId: String): Flow<Resource<List<MiniGameOption>>>
     fun getOptionById(optionId: String): Flow<Resource<MiniGameOption?>>
+
+    // ==================== RESULT OPERATIONS (Unlimited Replay) ====================
+    /**
+     * Submit a mini game result with answers
+     * Automatically increments attempt number
+     */
+    fun submitMiniGameResult(
+        result: StudentMiniGameResult,
+        answers: List<StudentMiniGameAnswer>
+    ): Flow<Resource<StudentMiniGameResult>>
+
+    /**
+     * Get ALL results for a student and game (for unlimited replay)
+     */
+    fun getAllStudentResults(
+        studentId: String,
+        miniGameId: String
+    ): Flow<Resource<List<StudentMiniGameResult>>>
+
+    /**
+     * Get a specific result by ID
+     */
+    fun getStudentResult(
+        resultId: String
+    ): Flow<Resource<StudentMiniGameResult?>>
+
+    /**
+     * Get the latest result for a student and game
+     */
+    fun getLatestResult(
+        studentId: String,
+        miniGameId: String
+    ): Flow<Resource<StudentMiniGameResult?>>
+
+    /**
+     * Get the best result (highest score) for a student and game
+     */
+    fun getBestResult(
+        studentId: String,
+        miniGameId: String
+    ): Flow<Resource<StudentMiniGameResult?>>
+
+    // ==================== ANSWER OPERATIONS ====================
+    /**
+     * Get all answers for a specific result
+     */
+    fun getStudentAnswers(
+        resultId: String
+    ): Flow<Resource<List<StudentMiniGameAnswer>>>
 }

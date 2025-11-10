@@ -175,6 +175,20 @@ sealed class Screen(val route: String) {
     object StudentHome : Screen("student/home")
     object StudentMyClasses : Screen("student/my_classes")
     object StudentJoinClass : Screen("student/join_class")
+    object StudentClassDetail : Screen("student/class_detail/{classId}/{className}") {
+        fun createRoute(classId: String, className: String): String {
+            val encodedName = java.net.URLEncoder.encode(className, "UTF-8")
+            return "student/class_detail/$classId/$encodedName"
+        }
+        val routeWithArgs = "student/class_detail/{classId}/{className}"
+    }
+    object StudentLessonView : Screen("student/lesson_view/{lessonId}/{lessonTitle}") {
+        fun createRoute(lessonId: String, lessonTitle: String): String {
+            val encodedTitle = java.net.URLEncoder.encode(lessonTitle, "UTF-8")
+            return "student/lesson_view/$lessonId/$encodedTitle"
+        }
+        val routeWithArgs = "student/lesson_view/{lessonId}/{lessonTitle}"
+    }
     object StudentAccount : Screen("student/account")
     object StudentConversations : Screen("student/conversations")
     object StudentSelectTeacher : Screen("student/select_teacher")
@@ -199,5 +213,28 @@ sealed class Screen(val route: String) {
             "student/add_members/$conversationId"
 
         val routeWithArgs = "student/add_members/{conversationId}"
+    }
+    
+    // Student Test System
+    object StudentTestList : Screen("student/tests")
+    object StudentTestTaking : Screen("student/test/{testId}/take") {
+        fun createRoute(testId: String): String =
+            "student/test/$testId/take"
+        
+        val routeWithArgs = "student/test/{testId}/take"
+    }
+    object StudentTestResult : Screen("student/test/{testId}/result/{resultId}") {
+        fun createRoute(testId: String, resultId: String): String =
+            "student/test/$testId/result/$resultId"
+        
+        val routeWithArgs = "student/test/{testId}/result/{resultId}"
+    }
+    
+    // MiniGame Result
+    object StudentMiniGameResult : Screen("student/minigame/{miniGameId}/result/{resultId}") {
+        fun createRoute(miniGameId: String, resultId: String): String =
+            "student/minigame/$miniGameId/result/$resultId"
+        
+        val routeWithArgs = "student/minigame/{miniGameId}/result/{resultId}"
     }
 }

@@ -4,12 +4,18 @@ import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.domain.models.MiniGameQuestion
 import com.example.datn.domain.models.MiniGameOption
+import com.example.datn.domain.models.StudentMiniGameResult
+import com.example.datn.domain.models.StudentMiniGameAnswer
 import com.example.datn.domain.repository.IMiniGameRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 class MiniGameUseCases @Inject constructor(
-    private val repository: IMiniGameRepository
+    private val repository: IMiniGameRepository,
+    val submitMiniGameResult: SubmitMiniGameResultUseCase,
+    val getAllStudentResults: GetAllMiniGameResultsUseCase,
+    val getBestResult: GetBestMiniGameResultUseCase,
+    val getMiniGameAnswers: GetMiniGameAnswersUseCase
 ) {
     
     fun createMiniGame(game: MiniGame): Flow<Resource<MiniGame>> {

@@ -29,15 +29,17 @@ import com.example.datn.data.local.entities.*
 
         // 4. Tests & Results
         TestEntity::class, TestQuestionEntity::class, TestOptionEntity::class, StudentTestResultEntity::class,
+        StudentTestAnswerEntity::class,
 
         // 5. Games
         MiniGameEntity::class, MiniGameQuestionEntity::class, MiniGameOptionEntity::class,
+        StudentMiniGameResultEntity::class, StudentMiniGameAnswerEntity::class,
 
         // 6. Progress & Communication
         StudentLessonProgressEntity::class, DailyStudyTimeEntity::class, NotificationEntity::class,
         ConversationEntity::class, MessageEntity::class
     ],
-    version = 4, // Tăng phiên bản khi thay đổi cấu trúc DB
+    version = 6, // Added MiniGame result & answer entities
     exportSchema = false
 )
 @TypeConverters(DateTimeConverter::class, EnumConverter::class)
@@ -63,9 +65,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun testQuestionDao(): TestQuestionDao
     abstract fun testOptionDao(): TestOptionDao
     abstract fun studentTestResultDao(): StudentTestResultDao
+    abstract fun studentTestAnswerDao(): StudentTestAnswerDao
     abstract fun miniGameDao(): MiniGameDao
     abstract fun miniGameQuestionDao(): MiniGameQuestionDao
     abstract fun miniGameOptionDao(): MiniGameOptionDao
+    abstract fun studentMiniGameResultDao(): StudentMiniGameResultDao
+    abstract fun studentMiniGameAnswerDao(): StudentMiniGameAnswerDao
 
     // Progress & Communication DAOs
     abstract fun studentLessonProgressDao(): StudentLessonProgressDao
@@ -147,6 +152,78 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration từ version 4 sang 5:
+         * Thêm bảng student_test_answers để lưu câu trả lời chi tiết
+         */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS student_test_answers (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        resultId TEXT NOT NULL,
+                        questionId TEXT NOT NULL,
+                        answer TEXT NOT NULL,
+                        isCorrect INTEGER NOT NULL,
+                        earnedScore REAL NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
+        /**
+         * Migration từ version 5 sang 6:
+         * Thêm bảng student_minigame_result và student_minigame_answer
+         * để hỗ trợ unlimited replay cho MiniGame
+         */
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create student_minigame_result table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS student_minigame_result (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        studentId TEXT NOT NULL,
+                        miniGameId TEXT NOT NULL,
+                        score REAL NOT NULL,
+                        maxScore REAL NOT NULL,
+                        completionStatus TEXT NOT NULL,
+                        submissionTime INTEGER NOT NULL,
+                        durationSeconds INTEGER NOT NULL,
+                        attemptNumber INTEGER NOT NULL DEFAULT 1,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                
+                // Create student_minigame_answer table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS student_minigame_answer (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        resultId TEXT NOT NULL,
+                        questionId TEXT NOT NULL,
+                        answer TEXT NOT NULL,
+                        isCorrect INTEGER NOT NULL,
+                        earnedScore REAL NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                
+                // Create indexes for better performance
+                database.execSQL("""
+                    CREATE INDEX IF NOT EXISTS idx_minigame_result_student_game 
+                    ON student_minigame_result(studentId, miniGameId)
+                """.trimIndent())
+                
+                database.execSQL("""
+                    CREATE INDEX IF NOT EXISTS idx_minigame_answer_result 
+                    ON student_minigame_answer(resultId)
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -154,7 +231,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .fallbackToDestructiveMigration() // Allow destructive migration during development
                     .build()
                 INSTANCE = instance
                 instance

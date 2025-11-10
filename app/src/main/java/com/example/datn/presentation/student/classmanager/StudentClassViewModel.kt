@@ -1,15 +1,20 @@
 package com.example.datn.presentation.student.classmanager
 
+import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.EnrollmentStatus
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.classmanager.ClassUseCases
+import com.example.datn.domain.usecase.student.GetStudentProfileByUserIdUseCase
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -17,8 +22,17 @@ import javax.inject.Inject
 class StudentClassViewModel @Inject constructor(
     private val classUseCases: ClassUseCases,
     private val authUseCases: AuthUseCases,
+    private val getStudentProfileByUserId: GetStudentProfileByUserIdUseCase,
     notificationManager: NotificationManager
 ) : BaseViewModel<StudentClassState, StudentClassEvent>(StudentClassState(), notificationManager) {
+
+    // Cache current user ID to avoid timing issues
+    private val currentUserIdFlow: StateFlow<String> = authUseCases.getCurrentIdUser.invoke()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = ""
+        )
 
     init {
         loadMyClasses()
@@ -42,27 +56,50 @@ class StudentClassViewModel @Inject constructor(
 
     private fun loadMyClasses() {
         launch {
-            val currentUserId = authUseCases.getCurrentIdUser.invoke().first()
+            // Sử dụng cached StateFlow để tránh timing issues
+            val currentUserId = currentUserIdFlow.value.ifBlank {
+                currentUserIdFlow.first { it.isNotBlank() }
+            }
             if (currentUserId.isBlank()) {
                 showNotification("Vui lòng đăng nhập", NotificationType.ERROR)
                 return@launch
             }
 
-            classUseCases.getClassesByStudent(currentUserId).collectLatest { result ->
-                when (result) {
+            // Lấy student profile ID từ user ID
+            getStudentProfileByUserId(currentUserId).collectLatest { profileResult ->
+                when (profileResult) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
-                        setState {
-                            copy(
-                                isLoading = false,
-                                myClasses = result.data,
-                                error = null
-                            )
+                        val studentId = profileResult.data?.id
+                        if (studentId.isNullOrBlank()) {
+                            setState { copy(isLoading = false, error = "Không tìm thấy thông tin học sinh") }
+                            showNotification("Không tìm thấy thông tin học sinh", NotificationType.ERROR)
+                            return@collectLatest
+                        }
+
+                        // Lấy danh sách lớp học bằng student profile ID
+                        classUseCases.getClassesByStudent(studentId).collectLatest { result ->
+                            when (result) {
+                                is Resource.Loading -> setState { copy(isLoading = true) }
+                                is Resource.Success -> {
+                                    setState {
+                                        copy(
+                                            isLoading = false,
+                                            myClasses = result.data,
+                                            error = null
+                                        )
+                                    }
+                                }
+                                is Resource.Error -> {
+                                    setState { copy(isLoading = false, error = result.message) }
+                                    showNotification(result.message, NotificationType.ERROR)
+                                }
+                            }
                         }
                     }
                     is Resource.Error -> {
-                        setState { copy(isLoading = false, error = result.message) }
-                        showNotification(result.message, NotificationType.ERROR)
+                        setState { copy(isLoading = false, error = profileResult.message) }
+                        showNotification(profileResult.message, NotificationType.ERROR)
                     }
                 }
             }
@@ -107,18 +144,31 @@ class StudentClassViewModel @Inject constructor(
 
     private fun joinClass(classId: String) {
         launch {
-            val currentUserId = authUseCases.getCurrentIdUser.invoke().first()
+            // Sử dụng cached StateFlow
+            val currentUserId = currentUserIdFlow.value.ifBlank {
+                currentUserIdFlow.first { it.isNotBlank() }
+            }
             if (currentUserId.isBlank()) {
                 showNotification("Vui lòng đăng nhập", NotificationType.ERROR)
                 return@launch
             }
 
-            classUseCases.addStudentToClass(
-                classId = classId,
-                studentId = currentUserId,
-                status = EnrollmentStatus.PENDING,
-                approvedBy = ""
-            ).collectLatest { result ->
+            // Lấy student profile ID từ user ID
+            getStudentProfileByUserId(currentUserId).collectLatest { profileResult ->
+                when (profileResult) {
+                    is Resource.Success -> {
+                        val studentId = profileResult.data?.id
+                        if (studentId.isNullOrBlank()) {
+                            showNotification("Không tìm thấy thông tin học sinh", NotificationType.ERROR)
+                            return@collectLatest
+                        }
+
+                        classUseCases.addStudentToClass(
+                            classId = classId,
+                            studentId = studentId,
+                            status = EnrollmentStatus.PENDING,
+                            approvedBy = ""
+                        ).collectLatest { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
@@ -145,21 +195,41 @@ class StudentClassViewModel @Inject constructor(
                     }
                 }
             }
+                    }
+                    is Resource.Error -> {
+                        showNotification(profileResult.message, NotificationType.ERROR)
+                    }
+                    is Resource.Loading -> { /* Ignore */ }
+                }
+            }
         }
     }
 
     private fun withdrawFromClass(classId: String) {
         launch {
-            val currentUserId = authUseCases.getCurrentIdUser.invoke().first()
+            // Sử dụng cached StateFlow
+            val currentUserId = currentUserIdFlow.value.ifBlank {
+                currentUserIdFlow.first { it.isNotBlank() }
+            }
             if (currentUserId.isBlank()) {
                 showNotification("Vui lòng đăng nhập", NotificationType.ERROR)
                 return@launch
             }
 
-            classUseCases.removeStudentFromClass(
-                classId = classId,
-                studentId = currentUserId
-            ).collectLatest { result ->
+            // Lấy student profile ID từ user ID
+            getStudentProfileByUserId(currentUserId).collectLatest { profileResult ->
+                when (profileResult) {
+                    is Resource.Success -> {
+                        val studentId = profileResult.data?.id
+                        if (studentId.isNullOrBlank()) {
+                            showNotification("Không tìm thấy thông tin học sinh", NotificationType.ERROR)
+                            return@collectLatest
+                        }
+
+                        classUseCases.removeStudentFromClass(
+                            classId = classId,
+                            studentId = studentId
+                        ).collectLatest { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
@@ -185,6 +255,13 @@ class StudentClassViewModel @Inject constructor(
                     }
                 }
             }
+                    }
+                    is Resource.Error -> {
+                        showNotification(profileResult.message, NotificationType.ERROR)
+                    }
+                    is Resource.Loading -> { /* Ignore */ }
+                }
+            }
         }
     }
 
@@ -195,16 +272,36 @@ class StudentClassViewModel @Inject constructor(
 
     private fun loadEnrollmentStatus(classId: String) {
         launch {
-            val currentUserId = authUseCases.getCurrentIdUser.invoke().first()
+            // Sử dụng cached StateFlow
+            val currentUserId = currentUserIdFlow.value.ifBlank {
+                currentUserIdFlow.first { it.isNotBlank() }
+            }
             if (currentUserId.isBlank()) return@launch
 
-            classUseCases.getEnrollment(classId, currentUserId).collectLatest { result ->
-                when (result) {
+            // Lấy student profile ID từ user ID
+            getStudentProfileByUserId(currentUserId).collectLatest { profileResult ->
+                when (profileResult) {
                     is Resource.Success -> {
-                        setState { copy(enrollment = result.data) }
+                        val studentId = profileResult.data?.id
+                        if (studentId.isNullOrBlank()) {
+                            setState { copy(enrollment = null) }
+                            return@collectLatest
+                        }
+
+                        classUseCases.getEnrollment(classId, studentId).collectLatest { result ->
+                            when (result) {
+                                is Resource.Success -> {
+                                    setState { copy(enrollment = result.data) }
+                                }
+                                is Resource.Error -> {
+                                    // Silent fail - enrollment might not exist yet
+                                    setState { copy(enrollment = null) }
+                                }
+                                is Resource.Loading -> { /* Do nothing */ }
+                            }
+                        }
                     }
                     is Resource.Error -> {
-                        // Silent fail - enrollment might not exist yet
                         setState { copy(enrollment = null) }
                     }
                     is Resource.Loading -> { /* Do nothing */ }

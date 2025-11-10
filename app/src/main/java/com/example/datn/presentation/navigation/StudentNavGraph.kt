@@ -14,6 +14,8 @@ import com.example.datn.presentation.student.account.StudentAccountScreen
 import com.example.datn.presentation.student.classmanager.JoinClassScreen
 import com.example.datn.presentation.student.classmanager.MyClassesScreen
 import com.example.datn.presentation.student.home.StudentHomeScreen
+import com.example.datn.presentation.student.lessons.StudentClassDetailScreen
+import com.example.datn.presentation.student.lessons.StudentLessonViewScreen
 import com.example.datn.presentation.student.messaging.SelectTeacherScreen
 import com.example.datn.presentation.student.messaging.StudentSelectRecipientViewModel
 import com.example.datn.presentation.common.messaging.ChatViewModel
@@ -23,6 +25,10 @@ import com.example.datn.presentation.common.messaging.screens.ConversationListSc
 import com.example.datn.presentation.common.messaging.screens.GroupDetailsScreen
 import com.example.datn.presentation.common.messaging.screens.AddMembersToGroupScreen
 import com.example.datn.presentation.common.messaging.screens.SelectGroupParticipantsScreen
+import com.example.datn.presentation.student.tests.StudentTestListScreen
+import com.example.datn.presentation.student.tests.StudentTestTakingScreen
+import com.example.datn.presentation.student.tests.StudentTestResultScreen
+import com.example.datn.presentation.student.games.MiniGameResultScreen
 
 @Composable
 fun StudentNavGraph(
@@ -48,11 +54,62 @@ fun StudentNavGraph(
         composable(Screen.StudentMyClasses.route) {
             MyClassesScreen(
                 onNavigateToClassDetail = { classId, className ->
-                    // TODO: Navigate to class detail when implemented
+                    navController.navigate(
+                        Screen.StudentClassDetail.createRoute(classId, className)
+                    )
                 },
                 onNavigateToJoinClass = {
                     navController.navigate(Screen.StudentJoinClass.route)
                 }
+            )
+        }
+        
+        composable(
+            route = Screen.StudentClassDetail.routeWithArgs,
+            arguments = listOf(
+                navArgument("classId") { type = NavType.StringType },
+                navArgument("className") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val classId = backStackEntry.arguments?.getString("classId") ?: ""
+            val encodedName = backStackEntry.arguments?.getString("className") ?: ""
+            val className = try {
+                java.net.URLDecoder.decode(encodedName, "UTF-8")
+            } catch (e: Exception) {
+                encodedName
+            }
+            
+            StudentClassDetailScreen(
+                classId = classId,
+                className = className,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToLesson = { lessonId, lessonTitle ->
+                    navController.navigate(
+                        Screen.StudentLessonView.createRoute(lessonId, lessonTitle)
+                    )
+                }
+            )
+        }
+        
+        composable(
+            route = Screen.StudentLessonView.routeWithArgs,
+            arguments = listOf(
+                navArgument("lessonId") { type = NavType.StringType },
+                navArgument("lessonTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
+            val encodedTitle = backStackEntry.arguments?.getString("lessonTitle") ?: ""
+            val lessonTitle = try {
+                java.net.URLDecoder.decode(encodedTitle, "UTF-8")
+            } catch (e: Exception) {
+                encodedTitle
+            }
+            
+            StudentLessonViewScreen(
+                lessonId = lessonId,
+                lessonTitle = lessonTitle,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
@@ -209,6 +266,83 @@ fun StudentNavGraph(
                 conversationId = conversationId,
                 onMembersAdded = { navController.popBackStack() },
                 onDismiss = { navController.popBackStack() }
+            )
+        }
+        
+        // Test System Routes
+        composable(Screen.StudentTestList.route) {
+            StudentTestListScreen(
+                onNavigateToTest = { testId ->
+                    navController.navigate(
+                        Screen.StudentTestTaking.createRoute(testId)
+                    )
+                },
+                onNavigateToResult = { testId, resultId ->
+                    navController.navigate(
+                        Screen.StudentTestResult.createRoute(testId, resultId)
+                    )
+                }
+            )
+        }
+        
+        composable(
+            route = Screen.StudentTestTaking.routeWithArgs,
+            arguments = listOf(
+                navArgument("testId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val testId = backStackEntry.arguments?.getString("testId") ?: ""
+            
+            StudentTestTakingScreen(
+                testId = testId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToResult = { testId, resultId ->
+                    navController.navigate(
+                        Screen.StudentTestResult.createRoute(testId, resultId)
+                    ) {
+                        popUpTo(Screen.StudentTestList.route)
+                    }
+                }
+            )
+        }
+        
+        composable(
+            route = Screen.StudentTestResult.routeWithArgs,
+            arguments = listOf(
+                navArgument("testId") { type = NavType.StringType },
+                navArgument("resultId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val testId = backStackEntry.arguments?.getString("testId") ?: ""
+            val resultId = backStackEntry.arguments?.getString("resultId") ?: ""
+            
+            StudentTestResultScreen(
+                testId = testId,
+                resultId = resultId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // MiniGame Result Screen
+        composable(
+            route = Screen.StudentMiniGameResult.routeWithArgs,
+            arguments = listOf(
+                navArgument("miniGameId") { type = NavType.StringType },
+                navArgument("resultId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val miniGameId = backStackEntry.arguments?.getString("miniGameId") ?: ""
+            val resultId = backStackEntry.arguments?.getString("resultId") ?: ""
+            
+            MiniGameResultScreen(
+                miniGameId = miniGameId,
+                resultId = resultId,
+                onNavigateBack = { navController.popBackStack() },
+                onPlayAgain = {
+                    // Navigate back to minigame play screen
+                    // TODO: Implement when MiniGame play screen is ready
+                    navController.popBackStack()
+                }
             )
         }
     }
