@@ -1,69 +1,91 @@
 package com.example.datn.domain.usecase.parentstudent
 
-import com.example.datn.core.base.BaseUseCase
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.ParentStudent
 import com.example.datn.domain.models.Student
 import com.example.datn.domain.models.User
+import com.example.datn.domain.repository.IParentRepository
 import com.example.datn.core.network.datasource.FirebaseDataSource
 import com.example.datn.core.network.service.parent.ParentStudentService
-import com.example.datn.core.network.service.student.StudentService
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import java.util.Collections.emptyList
 import javax.inject.Inject
 
+/**
+ * Thông tin đầy đủ về một học sinh được liên kết với phụ huynh.
+ * Kết hợp Student + User + ParentStudent (mối quan hệ).
+ */
 data class LinkedStudentInfo(
     val student: Student,
     val user: User,
     val parentStudent: ParentStudent
 )
 
+/**
+ * Use case lấy danh sách học sinh liên kết với một phụ huynh, kèm thông tin user và quan hệ.
+ */
 class GetLinkedStudentsUseCase @Inject constructor(
-    private val parentStudentService: ParentStudentService,
-    private val studentService: StudentService,
-    private val firebaseDataSource: FirebaseDataSource
-) : BaseUseCase<String, Flow<Resource<List<LinkedStudentInfo>>>> {
-    override fun invoke(params: String): Flow<Resource<List<LinkedStudentInfo>>> = flow {
-        emit(Resource.Loading())
+    private val parentRepository: IParentRepository,
+    private val firebaseDataSource: FirebaseDataSource,
+    private val parentStudentService: ParentStudentService
+) {
+
+    operator fun invoke(parentId: String): Flow<Resource<List<LinkedStudentInfo>>> = flow {
         try {
-            // Get all parent-student links
-            val links = parentStudentService.getParentStudentLinks(params)
-            
-            // Get student and user info for each link
-            val result = links.mapNotNull { link ->
-                try {
-                    // Validate studentId before querying
-                    if (link.studentId.isBlank() || link.studentId == "students") {
-                        return@mapNotNull null
+            // Thu thập Flow từ repository và enrich thêm thông tin User + quan hệ ParentStudent
+            parentRepository.getLinkedStudents(parentId).collect { result ->
+                when (result) {
+                    is Resource.Loading -> {
+                        emit(Resource.Loading())
                     }
-                    
-                    val student = studentService.getStudentById(link.studentId)
-                    if (student == null) {
-                        return@mapNotNull null
+                    is Resource.Error -> {
+                        emit(Resource.Error(result.message))
                     }
-                    
-                    // Get user info
-                    val userResult = firebaseDataSource.getUserById(student.userId)
-                    val user = when (userResult) {
-                        is Resource.Success -> userResult.data
-                        else -> null
+                    is Resource.Success -> {
+                        val students: List<Student> = result.data ?: emptyList()
+                        val linkedStudents = mutableListOf<LinkedStudentInfo>()
+
+                        for (student in students) {
+                            // Lấy thông tin user tương ứng với student
+                            val userResult: Resource<User?> = try {
+                                firebaseDataSource.getUserById(student.userId)
+                            } catch (e: Exception) {
+                                Resource.Error(e.message ?: "Lỗi lấy thông tin người dùng")
+                            }
+
+                            val user = when (userResult) {
+                                is Resource.Success -> userResult.data
+                                else -> null
+                            }
+
+                            if (user == null) continue
+
+                            // Lấy thông tin quan hệ parent-student
+                            val relationship: ParentStudent? = try {
+                                parentStudentService.getRelationship(parentId, student.id)
+                            } catch (_: Exception) {
+                                null
+                            }
+
+                            if (relationship != null) {
+                                linkedStudents.add(
+                                    LinkedStudentInfo(
+                                        student = student,
+                                        user = user,
+                                        parentStudent = relationship
+                                    )
+                                )
+                            }
+                        }
+
+                        emit(Resource.Success(linkedStudents))
                     }
-                    
-                    if (user != null) {
-                        LinkedStudentInfo(student, user, link)
-                    } else {
-                        null
-                    }
-                } catch (e: Exception) {
-                    // Skip invalid student entries
-                    null
                 }
             }
-            
-            emit(Resource.Success(result))
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Không thể lấy danh sách học sinh"))
+            emit(Resource.Error(e.message ?: "Lỗi lấy danh sách học sinh liên kết"))
         }
     }
 }
-

@@ -7,40 +7,54 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class StudentService @Inject constructor() :
-    BaseFirestoreService<Student>(
-        collectionName = "students",
-        clazz = Student::class.java
-    ) {
-    
-    // Expose generateDocumentId for creating new student IDs
-    fun generateStudentId(): String = generateDocumentId()
-    
-    // Lấy thông tin học sinh theo userId
+    BaseFirestoreService<Student>(collectionName = "students", clazz = Student::class.java) {
+
+    // Lấy danh sách học sinh theo lớp
+    suspend fun getStudentsByClassId(classId: String): List<Student> {
+        val snapshot = collectionRef
+            .whereEqualTo("classId", classId)
+            .get()
+            .await()
+
+        return snapshot.documents.mapNotNull {
+            try {
+                it.internalToDomain(clazz)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    // Lấy danh sách học sinh theo user ID
     suspend fun getStudentByUserId(userId: String): Student? {
         val snapshot = collectionRef
             .whereEqualTo("userId", userId)
             .limit(1)
             .get()
             .await()
-        
+
         return snapshot.documents.firstOrNull()?.let {
-            it.internalToDomain(clazz)
+            try {
+                it.internalToDomain(clazz)
+            } catch (_: Exception) {
+                null
+            }
         }
     }
-    
-    // Lấy thông tin học sinh theo ID
-    suspend fun getStudentById(studentId: String): Student? {
-        return getById(studentId)
-    }
-    
-    // Cập nhật thông tin học sinh
-    suspend fun updateStudent(studentId: String, student: Student): Boolean {
-        return try {
-            update(studentId, student)
-            true
-        } catch (e: Exception) {
-            false
+
+    // Lấy danh sách học sinh theo phụ huynh
+    suspend fun getStudentsByParentId(parentId: String): List<Student> {
+        val snapshot = collectionRef
+            .whereEqualTo("parentId", parentId)
+            .get()
+            .await()
+
+        return snapshot.documents.mapNotNull {
+            try {
+                it.internalToDomain(clazz)
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 }
-

@@ -27,13 +27,9 @@ interface IParentRepository {
      * Ngắt liên kết với một học sinh.
      */
     fun unlinkStudent(parentId: String, studentId: String): Flow<Resource<Unit>>
-    
+
     /**
      * Lấy danh sách lớp học mà con của phụ huynh đang tham gia.
-     * @param parentId ID phụ huynh
-     * @param studentId ID học sinh (optional - lọc theo con cụ thể)
-     * @param enrollmentStatus Trạng thái enrollment (optional - lọc theo trạng thái)
-     * @return Flow<Resource<List<ClassEnrollmentInfo>>> Danh sách thông tin lớp học
      */
     fun getStudentClassesForParent(
         parentId: String,

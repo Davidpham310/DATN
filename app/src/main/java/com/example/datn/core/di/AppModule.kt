@@ -6,38 +6,43 @@ import androidx.room.Room
 import com.example.datn.BuildConfig
 import com.example.datn.core.network.datasource.FirebaseAuthDataSource
 import com.example.datn.core.network.datasource.FirebaseDataSource
+import com.example.datn.core.network.service.FirebaseMessagingService
 import com.example.datn.core.network.service.classroom.ClassService
 import com.example.datn.core.network.service.lesson.LessonContentService
 import com.example.datn.core.network.service.lesson.LessonService
 import com.example.datn.core.network.service.mini_game.MiniGameService
+import com.example.datn.core.network.service.parent.ParentStudentService
+import com.example.datn.core.network.service.student.StudentService
 import com.example.datn.core.network.service.test.TestService
 import com.example.datn.core.network.service.minio.MinIOService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.network.service.notification.FirestoreNotificationService
-import com.example.datn.core.network.service.FirebaseMessagingService
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.ClassDao
+import com.example.datn.data.local.dao.ClassStudentDao
 import com.example.datn.data.local.dao.ConversationDao
 import com.example.datn.data.local.dao.ConversationParticipantDao
+import com.example.datn.data.local.dao.DailyStudyTimeDao
 import com.example.datn.data.local.dao.LessonContentDao
 import com.example.datn.data.local.dao.LessonDao
 import com.example.datn.data.local.dao.MessageDao
 import com.example.datn.data.local.dao.MiniGameDao
 import com.example.datn.data.local.dao.MiniGameQuestionDao
 import com.example.datn.data.local.dao.MiniGameOptionDao
-import com.example.datn.data.local.dao.StudentMiniGameResultDao
-import com.example.datn.data.local.dao.StudentMiniGameAnswerDao
-import com.example.datn.data.local.dao.StudentTestAnswerDao
 import com.example.datn.data.local.dao.StudentTestResultDao
 import com.example.datn.data.local.dao.TestDao
 import com.example.datn.data.local.dao.TestQuestionDao
 import com.example.datn.data.local.dao.UserDao
 import com.example.datn.data.local.dao.NotificationDao
-import com.example.datn.data.local.dao.StudentDao
-import com.example.datn.data.local.dao.ParentDao
 import com.example.datn.data.local.dao.ParentStudentDao
+import com.example.datn.data.local.dao.StudentDao
+import com.example.datn.data.local.dao.StudentLessonProgressDao
+import com.example.datn.data.local.dao.StudentMiniGameAnswerDao
+import com.example.datn.data.local.dao.StudentMiniGameResultDao
+import com.example.datn.data.local.dao.StudentTestAnswerDao
 import com.example.datn.data.local.dao.TeacherDao
+import com.example.datn.data.local.dao.TestOptionDao
 import com.example.datn.data.repository.impl.AuthRepositoryImpl
 import com.example.datn.data.repository.impl.ClassRepositoryImpl
 import com.example.datn.data.repository.impl.LessonContentRepositoryImpl
@@ -49,8 +54,11 @@ import com.example.datn.data.repository.impl.TestQuestionRepositoryImpl
 import com.example.datn.data.repository.impl.TestRepositoryImpl
 import com.example.datn.data.repository.impl.UserRepositoryImpl
 import com.example.datn.data.repository.impl.NotificationRepositoryImpl
-import com.example.datn.data.repository.impl.StudentRepositoryImpl
+import com.example.datn.data.repository.impl.MessagingPermissionRepositoryImpl
 import com.example.datn.data.repository.impl.ParentRepositoryImpl
+import com.example.datn.data.repository.impl.StudentRepositoryImpl
+import com.example.datn.data.repository.impl.TeacherRepositoryImpl
+import com.example.datn.data.repository.impl.ProgressRepositoryImpl
 import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.domain.repository.IClassRepository
 import com.example.datn.domain.repository.IFileRepository
@@ -63,21 +71,17 @@ import com.example.datn.domain.repository.ITestQuestionRepository
 import com.example.datn.domain.repository.ITestRepository
 import com.example.datn.domain.repository.IUserRepository
 import com.example.datn.domain.repository.INotificationRepository
-import com.example.datn.domain.repository.IStudentRepository
 import com.example.datn.domain.repository.IParentRepository
+import com.example.datn.domain.repository.IStudentRepository
+import com.example.datn.domain.repository.ITeacherRepository
+import com.example.datn.domain.repository.IProgressRepository
+import com.example.datn.domain.repository.IMessagingPermissionRepository
 import com.example.datn.domain.usecase.messaging.*
 import com.example.datn.domain.usecase.test.TestQuestionUseCases
 import com.example.datn.domain.usecase.minio.MinIOUseCase
 import com.example.datn.domain.usecase.notification.SendTeacherNotificationUseCase
 import com.example.datn.domain.usecase.notification.SendBulkNotificationUseCase
 import com.example.datn.domain.usecase.auth.AuthUseCases
-import com.example.datn.domain.usecase.parentstudent.*
-import com.example.datn.core.network.service.student.StudentService
-import com.example.datn.core.network.service.parent.ParentService
-import com.example.datn.core.network.service.parent.ParentStudentService
-import com.example.datn.data.local.dao.ClassStudentDao
-import com.example.datn.data.repository.impl.MessagingPermissionRepositoryImpl
-import com.example.datn.domain.repository.IMessagingPermissionRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -164,13 +168,8 @@ object AppModule {
     @Singleton
     fun provideLessonDao(db: AppDatabase): LessonDao = db.lessonDao()
 
-    @Provides
-    @Singleton
-    fun provideClassStudentDao(db: AppDatabase): ClassStudentDao = db.classStudentDao()
 
-    @Provides
-    @Singleton
-    fun provideParentStudentDao(db: AppDatabase): ParentStudentDao = db.parentStudentDao()
+
 
     @Provides
     @Singleton
@@ -190,14 +189,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideStudentMiniGameResultDao(db: AppDatabase): StudentMiniGameResultDao = db.studentMiniGameResultDao()
-
-    @Provides
-    @Singleton
-    fun provideStudentMiniGameAnswerDao(db: AppDatabase): StudentMiniGameAnswerDao = db.studentMiniGameAnswerDao()
-
-    @Provides
-    @Singleton
     fun provideTestDao(db: AppDatabase): TestDao = db.testDao()
 
     @Provides
@@ -210,11 +201,43 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideTestOptionDao(db: AppDatabase): com.example.datn.data.local.dao.TestOptionDao = db.testOptionDao()
+    fun provideTestOptionDao(db: AppDatabase): TestOptionDao = db.testOptionDao()
 
     @Provides
     @Singleton
-    fun provideStudentTestAnswerDao(db: AppDatabase): com.example.datn.data.local.dao.StudentTestAnswerDao = db.studentTestAnswerDao()
+    fun provideStudentDao(db: AppDatabase): StudentDao = db.studentDao()
+
+    @Provides
+    @Singleton
+    fun provideTeacherDao(db: AppDatabase): TeacherDao = db.teacherDao()
+
+    @Provides
+    @Singleton
+    fun provideParentStudentDao(db: AppDatabase): ParentStudentDao = db.parentStudentDao()
+
+    @Provides
+    @Singleton
+    fun provideClassStudentDao(db: AppDatabase): ClassStudentDao = db.classStudentDao()
+
+    @Provides
+    @Singleton
+    fun provideStudentLessonProgressDao(db: AppDatabase): StudentLessonProgressDao = db.studentLessonProgressDao()
+
+    @Provides
+    @Singleton
+    fun provideDailyStudyTimeDao(db: AppDatabase): DailyStudyTimeDao = db.dailyStudyTimeDao()
+
+    @Provides
+    @Singleton
+    fun provideStudentMiniGameResultDao(db: AppDatabase): StudentMiniGameResultDao = db.studentMiniGameResultDao()
+
+    @Provides
+    @Singleton
+    fun provideStudentMiniGameAnswerDao(db: AppDatabase): StudentMiniGameAnswerDao = db.studentMiniGameAnswerDao()
+
+    @Provides
+    @Singleton
+    fun provideStudentTestAnswerDao(db: AppDatabase): StudentTestAnswerDao = db.studentTestAnswerDao()
 
     // Firebase data sources
     @Provides
@@ -234,7 +257,9 @@ object AppModule {
         miniGameService: MiniGameService,
         testService: TestService,
         conversationService: com.example.datn.core.network.service.conversation.ConversationService,
-        messageService: com.example.datn.core.network.service.message.MessageService
+        messageService: com.example.datn.core.network.service.message.MessageService,
+        studentService: StudentService,
+        parentStudentService: ParentStudentService
     ): FirebaseDataSource = FirebaseDataSource(
         userService,
         classService,
@@ -243,7 +268,9 @@ object AppModule {
         miniGameService,
         testService,
         conversationService,
-        messageService
+        messageService,
+        studentService,
+        parentStudentService
     )
 
     // Repositories
@@ -259,50 +286,6 @@ object AppModule {
     fun provideUserRepository(
         firebaseDataSource: FirebaseDataSource
     ): IUserRepository = UserRepositoryImpl(firebaseDataSource)
-    
-    @Provides
-    @Singleton
-    fun provideStudentRepository(
-        firebaseDataSource: FirebaseDataSource,
-        studentService: StudentService,
-        studentDao: StudentDao
-    ): IStudentRepository = StudentRepositoryImpl(
-        firebaseDataSource,
-        studentService,
-        studentDao
-    )
-    
-    @Provides
-    @Singleton
-    fun provideParentRepository(
-        firebaseDataSource: FirebaseDataSource,
-        parentService: ParentService,
-        parentStudentService: ParentStudentService,
-        studentService: StudentService,
-        classService: ClassService,
-        userService: UserService,
-        parentDao: ParentDao,
-        studentDao: StudentDao,
-        parentStudentDao: ParentStudentDao,
-        classDao: ClassDao,
-        classStudentDao: ClassStudentDao,
-        teacherDao: TeacherDao,
-        userDao: UserDao
-    ): IParentRepository = ParentRepositoryImpl(
-        firebaseDataSource,
-        parentService,
-        parentStudentService,
-        studentService,
-        classService,
-        userService,
-        parentDao,
-        studentDao,
-        parentStudentDao,
-        classDao,
-        classStudentDao,
-        teacherDao,
-        userDao
-    )
 
 
     @Provides
@@ -338,8 +321,8 @@ object AppModule {
         miniGameDao: MiniGameDao,
         miniGameQuestionDao: MiniGameQuestionDao,
         miniGameOptionDao: MiniGameOptionDao,
-        studentMiniGameResultDao: StudentMiniGameResultDao,
-        studentMiniGameAnswerDao: StudentMiniGameAnswerDao
+        studentMiniGameResultDao: com.example.datn.data.local.dao.StudentMiniGameResultDao,
+        studentMiniGameAnswerDao: com.example.datn.data.local.dao.StudentMiniGameAnswerDao
     ): IMiniGameRepository = MiniGameRepositoryImpl(
         firebaseDataSource,
         miniGameDao,
@@ -361,37 +344,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideSyncManager(
-        firebaseDataSource: FirebaseDataSource,
-        testDao: TestDao,
-        testQuestionDao: TestQuestionDao,
-        testOptionDao: com.example.datn.data.local.dao.TestOptionDao,
-        miniGameDao: MiniGameDao,
-        miniGameQuestionDao: MiniGameQuestionDao,
-        miniGameOptionDao: MiniGameOptionDao,
-        studentTestResultDao: StudentTestResultDao,
-        studentTestAnswerDao: com.example.datn.data.local.dao.StudentTestAnswerDao
-    ): com.example.datn.data.sync.FirebaseRoomSyncManager = com.example.datn.data.sync.FirebaseRoomSyncManager(
-        firebaseDataSource,
-        testDao,
-        testQuestionDao,
-        testOptionDao,
-        miniGameDao,
-        miniGameQuestionDao,
-        miniGameOptionDao,
-        studentTestResultDao,
-        studentTestAnswerDao
-    )
-
-    @Provides
-    @Singleton
     fun provideTestRepository(
         firebaseDataSource: FirebaseDataSource,
         testDao: TestDao,
         testQuestionDao: TestQuestionDao,
         studentTestResultDao: StudentTestResultDao,
-        testOptionDao: com.example.datn.data.local.dao.TestOptionDao,
-        studentTestAnswerDao: com.example.datn.data.local.dao.StudentTestAnswerDao,
+        testOptionDao: TestOptionDao,
+        studentTestAnswerDao: StudentTestAnswerDao,
         syncManager: com.example.datn.data.sync.FirebaseRoomSyncManager
     ): ITestRepository = TestRepositoryImpl(
         firebaseDataSource,
@@ -451,6 +410,14 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideStudentService(): StudentService = StudentService()
+
+    @Provides
+    @Singleton
+    fun provideParentStudentService(): ParentStudentService = ParentStudentService()
+
+    @Provides
+    @Singleton
     fun provideTestService(): TestService = TestService()
 
     @Provides
@@ -462,18 +429,6 @@ object AppModule {
     @Singleton
     fun provideMessageService(): com.example.datn.core.network.service.message.MessageService =
         com.example.datn.core.network.service.message.MessageService()
-    
-    @Provides
-    @Singleton
-    fun provideStudentService(): StudentService = StudentService()
-    
-    @Provides
-    @Singleton
-    fun provideParentService(): ParentService = ParentService()
-    
-    @Provides
-    @Singleton
-    fun provideParentStudentService(): ParentStudentService = ParentStudentService()
 
     // Messaging DAOs
     @Provides
@@ -491,26 +446,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideNotificationDao(db: AppDatabase): NotificationDao = db.notificationDao()
-    
-    @Provides
-    @Singleton
-    fun provideStudentDao(db: AppDatabase): StudentDao = db.studentDao()
-    
-    @Provides
-    @Singleton
-    fun provideParentDao(db: AppDatabase): ParentDao = db.parentDao()
-    
-    @Provides
-    @Singleton
-    fun provideTeacherDao(db: AppDatabase): TeacherDao = db.teacherDao()
 
-    // Firebase Messaging Service
-    @Provides
-    @Singleton
-    fun provideFirebaseMessagingService(
-        firestore: FirebaseFirestore
-    ): FirebaseMessagingService = FirebaseMessagingService(firestore)
-    
     // Messaging Repository
     @Provides
     @Singleton
@@ -518,30 +454,15 @@ object AppModule {
         conversationDao: ConversationDao,
         messageDao: MessageDao,
         participantDao: ConversationParticipantDao,
-        firebaseMessaging: FirebaseMessagingService,
+        firebaseMessagingService: FirebaseMessagingService,
         firebaseAuthDataSource: FirebaseAuthDataSource,
         userDao: UserDao
     ): IMessagingRepository = MessagingRepositoryImpl(
         conversationDao,
         messageDao,
         participantDao,
-        firebaseMessaging,
+        firebaseMessagingService,
         firebaseAuthDataSource,
-        userDao
-    )
-
-    // Messaging Permission Repository
-    @Provides
-    @Singleton
-    fun provideMessagingPermissionRepository(
-        classDao: ClassDao,
-        classStudentDao: ClassStudentDao,
-        parentStudentDao: ParentStudentDao,
-        userDao: UserDao
-    ): IMessagingPermissionRepository = MessagingPermissionRepositoryImpl(
-        classDao,
-        classStudentDao,
-        parentStudentDao,
         userDao
     )
 
@@ -550,21 +471,31 @@ object AppModule {
     @Singleton
     fun provideMessagingUseCases(
         repository: IMessagingRepository,
-        permissionRepository: IMessagingPermissionRepository,
-        userRepository: IUserRepository,
-        firebaseMessaging: FirebaseMessagingService,
-        conversationDao: ConversationDao,
         participantDao: ConversationParticipantDao,
-        firebaseAuthDataSource: FirebaseAuthDataSource
+        firebaseMessaging: FirebaseMessaging,
+        permissionRepository: IMessagingPermissionRepository,
+        conversationDao: ConversationDao,
+        firebaseMessagingService: FirebaseMessagingService,
+        firebaseAuthDataSource: FirebaseAuthDataSource,
+        userRepository: IUserRepository
     ): MessagingUseCases = MessagingUseCases(
         getConversations = GetConversationsUseCase(repository),
         getMessages = GetMessagesUseCase(repository),
         sendMessage = SendMessageUseCase(repository),
         createConversation = CreateConversationUseCase(repository),
         markAsRead = MarkAsReadUseCase(repository),
-        createGroupConversation = CreateGroupConversationUseCase(firebaseMessaging, conversationDao, participantDao),
-        addParticipants = AddParticipantsUseCase(firebaseMessaging),
-        leaveGroup = LeaveGroupUseCase(firebaseMessaging, participantDao),
+        createGroupConversation = CreateGroupConversationUseCase(
+            firebaseMessagingService,
+            conversationDao,
+            participantDao
+        ),
+        addParticipants = AddParticipantsUseCase(
+            firebaseMessagingService
+        ),
+        leaveGroup = LeaveGroupUseCase(
+            firebaseMessagingService,
+            participantDao
+        ),
         getGroupParticipants = GetGroupParticipantsUseCase(participantDao, firebaseAuthDataSource),
         getAllowedRecipients = GetAllowedRecipientsUseCase(permissionRepository, userRepository),
         checkMessagingPermission = CheckMessagingPermissionUseCase(permissionRepository),
@@ -628,41 +559,87 @@ object AppModule {
             testRepository,
             miniGameRepository
         )
-    
-    // Parent Student Use Cases
+
+    // Parent Repository
     @Provides
     @Singleton
-    fun provideParentStudentUseCases(
-        firebaseAuthDataSource: FirebaseAuthDataSource,
-        studentService: StudentService,
-        userService: UserService,
-        parentStudentService: ParentStudentService,
+    fun provideParentRepository(
+        firebaseDataSource: FirebaseDataSource
+    ): IParentRepository = ParentRepositoryImpl(firebaseDataSource)
+
+    // Student Repository
+    @Provides
+    @Singleton
+    fun provideStudentRepository(
+        firebaseDataSource: FirebaseDataSource
+    ): IStudentRepository = StudentRepositoryImpl(firebaseDataSource)
+
+    // Teacher Repository
+    @Provides
+    @Singleton
+    fun provideTeacherRepository(
         firebaseDataSource: FirebaseDataSource,
-        parentRepository: IParentRepository
-    ): ParentStudentUseCases = ParentStudentUseCases(
-        createStudentAccount = CreateStudentAccountUseCase(
-            firebaseAuthDataSource,
-            studentService,
-            userService,
-            parentStudentService
-        ),
-        linkStudent = LinkStudentUseCase(parentStudentService),
-        updateStudentInfo = UpdateStudentInfoUseCase(
-            firebaseDataSource,
-            studentService
-        ),
-        getLinkedStudents = GetLinkedStudentsUseCase(
-            parentStudentService,
-            studentService,
-            firebaseDataSource
-        ),
-        unlinkStudent = UnlinkStudentUseCase(parentRepository),
-        searchStudent = SearchStudentUseCase(
-            studentService,
-            firebaseDataSource
-        ),
-        updateRelationship = UpdateRelationshipUseCase(parentStudentService),
-        getStudentClassesForParent = GetStudentClassesForParentUseCase(parentRepository)
+        teacherDao: TeacherDao
+    ): ITeacherRepository = TeacherRepositoryImpl(
+        firebaseDataSource,
+        teacherDao
     )
+
+    // Progress Repository
+    @Provides
+    @Singleton
+    fun provideProgressRepository(
+        studentLessonProgressDao: StudentLessonProgressDao,
+        dailyStudyTimeDao: DailyStudyTimeDao
+    ): IProgressRepository = ProgressRepositoryImpl(
+        studentLessonProgressDao,
+        dailyStudyTimeDao
+    )
+
+    // Messaging Permission Repository
+    @Provides
+    @Singleton
+    fun provideMessagingPermissionRepository(
+        classDao: ClassDao,
+        classStudentDao: ClassStudentDao,
+        parentStudentDao: ParentStudentDao,
+        userDao: UserDao
+    ): IMessagingPermissionRepository =
+        MessagingPermissionRepositoryImpl(
+            classDao,
+            classStudentDao,
+            parentStudentDao,
+            userDao
+        )
+
+    // Sync Manager
+    @Provides
+    @Singleton
+    fun provideFirebaseRoomSyncManager(
+        firebaseDataSource: FirebaseDataSource,
+        testDao: TestDao,
+        testQuestionDao: TestQuestionDao,
+        testOptionDao: com.example.datn.data.local.dao.TestOptionDao,
+        miniGameDao: MiniGameDao,
+        miniGameQuestionDao: MiniGameQuestionDao,
+        miniGameOptionDao: MiniGameOptionDao,
+        studentTestResultDao: StudentTestResultDao,
+        studentTestAnswerDao: com.example.datn.data.local.dao.StudentTestAnswerDao,
+        studentMiniGameResultDao: com.example.datn.data.local.dao.StudentMiniGameResultDao,
+        studentMiniGameAnswerDao: com.example.datn.data.local.dao.StudentMiniGameAnswerDao
+    ): com.example.datn.data.sync.FirebaseRoomSyncManager =
+        com.example.datn.data.sync.FirebaseRoomSyncManager(
+            firebaseDataSource,
+            testDao,
+            testQuestionDao,
+            testOptionDao,
+            miniGameDao,
+            miniGameQuestionDao,
+            miniGameOptionDao,
+            studentTestResultDao,
+            studentTestAnswerDao,
+            studentMiniGameResultDao,
+            studentMiniGameAnswerDao
+        )
 
 }

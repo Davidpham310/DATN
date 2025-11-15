@@ -339,7 +339,7 @@ interface ConversationDao : BaseDao<ConversationEntity> {
     suspend fun deleteAllConversations()
 
     /**
-     * Lấy danh sách cuộc hội thoại với Flow để lắng nghe thay đổi
+     * Lấy danh sách cuộc hội thoại v��i Flow để lắng nghe thay đổi
      */
     @Query("""
         SELECT 

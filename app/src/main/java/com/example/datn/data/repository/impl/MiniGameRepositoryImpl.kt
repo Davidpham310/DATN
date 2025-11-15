@@ -435,19 +435,48 @@ class MiniGameRepositoryImpl @Inject constructor(
                 result.studentId,
                 result.miniGameId
             )
-            
+
             // Create result with incremented attempt number
             val newResult = result.copy(attemptNumber = count + 1)
-            
-            // Save to Room
+
+            // Save to Room (local database) first for offline support
             studentMiniGameResultDao.insert(newResult.toEntity())
-            
-            // Save answers
+            android.util.Log.d("MiniGameRepo", "✅ Result saved to Room: ${newResult.id}")
+
+            // Save answers to Room
             val answerEntities = answers.map { it.toEntity() }
             studentMiniGameAnswerDao.insertAll(answerEntities)
-            
+            android.util.Log.d("MiniGameRepo", "✅ ${answers.size} answers saved to Room")
+
+            // Sync to Firebase
+            android.util.Log.d("MiniGameRepo", "🔄 Syncing result to Firebase...")
+            when (val firebaseResult = firebaseDataSource.submitMiniGameResult(newResult)) {
+                is Resource.Success -> {
+                    android.util.Log.d("MiniGameRepo", "✅ Result synced to Firebase: ${newResult.id}")
+
+                    // Sync answers to Firebase
+                    android.util.Log.d("MiniGameRepo", "🔄 Syncing ${answers.size} answers to Firebase...")
+                    when (val answersResult = firebaseDataSource.saveMiniGameAnswers(answers)) {
+                        is Resource.Success -> {
+                            android.util.Log.d("MiniGameRepo", "✅ Answers synced to Firebase")
+                        }
+                        is Resource.Error -> {
+                            android.util.Log.w("MiniGameRepo", "⚠️ Failed to sync answers to Firebase: ${answersResult.message}")
+                            // Don't fail the whole operation - data is already in Room
+                        }
+                        else -> {}
+                    }
+                }
+                is Resource.Error -> {
+                    android.util.Log.w("MiniGameRepo", "⚠️ Failed to sync result to Firebase: ${firebaseResult.message}")
+                    // Don't fail the whole operation - data is already in Room (offline-first approach)
+                }
+                else -> {}
+            }
+
             emit(Resource.Success(newResult))
         } catch (e: Exception) {
+            android.util.Log.e("MiniGameRepo", "❌ Error submitting result: ${e.message}")
             emit(Resource.Error("Error submitting result: ${e.message}"))
         }
     }

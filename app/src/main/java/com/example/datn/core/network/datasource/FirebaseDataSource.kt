@@ -7,18 +7,23 @@ import com.example.datn.core.network.service.lesson.LessonContentService
 import com.example.datn.core.network.service.lesson.LessonService
 import com.example.datn.core.network.service.message.MessageService
 import com.example.datn.core.network.service.mini_game.MiniGameService
+import com.example.datn.core.network.service.parent.ParentStudentService
+import com.example.datn.core.network.service.student.StudentService
 import com.example.datn.core.network.service.test.TestService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.Class
+import com.example.datn.domain.models.ClassEnrollmentInfo
 import com.example.datn.domain.models.ClassStudent
 import com.example.datn.domain.models.EnrollmentStatus
+import com.example.datn.domain.models.RelationshipType
 import com.example.datn.domain.models.Lesson
 import com.example.datn.domain.models.LessonContent
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.domain.models.MiniGameQuestion
 import com.example.datn.domain.models.MiniGameOption
+import com.example.datn.domain.models.Student
 import com.example.datn.domain.models.TestOption
 import com.example.datn.domain.models.Test
 import com.example.datn.domain.models.Conversation
@@ -26,6 +31,7 @@ import com.example.datn.domain.models.Message
 import kotlinx.coroutines.flow.Flow
 
 import java.io.InputStream
+import java.time.Instant
 import javax.inject.Inject
 
 class FirebaseDataSource @Inject constructor(
@@ -36,7 +42,9 @@ class FirebaseDataSource @Inject constructor(
     private val miniGameService: MiniGameService,
     private val testService: TestService,
     private val conversationService: ConversationService,
-    private val messageService: MessageService
+    private val messageService: MessageService,
+    private val studentService: StudentService,
+    private val parentStudentService: ParentStudentService
 ) : BaseDataSource() {
 
     // ==================== USER OPERATIONS ====================
@@ -417,6 +425,41 @@ class FirebaseDataSource @Inject constructor(
         miniGameService.deleteMiniGameOption(optionId)
     }.toResource()
 
+    // ==================== MINI GAME RESULT OPERATIONS ====================
+
+    suspend fun submitMiniGameResult(result: com.example.datn.domain.models.StudentMiniGameResult): Resource<com.example.datn.domain.models.StudentMiniGameResult?> = safeCallWithResult {
+        miniGameService.submitMiniGameResult(result)
+    }.toResource()
+
+    suspend fun getMiniGameResultsByStudentAndGame(
+        studentId: String,
+        miniGameId: String
+    ): Resource<List<com.example.datn.domain.models.StudentMiniGameResult>> = safeCallWithResult {
+        miniGameService.getResultsByStudentAndMiniGame(studentId, miniGameId)
+    }.toResource()
+
+    suspend fun getMiniGameResultById(resultId: String): Resource<com.example.datn.domain.models.StudentMiniGameResult?> = safeCallWithResult {
+        miniGameService.getResultById(resultId)
+    }.toResource()
+
+    suspend fun getMiniGameResultsByMiniGame(miniGameId: String): Resource<List<com.example.datn.domain.models.StudentMiniGameResult>> = safeCallWithResult {
+        miniGameService.getResultsByMiniGame(miniGameId)
+    }.toResource()
+
+    suspend fun getMiniGameResultsByStudent(studentId: String): Resource<List<com.example.datn.domain.models.StudentMiniGameResult>> = safeCallWithResult {
+        miniGameService.getResultsByStudent(studentId)
+    }.toResource()
+
+    // ==================== MINI GAME ANSWER OPERATIONS ====================
+
+    suspend fun saveMiniGameAnswers(answers: List<com.example.datn.domain.models.StudentMiniGameAnswer>): Resource<Boolean> = safeCallWithResult {
+        miniGameService.saveMiniGameAnswers(answers)
+    }.toResource()
+
+    suspend fun getMiniGameAnswersByResultId(resultId: String): Resource<List<com.example.datn.domain.models.StudentMiniGameAnswer>> = safeCallWithResult {
+        miniGameService.getAnswersByResultId(resultId)
+    }.toResource()
+
     // ==================== TEST OPTION OPERATIONS ====================
     suspend fun addTestOption(option: TestOption): Resource<TestOption?> = safeCallWithResult {
         testService.addOption(option)
@@ -583,4 +626,122 @@ class FirebaseDataSource @Inject constructor(
             Resource.Error(this.exceptionOrNull()?.message ?: "Unknown Firebase Error")
         }
     }
+
+    // ==================== PARENT / STUDENT HELPERS FOR PARENT REPOSITORY ====================
+
+    /**
+     * Lấy danh sách học sinh (Student) theo parentId.
+     */
+    suspend fun getStudentsByParentId(parentId: String): Resource<List<Student>> = safeCallWithResult {
+        studentService.getStudentsByParentId(parentId)
+    }.toResource()
+
+    /**
+     * Ngắt liên kết phụ huynh - học sinh trong collection parent_student.
+     */
+    suspend fun unlinkParentStudent(parentId: String, studentId: String): Resource<Unit> = safeCallWithResult {
+        parentStudentService.unlinkParentStudent(parentId, studentId)
+    }.toResource()
+
+    /**
+     * Lấy danh sách lớp học mà con của phụ huynh đang tham gia, kết hợp thông tin từ Class,
+     * Teacher (User), Student (User) và ClassStudent để trả về ClassEnrollmentInfo.
+     */
+    suspend fun getStudentClassesForParent(
+        parentId: String,
+        studentId: String? = null,
+        enrollmentStatus: EnrollmentStatus? = null
+    ): Resource<List<ClassEnrollmentInfo>> = safeCallWithResult {
+        // 1. Lấy tất cả học sinh của phụ huynh
+        val allChildren: List<Student> = studentService.getStudentsByParentId(parentId)
+
+        val filteredChildren = if (studentId != null) {
+            allChildren.filter { it.id == studentId }
+        } else {
+            allChildren
+        }
+
+        if (filteredChildren.isEmpty()) {
+            emptyList()
+        } else {
+            val results = mutableListOf<ClassEnrollmentInfo>()
+
+            for (child in filteredChildren) {
+                // 2. Lấy enrollments cho từng học sinh
+                val enrollments: List<ClassStudent> = classService.getEnrollmentsByStudent(
+                    studentId = child.id,
+                    enrollmentStatus = enrollmentStatus
+                )
+
+                for (enrollment in enrollments) {
+                    val clazz: Class? = classService.getClassById(enrollment.classId)
+                    if (clazz == null) continue
+
+                    // Teacher info
+                    val teacher: User? = userService.getUserById(clazz.teacherId)
+
+                    val info = ClassEnrollmentInfo(
+                        classId = clazz.id,
+                        className = clazz.name,
+                        classCode = clazz.classCode,
+                        subject = clazz.subject,
+                        gradeLevel = clazz.gradeLevel,
+                        teacherId = clazz.teacherId,
+                        teacherName = teacher?.name ?: "(Đã rời)",
+                        teacherAvatar = teacher?.avatarUrl,
+                        teacherSpecialization = clazz.subject ?: "",
+                        studentId = child.id,
+                        studentName = child.id, // Có thể được enrich ở layer khác nếu cần
+                        studentAvatar = null,
+                        enrollmentStatus = enrollment.enrollmentStatus,
+                        enrolledDate = enrollment.enrolledDate,
+                        approvedBy = enrollment.approvedBy.ifBlank { null },
+                        rejectionReason = enrollment.rejectionReason.ifBlank { null },
+                        classCreatedAt = clazz.createdAt,
+                        classUpdatedAt = clazz.updatedAt
+                    )
+
+                    results.add(info)
+                }
+            }
+
+            // Sort theo yêu cầu use case: APPROVED trước, PENDING sau, REJECTED/WITHDRAWN cuối
+            results.sortedWith(
+                compareBy<ClassEnrollmentInfo> {
+                    when (it.enrollmentStatus) {
+                        EnrollmentStatus.APPROVED -> 0
+                        EnrollmentStatus.PENDING -> 1
+                        else -> 2
+                    }
+                }.thenByDescending { it.enrolledDate }
+            )
+        }
+    }.toResource()
+
+    suspend fun getStudentById(studentId: String): Resource<Student?> = safeCallWithResult {
+        studentService.getById(studentId)
+    }.toResource()
+
+    suspend fun getStudentByUserId(userId: String): Resource<Student?> = safeCallWithResult {
+        studentService.getStudentByUserId(userId)
+    }.toResource()
+
+    suspend fun updateStudent(studentId: String, student: Student): Resource<Unit> = safeCallWithResult {
+        studentService.update(studentId, student)
+    }.toResource()
+
+    suspend fun linkParentToStudent(
+        studentId: String,
+        parentId: String,
+        relationship: String
+    ): Resource<Unit> = safeCallWithResult {
+        val relationshipEnum = RelationshipType.fromString(relationship)
+            ?: RelationshipType.fromDisplayName(relationship)
+            ?: RelationshipType.GUARDIAN
+        parentStudentService.linkParentStudent(
+            parentId = parentId,
+            studentId = studentId,
+            relationship = relationshipEnum
+        )
+    }.toResource()
 }

@@ -1,99 +1,80 @@
 package com.example.datn.core.network.service.parent
 
+import com.example.datn.core.network.service.BaseFirestoreService
+import com.example.datn.core.utils.mapper.internalToDomain
 import com.example.datn.domain.models.ParentStudent
 import com.example.datn.domain.models.RelationshipType
-import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 import javax.inject.Inject
 
-class ParentStudentService @Inject constructor() {
-    private val firestore = FirebaseFirestore.getInstance()
-    private val parentStudentRef = firestore.collection("parent_student")
-    
-    // Tạo liên kết parent-student
-    suspend fun createParentStudentLink(
-        parentId: String,
-        studentId: String,
-        relationship: RelationshipType,
-        isPrimaryGuardian: Boolean
-    ): Boolean {
-        return try {
-            val parentStudent = hashMapOf(
-                "parentId" to parentId,
-                "studentId" to studentId,
-                "relationship" to relationship.name,
-                "linkedAt" to System.currentTimeMillis(),
-                "isPrimaryGuardian" to isPrimaryGuardian
-            )
-            val docId = "${parentId}_${studentId}"
-            parentStudentRef.document(docId).set(parentStudent).await()
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-    
-    // Lấy danh sách parent-student links của một parent
-    suspend fun getParentStudentLinks(parentId: String): List<ParentStudent> {
-        val snapshot = parentStudentRef
+class ParentStudentService @Inject constructor() :
+    BaseFirestoreService<ParentStudent>(collectionName = "parent_student", clazz = ParentStudent::class.java) {
+
+    // Lấy danh sách học sinh của phụ huynh
+    suspend fun getStudentsByParentId(parentId: String): List<ParentStudent> {
+        val snapshot = collectionRef
             .whereEqualTo("parentId", parentId)
             .get()
             .await()
-        
-        return snapshot.documents.mapNotNull { doc ->
+
+        return snapshot.documents.mapNotNull {
             try {
-                val data = doc.data ?: return@mapNotNull null
-                ParentStudent(
-                    parentId = data["parentId"] as? String ?: "",
-                    studentId = data["studentId"] as? String ?: "",
-                    relationship = RelationshipType.valueOf(
-                        (data["relationship"] as? String) ?: "GUARDIAN"
-                    ),
-                    linkedAt = Instant.ofEpochMilli(
-                        (data["linkedAt"] as? Long) ?: System.currentTimeMillis()
-                    ),
-                    isPrimaryGuardian = data["isPrimaryGuardian"] as? Boolean ?: false
-                )
-            } catch (e: Exception) {
+                it.internalToDomain(clazz)
+            } catch (_: Exception) {
                 null
             }
         }
     }
-    
-    // Xóa liên kết parent-student
-    suspend fun deleteParentStudentLink(parentId: String, studentId: String): Boolean {
-        return try {
-            val docId = "${parentId}_${studentId}"
-            parentStudentRef.document(docId).delete().await()
-            true
-        } catch (e: Exception) {
-            false
+
+    // Lấy danh sách phụ huynh của học sinh
+    suspend fun getParentsByStudentId(studentId: String): List<ParentStudent> {
+        val snapshot = collectionRef
+            .whereEqualTo("studentId", studentId)
+            .get()
+            .await()
+
+        return snapshot.documents.mapNotNull {
+            try {
+                it.internalToDomain(clazz)
+            } catch (_: Exception) {
+                null
+            }
         }
     }
-    
-    // Lấy liên kết cụ thể
-    suspend fun getParentStudentLink(parentId: String, studentId: String): ParentStudent? {
-        return try {
-            val docId = "${parentId}_${studentId}"
-            val doc = parentStudentRef.document(docId).get().await()
-            if (!doc.exists()) return null
-            
-            val data = doc.data ?: return null
-            ParentStudent(
-                parentId = data["parentId"] as? String ?: "",
-                studentId = data["studentId"] as? String ?: "",
-                relationship = RelationshipType.valueOf(
-                    (data["relationship"] as? String) ?: "GUARDIAN"
-                ),
-                linkedAt = Instant.ofEpochMilli(
-                    (data["linkedAt"] as? Long) ?: System.currentTimeMillis()
-                ),
-                isPrimaryGuardian = data["isPrimaryGuardian"] as? Boolean ?: false
-            )
-        } catch (e: Exception) {
-            null
-        }
+
+    // Lấy quan hệ giữa phụ huynh và học sinh
+    suspend fun getRelationship(parentId: String, studentId: String): ParentStudent? {
+        val docId = "${parentId}_${studentId}"
+        return getById(docId)
+    }
+
+    // Kiểm tra xem phụ huynh có liên kết với học sinh không
+    suspend fun isLinked(parentId: String, studentId: String): Boolean {
+        return getRelationship(parentId, studentId) != null
+    }
+
+    // Xóa liên kết giữa phụ huynh và học sinh
+    suspend fun unlinkParentStudent(parentId: String, studentId: String) {
+        val docId = "${parentId}_${studentId}"
+        delete(docId)
+    }
+
+    // Tạo hoặc cập nhật liên kết giữa phụ huynh và học sinh
+    suspend fun linkParentStudent(
+        parentId: String,
+        studentId: String,
+        relationship: RelationshipType,
+        isPrimaryGuardian: Boolean = true
+    ) {
+        val docId = "${parentId}_${studentId}"
+        val link = ParentStudent(
+            parentId = parentId,
+            studentId = studentId,
+            relationship = relationship,
+            linkedAt = Instant.now(),
+            isPrimaryGuardian = isPrimaryGuardian
+        )
+        add(docId, link)
     }
 }
-

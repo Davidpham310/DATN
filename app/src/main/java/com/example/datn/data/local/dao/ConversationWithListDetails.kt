@@ -19,7 +19,7 @@ data class ConversationWithListDetails(
     val participantUserId: String?, // Khớp với U.id AS participantUserId
     val participantName: String?, // Khớp với U.name AS participantName
     
-    // Danh sách tên tất cả participants (phân cách bởi dấu phẩy) - dùng cho group chat
+    // Danh sách tên tất c�� participants (phân cách bởi dấu phẩy) - dùng cho group chat
     val participantNames: String? = null // Khớp với GROUP_CONCAT
 ) {
     // Alias for compatibility

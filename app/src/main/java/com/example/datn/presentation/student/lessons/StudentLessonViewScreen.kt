@@ -1,5 +1,6 @@
 package com.example.datn.presentation.student.lessons
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.datn.presentation.navigation.Screen
 import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
 
@@ -21,6 +24,7 @@ import com.example.datn.domain.models.LessonContent
 fun StudentLessonViewScreen(
     lessonId: String,
     lessonTitle: String,
+    navController: NavController,
     onNavigateBack: () -> Unit,
     viewModel: StudentLessonViewViewModel = hiltViewModel()
 ) {
@@ -115,12 +119,28 @@ fun StudentLessonViewScreen(
                     ) {
                         // Lesson header
                         item {
-                            LessonHeaderCard(lesson = state.lesson)
+                            LessonHeaderCard(
+                                lesson = state.lesson,
+                                onViewAllGames = {
+                                    android.util.Log.d("StudentLessonView", "🎯 Navigating to lesson minigame with lessonId: $lessonId, title: ${state.lesson?.title}")
+                                    navController.navigate(
+                                        Screen.StudentMiniGamePlay.createRoute("lesson_$lessonId", lessonId)
+                                    )
+                                }
+                            )
                         }
 
                         // Content sections
                         items(state.lessonContents) { content ->
-                            LessonContentCard(content = content)
+                            LessonContentCard(
+                            content = content,
+                            onPlayGame = { gameId ->
+                                android.util.Log.d("StudentLessonView", "🎯 Navigating to lesson minigame from content with lessonId: $lessonId")
+                                navController.navigate(
+                                    Screen.StudentMiniGamePlay.createRoute("lesson_$lessonId", lessonId)
+                                )
+                            }
+                        )
                         }
                     }
                 }
@@ -130,7 +150,10 @@ fun StudentLessonViewScreen(
 }
 
 @Composable
-private fun LessonHeaderCard(lesson: com.example.datn.domain.models.Lesson?) {
+private fun LessonHeaderCard(
+    lesson: com.example.datn.domain.models.Lesson?,
+    onViewAllGames: () -> Unit = {}
+) {
     lesson?.let {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -166,7 +189,8 @@ private fun LessonHeaderCard(lesson: com.example.datn.domain.models.Lesson?) {
                         text = it.title,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
@@ -178,13 +202,42 @@ private fun LessonHeaderCard(lesson: com.example.datn.domain.models.Lesson?) {
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
+                
+                // Mini Games Button
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = onViewAllGames,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+                    border = BorderStroke(
+                        1.dp, 
+                        MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Games,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Xem tất cả trò chơi của bài học",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun LessonContentCard(content: LessonContent) {
+private fun LessonContentCard(
+    content: LessonContent,
+    onPlayGame: (String) -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -233,7 +286,10 @@ private fun LessonContentCard(content: LessonContent) {
                     PdfContentView(content = content.content)
                 }
                 ContentType.MINIGAME -> {
-                    MinigameContentView(content = content.content)
+                    MinigameContentView(
+                        content = content.content,
+                        onPlayGame = onPlayGame
+                    )
                 }
             }
         }
@@ -432,11 +488,14 @@ private fun PdfContentView(content: String) {
 }
 
 @Composable
-private fun MinigameContentView(content: String) {
+private fun MinigameContentView(
+    content: String,
+    onPlayGame: (String) -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* TODO: Navigate to minigame screen with ID: $content */ },
+            .clickable { onPlayGame(content) },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer
         )
@@ -458,7 +517,7 @@ private fun MinigameContentView(content: String) {
                 Text(
                     text = "Trò chơi nhỏ",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
                 Text(

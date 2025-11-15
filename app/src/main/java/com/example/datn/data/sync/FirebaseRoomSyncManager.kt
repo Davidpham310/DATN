@@ -30,7 +30,9 @@ class FirebaseRoomSyncManager @Inject constructor(
     private val miniGameQuestionDao: MiniGameQuestionDao,
     private val miniGameOptionDao: MiniGameOptionDao,
     private val studentTestResultDao: StudentTestResultDao,
-    private val studentTestAnswerDao: StudentTestAnswerDao
+    private val studentTestAnswerDao: StudentTestAnswerDao,
+    private val studentMiniGameResultDao: StudentMiniGameResultDao,
+    private val studentMiniGameAnswerDao: StudentMiniGameAnswerDao
 ) {
     companion object {
         private const val TAG = "SyncManager"

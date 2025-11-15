@@ -152,7 +152,7 @@ fun StudentHomeScreen(
                     modifier = Modifier.weight(1f)
                 )
                 ComingSoonCard(
-                    icon = Icons.Default.Gamepad,
+                    icon = Icons.Default.Games,
                     title = "Trò chơi",
                     modifier = Modifier.weight(1f)
                 )

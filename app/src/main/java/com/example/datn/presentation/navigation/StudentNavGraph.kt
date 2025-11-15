@@ -29,6 +29,8 @@ import com.example.datn.presentation.student.tests.StudentTestListScreen
 import com.example.datn.presentation.student.tests.StudentTestTakingScreen
 import com.example.datn.presentation.student.tests.StudentTestResultScreen
 import com.example.datn.presentation.student.games.MiniGameResultScreen
+import com.example.datn.presentation.student.games.MiniGamePlayScreen
+import com.example.datn.presentation.student.games.MiniGameListScreen
 
 @Composable
 fun StudentNavGraph(
@@ -109,6 +111,7 @@ fun StudentNavGraph(
             StudentLessonViewScreen(
                 lessonId = lessonId,
                 lessonTitle = lessonTitle,
+                navController = navController,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -323,25 +326,85 @@ fun StudentNavGraph(
             )
         }
         
+        // MiniGame Play Screen
+        composable(
+            route = Screen.StudentMiniGamePlay.routeWithArgs,
+            arguments = listOf(
+                navArgument("gameId") { type = NavType.StringType },
+                navArgument("lessonId") { 
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val gameId = backStackEntry.arguments?.getString("gameId") ?: ""
+            val lessonId = backStackEntry.arguments?.getString("lessonId")
+            
+            MiniGamePlayScreen(
+                miniGameId = gameId,
+                onBack = { navController.popBackStack() },
+                onGameComplete = { resultId ->
+                    navController.navigate(
+                        Screen.StudentMiniGameResult.createRoute(gameId, resultId)
+                    )
+                }
+            )
+        }
+        
         // MiniGame Result Screen
         composable(
             route = Screen.StudentMiniGameResult.routeWithArgs,
             arguments = listOf(
-                navArgument("miniGameId") { type = NavType.StringType },
+                navArgument("gameId") { type = NavType.StringType },
                 navArgument("resultId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val miniGameId = backStackEntry.arguments?.getString("miniGameId") ?: ""
+            val gameId = backStackEntry.arguments?.getString("gameId") ?: ""
             val resultId = backStackEntry.arguments?.getString("resultId") ?: ""
             
             MiniGameResultScreen(
-                miniGameId = miniGameId,
+                miniGameId = gameId,
                 resultId = resultId,
                 onNavigateBack = { navController.popBackStack() },
                 onPlayAgain = {
-                    // Navigate back to minigame play screen
-                    // TODO: Implement when MiniGame play screen is ready
-                    navController.popBackStack()
+                    navController.navigate(
+                        Screen.StudentMiniGamePlay.createRoute(gameId)
+                    )
+                }
+            )
+        }
+        
+        // MiniGame List Screen - Lesson specific
+        composable(
+            route = Screen.StudentMiniGameList.routeWithArgs,
+            arguments = listOf(
+                navArgument("lessonId") { 
+                    type = NavType.StringType
+                },
+                navArgument("lessonTitle") { 
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val lessonId = backStackEntry.arguments?.getString("lessonId")
+            val encodedTitle = backStackEntry.arguments?.getString("lessonTitle") ?: ""
+            val lessonTitle = if (encodedTitle.isNotBlank()) {
+                try {
+                    java.net.URLDecoder.decode(encodedTitle, "UTF-8")
+                } catch (e: Exception) {
+                    encodedTitle
+                }
+            } else null
+            
+            MiniGameListScreen(
+                lessonId = lessonId,
+                lessonTitle = lessonTitle,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToGame = { gameId ->
+                    navController.navigate(
+                        Screen.StudentMiniGamePlay.createRoute(gameId, lessonId ?: "")
+                    )
                 }
             )
         }

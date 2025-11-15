@@ -6,6 +6,8 @@ import com.example.datn.core.utils.mapper.internalToDomain
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.domain.models.MiniGameQuestion
 import com.example.datn.domain.models.MiniGameOption
+import com.example.datn.domain.models.StudentMiniGameResult
+import com.example.datn.domain.models.StudentMiniGameAnswer
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
@@ -22,6 +24,8 @@ class MiniGameService @Inject constructor() :
 
     private val questionRef = FirebaseFirestore.getInstance().collection("minigame_questions")
     private val optionRef = FirebaseFirestore.getInstance().collection("minigame_options")
+    private val resultRef = FirebaseFirestore.getInstance().collection("student_minigame_results")
+    private val answerRef = FirebaseFirestore.getInstance().collection("student_minigame_answers")
 
     // ==================== MINI GAME ====================
 
@@ -42,7 +46,7 @@ class MiniGameService @Inject constructor() :
     }
 
     suspend fun getMiniGamesByLesson(lessonId: String): List<MiniGame> = try {
-        Log.d(TAG, "Fetching mini games for lesson: $lessonId")
+        Log.d(TAG, "🎯 Fetching mini games for lesson: $lessonId")
 
         val snapshot = firestore.collection("minigames") // ✅ bắt đầu từ Firestore để tránh type mismatch
             .whereEqualTo("lessonId", lessonId)
@@ -50,15 +54,24 @@ class MiniGameService @Inject constructor() :
             .get()
             .await()
 
-        snapshot.documents.mapNotNull {
+        Log.d(TAG, "📄 Found ${snapshot.documents.size} documents in Firebase for lesson $lessonId")
+        
+        snapshot.documents.mapNotNull { doc ->
             try {
-                it.internalToDomain(clazz)
+                Log.d(TAG, "🔍 Processing document ${doc.id}: ${doc.data}")
+                val game = doc.internalToDomain(clazz)
+                Log.d(TAG, "✅ Successfully parsed: ${game?.title} (level: ${game?.level})")
+                game
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse mini game doc ${it.id}", e)
+                Log.e(TAG, "❌ Failed to parse mini game doc ${doc.id}", e)
+                Log.e(TAG, "❌ Document data: ${doc.data}")
                 null
             }
-        }.also {
-            Log.i(TAG, "✅ Found ${it.size} mini games for lesson $lessonId")
+        }.also { games ->
+            Log.i(TAG, "🎮 Final result: ${games.size} mini games for lesson $lessonId")
+            games.forEach { game ->
+                Log.i(TAG, "  📋 ${game.title} - ${game.gameType} - ${game.level}")
+            }
         }
     } catch (e: Exception) {
         Log.e(TAG, "❌ Error fetching mini games by lesson: $lessonId", e)
@@ -280,5 +293,190 @@ class MiniGameService @Inject constructor() :
     } catch (e: Exception) {
         Log.e(TAG, "❌ Error deleting option: $optionId", e)
         false
+    }
+
+    // ==================== MINI GAME RESULTS ====================
+
+    /**
+     * Submit a mini game result to Firebase
+     * Similar to test results but supports multiple attempts
+     */
+    suspend fun submitMiniGameResult(result: StudentMiniGameResult): StudentMiniGameResult? = try {
+        Log.d(TAG, "Submitting mini game result: ${result.id}")
+
+        val docRef = if (result.id.isNotEmpty()) resultRef.document(result.id)
+                     else resultRef.document()
+
+        val now = Instant.now()
+        val data = result.copy(
+            id = docRef.id,
+            createdAt = if (result.createdAt.toEpochMilli() == 0L) now else result.createdAt,
+            updatedAt = now
+        )
+
+        docRef.set(data).await()
+        Log.i(TAG, "✅ Submitted mini game result: ${data.id}, Score: ${data.score}/${data.maxScore}, Attempt #${data.attemptNumber}")
+        data
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error submitting mini game result: ${result.id}", e)
+        null
+    }
+
+    /**
+     * Get all results for a student and mini game (supports multiple attempts)
+     */
+    suspend fun getResultsByStudentAndMiniGame(
+        studentId: String,
+        miniGameId: String
+    ): List<StudentMiniGameResult> = try {
+        Log.d(TAG, "Fetching results for studentId: $studentId, miniGameId: $miniGameId")
+
+        val snapshot = resultRef
+            .whereEqualTo("studentId", studentId)
+            .whereEqualTo("miniGameId", miniGameId)
+            .get()
+            .await()
+
+        val results = snapshot.documents.mapNotNull { doc ->
+            try {
+                doc.internalToDomain(StudentMiniGameResult::class.java)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse result doc ${doc.id}", e)
+                null
+            }
+        }
+
+        Log.i(TAG, "✅ Found ${results.size} results for student $studentId, mini game $miniGameId")
+        results
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error fetching results by student and mini game", e)
+        emptyList()
+    }
+
+    /**
+     * Get a specific result by ID
+     */
+    suspend fun getResultById(resultId: String): StudentMiniGameResult? = try {
+        Log.d(TAG, "Fetching result by ID: $resultId")
+
+        val doc = resultRef.document(resultId).get().await()
+        if (doc.exists()) {
+            doc.internalToDomain(StudentMiniGameResult::class.java).also {
+                Log.i(TAG, "✅ Loaded result: ${it?.id}")
+            }
+        } else {
+            Log.w(TAG, "⚠️ Result not found for ID: $resultId")
+            null
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error fetching result: $resultId", e)
+        null
+    }
+
+    /**
+     * Get all results for a mini game (for teacher/admin view)
+     */
+    suspend fun getResultsByMiniGame(miniGameId: String): List<StudentMiniGameResult> = try {
+        Log.d(TAG, "Fetching all results for mini game: $miniGameId")
+
+        val snapshot = resultRef
+            .whereEqualTo("miniGameId", miniGameId)
+            .get()
+            .await()
+
+        snapshot.documents.mapNotNull { doc ->
+            try {
+                doc.internalToDomain(StudentMiniGameResult::class.java)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse result doc ${doc.id}", e)
+                null
+            }
+        }.also {
+            Log.i(TAG, "✅ Found ${it.size} results for mini game $miniGameId")
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error fetching results by mini game: $miniGameId", e)
+        emptyList()
+    }
+
+    /**
+     * Get all results for a student (across all mini games)
+     */
+    suspend fun getResultsByStudent(studentId: String): List<StudentMiniGameResult> = try {
+        Log.d(TAG, "Fetching all results for student: $studentId")
+
+        val snapshot = resultRef
+            .whereEqualTo("studentId", studentId)
+            .get()
+            .await()
+
+        snapshot.documents.mapNotNull { doc ->
+            try {
+                doc.internalToDomain(StudentMiniGameResult::class.java)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse result doc ${doc.id}", e)
+                null
+            }
+        }.also {
+            Log.i(TAG, "✅ Found ${it.size} results for student $studentId")
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error fetching results by student: $studentId", e)
+        emptyList()
+    }
+
+    // ==================== MINI GAME ANSWERS ====================
+
+    /**
+     * Save student answers for a mini game result
+     */
+    suspend fun saveMiniGameAnswers(answers: List<StudentMiniGameAnswer>): Boolean = try {
+        Log.d(TAG, "Saving ${answers.size} mini game answers")
+
+        answers.forEach { answer ->
+            val docRef = if (answer.id.isNotEmpty()) answerRef.document(answer.id)
+                        else answerRef.document()
+
+            val now = Instant.now()
+            val data = answer.copy(
+                id = docRef.id,
+                createdAt = if (answer.createdAt.toEpochMilli() == 0L) now else answer.createdAt,
+                updatedAt = now
+            )
+
+            docRef.set(data).await()
+        }
+
+        Log.i(TAG, "✅ Saved ${answers.size} mini game answers")
+        true
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error saving mini game answers", e)
+        false
+    }
+
+    /**
+     * Get answers for a specific result
+     */
+    suspend fun getAnswersByResultId(resultId: String): List<StudentMiniGameAnswer> = try {
+        Log.d(TAG, "Fetching answers for result: $resultId")
+
+        val snapshot = answerRef
+            .whereEqualTo("resultId", resultId)
+            .get()
+            .await()
+
+        snapshot.documents.mapNotNull { doc ->
+            try {
+                doc.internalToDomain(StudentMiniGameAnswer::class.java)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse answer doc ${doc.id}", e)
+                null
+            }
+        }.also {
+            Log.i(TAG, "✅ Found ${it.size} answers for result $resultId")
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Error fetching answers by result: $resultId", e)
+        emptyList()
     }
 }
