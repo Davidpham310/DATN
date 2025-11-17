@@ -51,6 +51,10 @@ interface IMiniGameRepository {
         miniGameId: String
     ): Flow<Resource<List<StudentMiniGameResult>>>
 
+    fun getAllResultsByStudent(
+        studentId: String
+    ): Flow<Resource<List<StudentMiniGameResult>>>
+
     /**
      * Get a specific result by ID
      */

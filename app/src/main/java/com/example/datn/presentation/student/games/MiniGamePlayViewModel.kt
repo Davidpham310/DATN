@@ -6,6 +6,7 @@ import com.example.datn.core.utils.Resource
 import com.example.datn.domain.usecase.minigame.MiniGameUseCases
 import com.example.datn.domain.usecase.student.GetStudentProfileByUserIdUseCase
 import com.example.datn.domain.usecase.auth.AuthUseCases
+import com.example.datn.domain.usecase.progress.LogDailyStudyTimeUseCase
 import com.example.datn.domain.models.StudentMiniGameResult
 import com.example.datn.domain.models.StudentMiniGameAnswer
 import com.example.datn.domain.models.CompletionStatus
@@ -25,6 +26,7 @@ class MiniGamePlayViewModel @Inject constructor(
     private val miniGameUseCases: MiniGameUseCases,
     private val authUseCases: AuthUseCases,
     private val getStudentProfileByUserId: GetStudentProfileByUserIdUseCase,
+    private val logDailyStudyTime: LogDailyStudyTimeUseCase,
     notificationManager: NotificationManager
 ) : BaseViewModel<MiniGamePlayState, MiniGamePlayEvent>(
     MiniGamePlayState(),
@@ -609,6 +611,7 @@ class MiniGamePlayViewModel @Inject constructor(
                     showNotification("Không thể lưu kết quả: Không tìm thấy thông tin học sinh", NotificationType.ERROR)
                     return@launch
                 }
+                val resolvedStudentId = studentId!!
                 
                 // Calculate game duration
                 val currentState = state.value
@@ -622,7 +625,7 @@ class MiniGamePlayViewModel @Inject constructor(
                 // Create StudentMiniGameResult
                 val gameResult = StudentMiniGameResult(
                     id = resultId,
-                    studentId = studentId!!,
+                    studentId = resolvedStudentId,
                     miniGameId = miniGame.id,
                     score = totalScore,
                     maxScore = maxPossibleScore,
@@ -676,6 +679,10 @@ class MiniGamePlayViewModel @Inject constructor(
                             is Resource.Success -> {
                                 android.util.Log.d("MiniGamePlayVM", "✅ Game result saved successfully!")
                                 android.util.Log.d("MiniGamePlayVM", "📊 Final result: Score ${resource.data?.score}/${resource.data?.maxScore}, Attempt #${resource.data?.attemptNumber}")
+
+                                // Log study time for this minigame session into DailyStudyTime
+                                logDailyStudyTime(resolvedStudentId, durationSeconds)
+
                                 showNotification("Kết quả đã được lưu thành công!", NotificationType.SUCCESS)
                                 return@collect // Exit after successful save
                             }

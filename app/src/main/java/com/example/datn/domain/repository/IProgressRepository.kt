@@ -12,4 +12,5 @@ interface IProgressRepository {
     fun logDailyStudyTime(studentId: String, date: LocalDate, durationSeconds: Long): Flow<Resource<DailyStudyTime>>
     fun getDailyStudyTime(studentId: String, date: LocalDate): Flow<Resource<DailyStudyTime?>>
     fun getProgressOverview(studentId: String): Flow<Resource<List<StudentLessonProgress>>>
+    fun getAllDailyStudyTime(studentId: String): Flow<Resource<List<DailyStudyTime>>>
 }

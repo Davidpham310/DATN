@@ -7,6 +7,7 @@ import com.example.datn.data.mapper.*
 import com.example.datn.domain.models.DailyStudyTime
 import com.example.datn.domain.models.StudentLessonProgress
 import com.example.datn.domain.repository.IProgressRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.time.Instant
@@ -29,6 +30,7 @@ class ProgressRepositoryImpl @Inject constructor(
             val progress = entity?.toDomain()
             emit(Resource.Success(progress))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi lấy tiến độ bài học"))
         }
     }
@@ -40,6 +42,7 @@ class ProgressRepositoryImpl @Inject constructor(
             studentLessonProgressDao.insert(progress.toEntity())
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi cập nhật tiến độ bài học"))
         }
     }
@@ -79,6 +82,7 @@ class ProgressRepositoryImpl @Inject constructor(
 
             emit(Resource.Success(resultDomain))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi ghi lại thời gian học"))
         }
     }
@@ -93,7 +97,22 @@ class ProgressRepositoryImpl @Inject constructor(
             val dailyTime = entity?.toDomain()
             emit(Resource.Success(dailyTime))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi lấy thời gian học"))
+        }
+    }
+
+    override fun getAllDailyStudyTime(
+        studentId: String
+    ): Flow<Resource<List<DailyStudyTime>>> = flow {
+        emit(Resource.Loading())
+        try {
+            val entities = dailyStudyTimeDao.getAllByStudent(studentId)
+            val dailyTimes = entities.map { it.toDomain() }
+            emit(Resource.Success(dailyTimes))
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            emit(Resource.Error(e.message ?: "Lỗi lấy thống kê thời gian học"))
         }
     }
 
@@ -104,6 +123,7 @@ class ProgressRepositoryImpl @Inject constructor(
             val progressList = entities.map { it.toDomain() }
             emit(Resource.Success(progressList))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi lấy tổng quan tiến độ"))
         }
     }

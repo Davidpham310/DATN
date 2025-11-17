@@ -8,6 +8,7 @@ import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.models.StudentTestResult
 import com.example.datn.domain.models.TestStatus
 import com.example.datn.domain.usecase.auth.AuthUseCases
+import com.example.datn.domain.usecase.progress.LogDailyStudyTimeUseCase
 import com.example.datn.domain.usecase.student.GetStudentProfileByUserIdUseCase
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
@@ -27,6 +28,7 @@ class StudentTestTakingViewModel @Inject constructor(
     private val testUseCases: com.example.datn.domain.usecase.test.TestUseCases,
     private val authUseCases: AuthUseCases,
     private val getStudentProfileByUserId: GetStudentProfileByUserIdUseCase,
+    private val logDailyStudyTime: LogDailyStudyTimeUseCase,
     notificationManager: NotificationManager
 ) : BaseViewModel<StudentTestTakingState, StudentTestTakingEvent>(
     StudentTestTakingState(),
@@ -387,6 +389,7 @@ class StudentTestTakingViewModel @Inject constructor(
                 when (resource) {
                     is Resource.Success -> {
                         Log.d(TAG, "[submitTest] SUCCESS - Result ID: ${resource.data?.id}")
+                        logDailyStudyTime(studentId, duration)
                         setState { copy(isSubmitting = false, isSubmitted = true) }
                         showNotification("Đã nộp bài thành công! Điểm: $totalScore/${test.totalScore}", NotificationType.SUCCESS)
                         // Navigation will be handled by the screen

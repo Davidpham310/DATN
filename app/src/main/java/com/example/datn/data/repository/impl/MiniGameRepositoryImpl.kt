@@ -19,6 +19,7 @@ import com.example.datn.domain.models.StudentMiniGameAnswer
 import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.repository.IMiniGameRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.time.Instant
@@ -492,6 +493,66 @@ class MiniGameRepositoryImpl @Inject constructor(
             val results = entities.map { it.toDomain() }
             emit(Resource.Success(results))
         } catch (e: Exception) {
+            emit(Resource.Error("Error loading results: ${e.message}"))
+        }
+    }
+
+    override fun getAllResultsByStudent(
+        studentId: String
+    ): Flow<Resource<List<StudentMiniGameResult>>> = flow {
+        emit(Resource.Loading())
+        try {
+            android.util.Log.d("MiniGameRepo", ">>> getAllResultsByStudent START - studentId: $studentId")
+
+            when (val remote = firebaseDataSource.getMiniGameResultsByStudent(studentId)) {
+                is Resource.Success -> {
+                    val remoteResults = remote.data ?: emptyList()
+                    android.util.Log.d(
+                        "MiniGameRepo",
+                        ">>> Firebase returned ${remoteResults.size} minigame results for student $studentId"
+                    )
+
+                    // Cache remote results to Room for offline support
+                    remoteResults.forEach { result ->
+                        try {
+                            studentMiniGameResultDao.insert(result.toEntity())
+                        } catch (e: Exception) {
+                            android.util.Log.w(
+                                "MiniGameRepo",
+                                "Failed to cache minigame result ${result.id}: ${e.message}"
+                            )
+                        }
+                    }
+
+                    emit(Resource.Success(remoteResults))
+                }
+                is Resource.Error -> {
+                    android.util.Log.e(
+                        "MiniGameRepo",
+                        ">>> Firebase error in getAllResultsByStudent: ${remote.message}"
+                    )
+
+                    // Fallback to Room cache
+                    val cachedEntities = studentMiniGameResultDao.getAllResultsByStudent(studentId)
+                    val cachedResults = cachedEntities.map { it.toDomain() }
+                    android.util.Log.d(
+                        "MiniGameRepo",
+                        ">>> Fallback: Found ${cachedResults.size} cached minigame results"
+                    )
+
+                    emit(Resource.Success(cachedResults))
+                }
+                is Resource.Loading -> {
+                    // no-op: safeCallWithResult should not emit Loading here
+                }
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            android.util.Log.e(
+                "MiniGameRepo",
+                ">>> Fatal error in getAllResultsByStudent: ${e.message}",
+                e
+            )
             emit(Resource.Error("Error loading results: ${e.message}"))
         }
     }

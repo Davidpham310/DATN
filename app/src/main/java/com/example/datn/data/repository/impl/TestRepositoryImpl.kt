@@ -19,6 +19,7 @@ import com.example.datn.domain.models.TestQuestion
 import com.example.datn.domain.models.TestStatus
 import com.example.datn.data.local.entities.toEntity
 import com.example.datn.domain.repository.ITestRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.time.Instant
@@ -205,6 +206,7 @@ class TestRepositoryImpl @Inject constructor(
             emit(Resource.Success(uniqueTests))
             
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             android.util.Log.e("TestRepository", ">>> Fatal error: ${e.message}", e)
             emit(Resource.Error("Lỗi khi lấy danh sách bài kiểm tra: ${e.message}"))
         }
@@ -474,6 +476,7 @@ class TestRepositoryImpl @Inject constructor(
                 is Resource.Loading -> emit(Resource.Loading())
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             android.util.Log.e("TestRepository", ">>> Fatal error: ${e.message}", e)
             emit(Resource.Error("Lỗi khi lấy danh sách kết quả: ${e.message}"))
         }
@@ -511,6 +514,7 @@ class TestRepositoryImpl @Inject constructor(
                 else -> {}
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             android.util.Log.e("TestRepository", ">>> Fatal error: ${e.message}", e)
             emit(Resource.Error("Lỗi khi lấy danh sách kết quả: ${e.message}"))
         }

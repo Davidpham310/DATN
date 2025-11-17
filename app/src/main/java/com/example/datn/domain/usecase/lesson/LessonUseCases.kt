@@ -1,6 +1,7 @@
 package com.example.datn.domain.usecase.lesson
 
-import jakarta.inject.Inject
+import javax.inject.Inject
+import com.example.datn.domain.usecase.progress.UpdateLessonProgressUseCase
 
 data class LessonUseCases @Inject constructor(
     // Lesson
@@ -17,5 +18,8 @@ data class LessonUseCases @Inject constructor(
     val getLessonContentById: GetLessonContentByIdUseCase,
     val getLessonContentsByLesson: GetLessonContentsByLessonUseCase,
     val getLessonContentUrl: GetLessonContentUrlUseCase,
-    val getDirectLessonContentUrl: GetDirectContentUrlUseCase
+    val getDirectLessonContentUrl: GetDirectContentUrlUseCase,
+
+    // LessonProgress
+    val updateLessonProgress: UpdateLessonProgressUseCase
 )

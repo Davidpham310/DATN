@@ -9,6 +9,8 @@ data class StudentLessonViewState(
     val lesson: Lesson? = null,
     val lessonContents: List<LessonContent> = emptyList(),
     val progress: StudentLessonProgress? = null,
+    val lessonId: String? = null,
+    val studentId: String? = null,
     val currentContentIndex: Int = 0,
     val viewedContentIds: Set<String> = emptySet(),
     val sessionStartTime: Long = 0L,

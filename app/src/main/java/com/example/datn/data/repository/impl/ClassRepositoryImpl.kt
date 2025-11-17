@@ -11,6 +11,7 @@ import com.example.datn.domain.models.Class
 import com.example.datn.domain.models.ClassStudent
 import com.example.datn.domain.models.EnrollmentStatus
 import com.example.datn.domain.repository.IClassRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -117,6 +118,7 @@ class ClassRepositoryImpl @Inject constructor(
             }
             emit(result)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             // Fallback: lấy từ local cache
             val local = classDao.getClassesByStudent(studentId).map { it.toDomain() }
             emit(Resource.Success(local))

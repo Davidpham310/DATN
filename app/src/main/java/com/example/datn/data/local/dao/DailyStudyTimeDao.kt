@@ -10,4 +10,7 @@ import java.time.LocalDate
 interface DailyStudyTimeDao : BaseDao<DailyStudyTimeEntity> {
     @Query("SELECT * FROM daily_study_time WHERE studentId = :studentId AND date = :date")
     suspend fun getDailyTimeByStudentAndDate(studentId: String, date: LocalDate): DailyStudyTimeEntity?
+
+    @Query("SELECT * FROM daily_study_time WHERE studentId = :studentId ORDER BY date DESC")
+    suspend fun getAllByStudent(studentId: String): List<DailyStudyTimeEntity>
 }
