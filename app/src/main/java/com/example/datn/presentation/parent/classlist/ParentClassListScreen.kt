@@ -17,8 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.datn.domain.models.ClassEnrollmentInfo
 import com.example.datn.domain.models.EnrollmentStatus
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.example.datn.core.utils.extensions.formatAsDate
 
 /**
  * Màn hình danh sách lớp học của phụ huynh
@@ -327,11 +326,7 @@ private fun ClassEnrollmentCard(
 
             // Enrollment date
             Text(
-                text = "Tham gia: ${
-                    enrollment.enrolledDate
-                        .atZone(ZoneId.systemDefault())
-                        .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                }",
+                text = "Tham gia: ${enrollment.enrolledDate.formatAsDate()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -21,5 +21,7 @@ data class LessonUseCases @Inject constructor(
     val getDirectLessonContentUrl: GetDirectContentUrlUseCase,
 
     // LessonProgress
-    val updateLessonProgress: UpdateLessonProgressUseCase
+    val updateLessonProgress: UpdateLessonProgressUseCase,
+    val getLessonList: GetLessonListUseCase,
+    val getLessonContents: GetLessonContentsUseCase
 )

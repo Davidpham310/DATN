@@ -13,9 +13,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.datn.data.local.dao.ConversationWithListDetails
 import com.example.datn.domain.models.ConversationType
+import com.example.datn.core.utils.extensions.formatAsDateTime
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 /**
@@ -229,7 +229,7 @@ private fun formatTimestamp(instant: Instant?): String {
     return when {
         diff == 0L -> {
             // Today - show time
-            messageTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+            instant.formatAsDateTime("HH:mm")
         }
         diff == 1L -> {
             // Yesterday
@@ -237,11 +237,11 @@ private fun formatTimestamp(instant: Instant?): String {
         }
         diff < 7 -> {
             // This week - show day name
-            messageTime.format(DateTimeFormatter.ofPattern("EEEE"))
+            instant.formatAsDateTime("EEEE")
         }
         else -> {
             // Older - show date
-            messageTime.format(DateTimeFormatter.ofPattern("dd/MM"))
+            instant.formatAsDateTime("dd/MM")
         }
     }
 }

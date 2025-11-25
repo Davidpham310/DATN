@@ -29,8 +29,7 @@ import coil.compose.AsyncImage
 import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
 import com.example.datn.presentation.teacher.lessons.LessonContentManagerViewModel
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.example.datn.core.utils.extensions.formatAsDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -414,11 +413,5 @@ private fun PdfViewer(pdfUrl: String, modifier: Modifier = Modifier) {
 }
 
 private fun formatInstant(instant: java.time.Instant): String {
-    return try {
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-            .withZone(ZoneId.systemDefault())
-        formatter.format(instant)
-    } catch (e: Exception) {
-        "N/A"
-    }
+    return instant.formatAsDateTime()
 }

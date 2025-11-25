@@ -160,11 +160,24 @@ sealed class Screen(val route: String) {
         val routeWithArgs: String = "student/class_detail/{classId}/{className}"
     }
 
-    object StudentLessonView : Screen("student/lesson_view/{lessonId}/{lessonTitle}") {
-        fun createRoute(lessonId: String, lessonTitle: String): String =
-            "student/lesson_view/$lessonId/$lessonTitle"
+    object StudentLessonContentList :
+        Screen("student/lesson_contents/{lessonId}/{lessonTitle}") {
 
-        val routeWithArgs: String = "student/lesson_view/{lessonId}/{lessonTitle}"
+        fun createRoute(lessonId: String, lessonTitle: String): String =
+            "student/lesson_contents/$lessonId/$lessonTitle"
+
+        val routeWithArgs: String =
+            "student/lesson_contents/{lessonId}/{lessonTitle}"
+    }
+
+    object StudentLessonView :
+        Screen("student/lesson_view/{lessonId}/{contentId}/{lessonTitle}") {
+
+        fun createRoute(lessonId: String, contentId: String, lessonTitle: String): String =
+            "student/lesson_view/$lessonId/$contentId/$lessonTitle"
+
+        val routeWithArgs: String =
+            "student/lesson_view/{lessonId}/{contentId}/{lessonTitle}"
     }
 
     object StudentChat :

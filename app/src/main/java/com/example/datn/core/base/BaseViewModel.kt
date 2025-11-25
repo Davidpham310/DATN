@@ -65,5 +65,12 @@ abstract class BaseViewModel<S : BaseState, E : BaseEvent>(
     ) {
         notificationManager.onEvent(NotificationEvent.Show(message, type, duration))
     }
+
+    protected fun dismissNotifications(clearQueue: Boolean = false) {
+        if (clearQueue) {
+            notificationManager.clearQueue()
+        }
+        notificationManager.onEvent(NotificationEvent.Dismiss)
+    }
 }
 

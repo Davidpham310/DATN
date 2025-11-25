@@ -13,7 +13,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.Test
-import java.time.format.DateTimeFormatter
+import com.example.datn.core.utils.extensions.formatAsDateTime
+import com.example.datn.core.utils.extensions.formatScore
 
 @Composable
 fun TestItem(
@@ -95,7 +96,7 @@ fun TestItem(
                 // Score chip
                 AssistChip(
                     onClick = {},
-                    label = { Text("${test.totalScore} điểm") },
+                    label = { Text("${test.totalScore.formatScore(0)} điểm") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Edit,
@@ -106,12 +107,11 @@ fun TestItem(
                 )
                 
                 // Time chip
-                val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
                 AssistChip(
                     onClick = {},
                     label = {
                         Text(
-                            text = "${test.startTime.atZone(java.time.ZoneId.systemDefault()).format(formatter)}",
+                            text = test.startTime.formatAsDateTime(),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )

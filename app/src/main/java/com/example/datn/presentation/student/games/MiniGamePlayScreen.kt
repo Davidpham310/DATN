@@ -149,8 +149,12 @@ fun MiniGamePlayScreen(
                         onBackToLesson = onBack
                     )
                 } else {
-                    // Show game play screen
-                    LazyColumn(
+                    // Show game play screen (sequential questions)
+                    val totalQuestions = state.questions.size
+                    val currentIndex = state.currentQuestionIndex.coerceIn(0, totalQuestions - 1)
+                    val currentQuestion = state.questions.getOrNull(currentIndex)
+
+                    Column(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues)
@@ -158,54 +162,98 @@ fun MiniGamePlayScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Game info header
-                        item {
-                            GameInfoCard(
-                                description = state.miniGame?.description ?: "",
-                                totalQuestions = state.questions.size,
-                                answeredQuestions = calculateAnsweredQuestions(state),
-                                score = state.score
-                            )
-                        }
-                        
-                        // Questions
-                        items(state.questions) { question ->
-                            val questionOptions = state.questionOptions[question.id] ?: emptyList()
-                            val selectedAnswer = if (question.questionType == QuestionType.MULTIPLE_CHOICE) {
-                                state.multipleChoiceAnswers[question.id]?.joinToString(",") ?: ""
+                        GameInfoCard(
+                            description = state.miniGame?.description ?: "",
+                            totalQuestions = totalQuestions,
+                            answeredQuestions = calculateAnsweredQuestions(state),
+                            score = state.score
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        if (currentQuestion != null && totalQuestions > 0) {
+                            val questionOptions = state.questionOptions[currentQuestion.id] ?: emptyList()
+                            val selectedAnswer = if (currentQuestion.questionType == QuestionType.MULTIPLE_CHOICE) {
+                                state.multipleChoiceAnswers[currentQuestion.id]?.joinToString(",") ?: ""
                             } else {
-                                state.answers[question.id]
+                                state.answers[currentQuestion.id]
                             }
+
+                            Text(
+                                text = "Câu hỏi ${currentIndex + 1}/$totalQuestions",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+
                             QuestionCard(
-                                question = question,
+                                question = currentQuestion,
                                 options = questionOptions,
                                 selectedAnswer = selectedAnswer,
                                 onAnswerSelected = { answer ->
                                     viewModel.onEvent(
-                                        MiniGamePlayEvent.AnswerQuestion(question.id, answer)
+                                        MiniGamePlayEvent.AnswerQuestion(currentQuestion.id, answer)
                                     )
+
+                                    // Auto-advance only for single-choice questions
+                                    if (currentQuestion.questionType == QuestionType.SINGLE_CHOICE) {
+                                        val isLastQuestion = currentIndex >= totalQuestions - 1
+                                        if (isLastQuestion) {
+                                            viewModel.onEvent(MiniGamePlayEvent.ShowSubmitDialog)
+                                        } else {
+                                            viewModel.onEvent(
+                                                MiniGamePlayEvent.NavigateToQuestion(currentIndex + 1)
+                                            )
+                                        }
+                                    }
                                 },
                                 onMultipleChoiceToggled = { optionId ->
                                     viewModel.onEvent(
-                                        MiniGamePlayEvent.ToggleMultipleChoice(question.id, optionId)
+                                        MiniGamePlayEvent.ToggleMultipleChoice(currentQuestion.id, optionId)
                                     )
                                 },
                                 isSubmitted = state.isSubmitted
                             )
                         }
-                        
-                        // Submit button
-                        item {
-                            Button(
-                                onClick = { 
-                                    viewModel.onEvent(MiniGamePlayEvent.ShowSubmitDialog) 
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        // Navigation buttons: Previous / Next (or Submit on last question)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    if (currentIndex > 0) {
+                                        viewModel.onEvent(
+                                            MiniGamePlayEvent.NavigateToQuestion(currentIndex - 1)
+                                        )
+                                    }
                                 },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                                enabled = !state.isSubmitted && calculateAnsweredQuestions(state) > 0
+                                enabled = currentIndex > 0
+                            ) {
+                                Text("← Câu trước")
+                            }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            val isLastQuestion = currentIndex >= totalQuestions - 1
+                            Button(
+                                onClick = {
+                                    if (isLastQuestion) {
+                                        // On last question, show submit dialog then save result
+                                        viewModel.onEvent(MiniGamePlayEvent.ShowSubmitDialog)
+                                    } else {
+                                        viewModel.onEvent(
+                                            MiniGamePlayEvent.NavigateToQuestion(currentIndex + 1)
+                                        )
+                                    }
+                                },
+                                enabled = totalQuestions > 0 && !state.isSubmitted
                             ) {
                                 Text(
-                                    text = if (state.isSubmitted) "Submitted" else "Submit Answers",
+                                    text = if (isLastQuestion) "Nộp bài" else "Câu tiếp theo →",
                                     fontWeight = FontWeight.Bold
                                 )
                             }

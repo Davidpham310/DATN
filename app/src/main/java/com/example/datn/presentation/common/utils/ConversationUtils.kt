@@ -3,6 +3,8 @@ package com.example.datn.presentation.common.utils
 import com.example.datn.data.local.dao.ConversationWithListDetails
 import com.example.datn.domain.models.ConversationType
 import com.example.datn.domain.models.Message
+import com.example.datn.core.utils.extensions.formatAsDate
+import com.example.datn.core.utils.extensions.formatAsDateTime
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -101,7 +103,7 @@ private fun formatConversationTime(instant: Instant?): String {
     return when {
         diff == 0L -> {
             // Today - show time
-            messageTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+            instant.formatAsDateTime("HH:mm")
         }
         diff == 1L -> {
             // Yesterday
@@ -109,11 +111,11 @@ private fun formatConversationTime(instant: Instant?): String {
         }
         diff < 7 -> {
             // This week - show day name
-            messageTime.format(DateTimeFormatter.ofPattern("EEEE"))
+            instant.formatAsDateTime("EEEE")
         }
         else -> {
             // Older - show date
-            messageTime.format(DateTimeFormatter.ofPattern("dd/MM"))
+            instant.formatAsDateTime("dd/MM")
         }
     }
 }
@@ -123,8 +125,7 @@ private fun formatConversationTime(instant: Instant?): String {
  * Always shows HH:mm
  */
 fun formatMessageTime(instant: Instant): String {
-    val time = instant.atZone(ZoneId.systemDefault())
-    return time.format(DateTimeFormatter.ofPattern("HH:mm"))
+    return instant.formatAsDateTime("HH:mm")
 }
 
 /**
@@ -139,14 +140,14 @@ fun formatDateHeader(date: LocalDate): String {
         diff == 1L -> "Hôm qua"
         diff < 7 -> {
             val dayName = date.format(DateTimeFormatter.ofPattern("EEEE"))
-            val dateStr = date.format(DateTimeFormatter.ofPattern("dd/MM"))
+            val dateStr = date.formatAsDate("dd/MM")
             "$dayName, $dateStr"
         }
         date.year == today.year -> {
-            date.format(DateTimeFormatter.ofPattern("dd/MM"))
+            date.formatAsDate("dd/MM")
         }
         else -> {
-            date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+            date.formatAsDate("dd/MM/yyyy")
         }
     }
 }

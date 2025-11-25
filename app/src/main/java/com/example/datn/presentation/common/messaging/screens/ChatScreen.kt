@@ -25,9 +25,8 @@ import com.example.datn.domain.models.ConversationType
 import com.example.datn.domain.models.Message
 import com.example.datn.presentation.common.messaging.ChatEvent
 import com.example.datn.presentation.common.messaging.ChatViewModel
+import com.example.datn.presentation.common.components.MessageBubble as CommonMessageBubble
 import kotlinx.coroutines.launch
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,7 +118,7 @@ fun ChatScreen(
                         items = state.messages,
                         key = { message -> message.id }  // ← Unique key để tránh duplicate rendering
                     ) { message ->
-                        MessageBubble(
+                        ChatMessageRow(
                             message = message,
                             isCurrentUser = message.senderId == state.currentUserId,
                             isGroupChat = state.conversationType == ConversationType.GROUP,
@@ -146,7 +145,7 @@ fun ChatScreen(
 }
 
 @Composable
-private fun MessageBubble(
+private fun ChatMessageRow(
     message: Message,
     isCurrentUser: Boolean,
     isGroupChat: Boolean,
@@ -176,62 +175,17 @@ private fun MessageBubble(
             }
             Spacer(modifier = Modifier.width(8.dp))
         }
-        
-        Column(
-            horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start,
-            modifier = Modifier.widthIn(max = 280.dp)
+
+        Box(
+            modifier = Modifier.weight(1f)
         ) {
-            // Hiển thị tên người gửi trong group chat (chỉ cho tin nhắn từ người khác)
-            if (!isCurrentUser && isGroupChat && !senderName.isNullOrBlank()) {
-                Text(
-                    text = senderName,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(start = 12.dp, bottom = 2.dp)
-                )
-            }
-            
-            // Message bubble
-            Surface(
-                shape = RoundedCornerShape(
-                    topStart = if (!isCurrentUser && isGroupChat) 4.dp else 16.dp,
-                    topEnd = if (isCurrentUser) 4.dp else 16.dp,
-                    bottomStart = 16.dp,
-                    bottomEnd = 16.dp
-                ),
-                color = if (isCurrentUser) 
-                    Color(0xFF0068FF) // Màu xanh Zalo cho tin nhắn của mình
-                else 
-                    Color(0xFFF0F0F0), // Màu xám nhạt cho tin nhắn người khác
-                shadowElevation = 1.dp
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = message.content,
-                        color = if (isCurrentUser) Color.White else Color.Black,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 15.sp,
-                            lineHeight = 20.sp
-                        )
-                    )
-                    
-                    Spacer(modifier = Modifier.height(2.dp))
-                    
-                    Text(
-                        text = formatMessageTime(message.sentAt),
-                        color = if (isCurrentUser) 
-                            Color.White.copy(alpha = 0.8f)
-                        else 
-                            Color.Black.copy(alpha = 0.5f),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 11.sp
-                        )
-                    )
-                }
-            }
+            CommonMessageBubble(
+                message = message,
+                isFromCurrentUser = isCurrentUser,
+                showSenderName = !isCurrentUser && isGroupChat && !senderName.isNullOrBlank(),
+                senderName = senderName,
+                isGroupChat = isGroupChat
+            )
         }
     }
 }
@@ -319,9 +273,4 @@ private fun MessageInputArea(
             }
         }
     }
-}
-
-private fun formatMessageTime(instant: java.time.Instant): String {
-    val formatter = DateTimeFormatter.ofPattern("HH:mm")
-    return instant.atZone(ZoneId.systemDefault()).format(formatter)
 }

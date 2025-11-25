@@ -142,32 +142,27 @@ class MessagingRepositoryImpl @Inject constructor(
         
         // Track các message IDs đã emit để tránh duplicate
         val emittedMessageIds = mutableSetOf<String>()
-        
-        // Load cached messages TRƯỚC để user thấy ngay lập tức
+
+        // Luôn sync từ Firebase TRƯỚC, sau đó mới đọc từ Room để đảm bảo có đủ history
+        try {
+            android.util.Log.d("MessagingRepository", "🔄 Pre-syncing messages from Firebase for: $conversationId")
+            syncMessagesFromFirebase(conversationId)
+        } catch (e: Exception) {
+            android.util.Log.w("MessagingRepository", "⚠️ Pre-sync failed (will use cache only): ${e.message}")
+        }
+
+        // Load tất cả messages từ cache sau khi sync
         try {
             val cachedMessages = messageDao.getMessagesByConversation(conversationId)
-            android.util.Log.d("MessagingRepository", "📦 Loading ${cachedMessages.size} cached messages for: $conversationId")
-            
-            // Auto-sync: Nếu Room trống, fetch từ Firebase
-            if (cachedMessages.isEmpty()) {
-                android.util.Log.d("MessagingRepository", "🔄 Room empty, syncing messages from Firebase...")
-                syncMessagesFromFirebase(conversationId)
-                
-                // Load lại sau khi sync
-                val syncedMessages = messageDao.getMessagesByConversation(conversationId)
-                android.util.Log.d("MessagingRepository", "✅ After sync: ${syncedMessages.size} messages in Room")
-                syncedMessages.forEach { entity ->
-                    android.util.Log.d("MessagingRepository", "  📨 Synced msg: ${entity.id.take(8)}... | Content: ${entity.content.take(20)}...")
-                    emit(entity.toDomain())
-                    emittedMessageIds.add(entity.id)
-                }
-            } else {
-                // Load từ cache nếu đã có
-                cachedMessages.forEach { entity ->
-                    android.util.Log.d("MessagingRepository", "  📨 Cached msg: ${entity.id.take(8)}... | From: ${entity.senderId.take(8)}... | Content: ${entity.content.take(20)}...")
-                    emit(entity.toDomain())
-                    emittedMessageIds.add(entity.id) // Track đã emit
-                }
+            android.util.Log.d("MessagingRepository", "📦 Loaded ${cachedMessages.size} messages from Room for: $conversationId")
+
+            cachedMessages.forEach { entity ->
+                android.util.Log.d(
+                    "MessagingRepository",
+                    "  📨 Cached msg: ${entity.id.take(8)}... | From: ${entity.senderId.take(8)}... | Content: ${entity.content.take(20)}..."
+                )
+                emit(entity.toDomain())
+                emittedMessageIds.add(entity.id)
             }
         } catch (e: Exception) {
             android.util.Log.e("MessagingRepository", "❌ Failed to load cached messages: ${e.message}")

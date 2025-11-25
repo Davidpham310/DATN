@@ -1,15 +1,18 @@
 package com.example.datn.data.repository.impl
 
 import com.example.datn.core.utils.Resource
+import com.example.datn.core.utils.mapper.internalToFirestoreMap
 import com.example.datn.data.local.dao.DailyStudyTimeDao
 import com.example.datn.data.local.dao.StudentLessonProgressDao
 import com.example.datn.data.mapper.*
 import com.example.datn.domain.models.DailyStudyTime
 import com.example.datn.domain.models.StudentLessonProgress
 import com.example.datn.domain.repository.IProgressRepository
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.tasks.await
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -17,7 +20,8 @@ import javax.inject.Inject
 
 class ProgressRepositoryImpl @Inject constructor(
     private val studentLessonProgressDao: StudentLessonProgressDao,
-    private val dailyStudyTimeDao: DailyStudyTimeDao
+    private val dailyStudyTimeDao: DailyStudyTimeDao,
+    private val firestore: FirebaseFirestore
 ) : IProgressRepository {
 
     override fun getLessonProgress(
@@ -38,8 +42,16 @@ class ProgressRepositoryImpl @Inject constructor(
     override fun updateLessonProgress(progress: StudentLessonProgress): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            // Sử dụng REPLACE insert để upsert tiến độ bài học
+            // Sử dụng REPLACE insert để upsert tiến độ bài học vào Room
             studentLessonProgressDao.insert(progress.toEntity())
+
+            // Đồng bộ thêm lên Firestore
+            val map = internalToFirestoreMap(progress, StudentLessonProgress::class.java)
+            firestore.collection("student_lesson_progress")
+                .document(progress.id)
+                .set(map)
+                .await()
+
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -79,6 +91,13 @@ class ProgressRepositoryImpl @Inject constructor(
                 dailyStudyTimeDao.insert(created.toEntity())
                 created
             }
+
+            // Đồng bộ thêm thống kê thời gian học lên Firestore
+            val map = internalToFirestoreMap(resultDomain, DailyStudyTime::class.java)
+            firestore.collection("student_daily_study_time")
+                .document(resultDomain.id)
+                .set(map)
+                .await()
 
             emit(Resource.Success(resultDomain))
         } catch (e: Exception) {

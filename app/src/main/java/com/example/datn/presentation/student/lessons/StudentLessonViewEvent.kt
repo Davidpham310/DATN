@@ -3,7 +3,10 @@ package com.example.datn.presentation.student.lessons
 import com.example.datn.core.base.BaseEvent
 
 sealed class StudentLessonViewEvent : BaseEvent {
-    data class LoadLesson(val lessonId: String) : StudentLessonViewEvent()
+    data class LoadLesson(
+        val lessonId: String,
+        val initialContentId: String? = null
+    ) : StudentLessonViewEvent()
     object NextContent : StudentLessonViewEvent()
     object PreviousContent : StudentLessonViewEvent()
     data class GoToContent(val index: Int) : StudentLessonViewEvent()

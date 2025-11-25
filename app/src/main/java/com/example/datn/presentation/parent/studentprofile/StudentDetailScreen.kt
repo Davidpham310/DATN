@@ -13,7 +13,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.usecase.parentstudent.LinkedStudentInfo
-import java.time.format.DateTimeFormatter
+import com.example.datn.core.utils.extensions.formatAsDate
+import com.example.datn.core.utils.extensions.formatAsDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,7 +110,7 @@ fun StudentDetailContent(
             InfoRow("Email", studentInfo.user.email)
             InfoRow(
                 "Ngày sinh",
-                studentInfo.student.dateOfBirth.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                studentInfo.student.dateOfBirth.formatAsDate("dd/MM/yyyy")
             )
             InfoRow("Lớp", studentInfo.student.gradeLevel)
             InfoRow(
@@ -179,8 +180,7 @@ fun StudentDetailContent(
             }
             InfoRow(
                 "Ngày liên kết",
-                studentInfo.parentStudent.linkedAt.atZone(java.time.ZoneId.systemDefault())
-                    .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                studentInfo.parentStudent.linkedAt.formatAsDateTime()
             )
         }
 

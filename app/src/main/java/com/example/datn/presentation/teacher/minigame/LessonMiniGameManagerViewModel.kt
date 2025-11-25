@@ -9,6 +9,7 @@ import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.models.MiniGame
+import com.example.datn.core.utils.validation.rules.minigame.ValidateMiniGameTitle
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.minigame.MiniGameUseCases
 import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
@@ -30,6 +31,8 @@ class LessonMiniGameManagerViewModel @Inject constructor(
 ) {
 
     private var currentTeacherId: String = ""
+
+    private val miniGameTitleValidator = ValidateMiniGameTitle()
 
     init {
         viewModelScope.launch {
@@ -106,8 +109,9 @@ class LessonMiniGameManagerViewModel @Inject constructor(
             return
         }
 
-        if (event.title.isBlank()) {
-            showNotification("Tiêu đề không được để trống", NotificationType.ERROR)
+        val titleResult = miniGameTitleValidator.validate(event.title)
+        if (!titleResult.successful) {
+            showNotification(titleResult.errorMessage ?: "Tiêu đề không được để trống", NotificationType.ERROR)
             return
         }
 

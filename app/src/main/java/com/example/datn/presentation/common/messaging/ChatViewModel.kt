@@ -8,6 +8,7 @@ import com.example.datn.domain.models.ConversationType
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.messaging.MessagingUseCases
 import com.example.datn.domain.usecase.messaging.SendMessageParams
+import com.example.datn.core.utils.validation.rules.messaging.ValidateMessageContent
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,6 +35,8 @@ class ChatViewModel @Inject constructor(
 
     private var messageListenerJob: Job? = null
     private var markAsReadJob: Job? = null
+
+    private val messageValidator = ValidateMessageContent()
 
     private val currentUserIdFlow: StateFlow<String> = authUseCases.getCurrentIdUser.invoke()
         .distinctUntilChanged()
@@ -87,8 +90,9 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun sendMessage(content: String) {
-        if (content.isBlank()) {
-            showNotification("Vui lòng nhập nội dung tin nhắn", NotificationType.ERROR)
+        val validation = messageValidator.validate(content)
+        if (!validation.successful) {
+            showNotification(validation.errorMessage ?: "Vui lòng nhập nội dung tin nhắn", NotificationType.ERROR)
             return
         }
 
@@ -153,26 +157,28 @@ class ChatViewModel @Inject constructor(
             kotlinx.coroutines.delay(300)
             
             try {
-                var foundConversation: com.example.datn.data.local.dao.ConversationWithListDetails? = null
-                
-                messagingUseCases.getConversations(userId)
-                    .take(1)
-                    .collect { resource ->
-                        if (resource is Resource.Success) {
-                            foundConversation = resource.data?.find { 
-                                it.participantUserId == recipientId 
-                            }
+                val result = messagingUseCases.getConversations(userId)
+                    .first { it is Resource.Success }
+
+                if (result is Resource.Success) {
+                    val foundConversation = result.data?.find {
+                        it.participantUserId == recipientId
+                    }
+
+                    if (foundConversation != null) {
+                        setState {
+                            copy(
+                                conversationId = foundConversation.conversationId
+                            )
                         }
+
+                        startMessageListener(foundConversation.conversationId)
+                    } else {
+                        android.util.Log.w(
+                            "ChatViewModel",
+                            "No conversation found for recipientId: $recipientId"
+                        )
                     }
-                
-                if (foundConversation != null) {
-                    setState { 
-                        copy(
-                            conversationId = foundConversation!!.conversationId
-                        ) 
-                    }
-                    
-                    startMessageListener(foundConversation!!.conversationId)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ChatViewModel", "Error finding conversation: ${e.message}")

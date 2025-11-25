@@ -38,7 +38,8 @@ class NotificationManager @Inject constructor() {
                     message = event.message,
                     type = event.type,
                     isVisible = true,
-                    duration = event.duration
+                    duration = event.duration,
+                    autoDismiss = event.autoDismiss,
                 )
 
                 Log.d("NotificationManager", "Displayed notification: ${event.message}")

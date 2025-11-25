@@ -9,6 +9,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.datn.data.local.converters.DateTimeConverter
 import com.example.datn.data.local.converters.EnumConverter
+import com.example.datn.data.local.converters.StringListConverter
 import com.example.datn.data.local.dao.*
 import com.example.datn.data.local.entities.*
 
@@ -51,7 +52,7 @@ import com.example.datn.data.local.entities.*
     version = 2, // Tăng phiên bản khi thay đổi cấu trúc DB
     exportSchema = false
 )
-@TypeConverters(DateTimeConverter::class, EnumConverter::class)
+@TypeConverters(DateTimeConverter::class, EnumConverter::class, StringListConverter::class)
 abstract class AppDatabase : RoomDatabase() {
 
     // --- Khai báo các Data Access Object (DAOs) ---

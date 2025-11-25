@@ -5,6 +5,7 @@ import com.example.datn.core.base.BaseViewModel
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.classmanager.ClassUseCases
+import com.example.datn.domain.usecase.lesson.GetLessonListRequest
 import com.example.datn.domain.usecase.lesson.LessonUseCases
 import com.example.datn.domain.usecase.student.GetStudentProfileByUserIdUseCase
 import com.example.datn.presentation.common.notifications.NotificationManager
@@ -80,10 +81,15 @@ class StudentClassDetailViewModel @Inject constructor(
                         }
                         currentStudentIdFlow.value = studentId
                         
-                        // Fetch class info and lessons
+                        // Fetch class info, lessons (with status), and students
                         combine(
                             classUseCases.getClassById(classId),
-                            lessonUseCases.getLessonsByClass(classId),
+                            lessonUseCases.getLessonList(
+                                GetLessonListRequest(
+                                    studentId = studentId,
+                                    classId = classId
+                                )
+                            ),
                             classUseCases.getStudentsInClass(classId, null)
                         ) { classResult, lessonsResult, studentsResult ->
                             Triple(classResult, lessonsResult, studentsResult)
@@ -94,16 +100,54 @@ class StudentClassDetailViewModel @Inject constructor(
                                 }
                                 classResult is Resource.Success && lessonsResult is Resource.Success -> {
                                     val classData = classResult.data
-                                    val lessonsData = lessonsResult.data?.sortedBy { it.order } ?: emptyList()
+                                    val lessonsData = lessonsResult.data ?: emptyList()
                                     val studentCount = if (studentsResult is Resource.Success) {
                                         studentsResult.data?.filter { it.enrollmentStatus.name == "APPROVED" }?.size ?: 0
                                     } else 0
-                                    
+
+                                    // Build progress map from lesson list status
+                                    val progressMap = lessonsData
+                                        .mapNotNull { wrapper ->
+                                            val progress = wrapper.progress ?: return@mapNotNull null
+                                            wrapper.lesson.id to progress
+                                        }
+                                        .toMap()
+
+                                    // Load lesson content counts per lesson to support X/Y progress display
+                                    val contentCounts: Map<String, Int> = if (lessonsData.isNotEmpty()) {
+                                        val map = mutableMapOf<String, Int>()
+                                        for (wrapper in lessonsData) {
+                                            val lesson = wrapper.lesson
+                                            try {
+                                                val contentsRes = lessonUseCases
+                                                    .getLessonContentsByLesson(lesson.id)
+                                                    .first { it !is Resource.Loading }
+
+                                                val count = when (contentsRes) {
+                                                    is Resource.Success -> contentsRes.data?.size ?: 0
+                                                    is Resource.Error -> {
+                                                        showNotification(contentsRes.message, NotificationType.ERROR)
+                                                        0
+                                                    }
+                                                    else -> 0
+                                                }
+                                                map[lesson.id] = count
+                                            } catch (e: Exception) {
+                                                showNotification(e.message.toString(), NotificationType.ERROR)
+                                            }
+                                        }
+                                        map
+                                    } else {
+                                        emptyMap()
+                                    }
+
                                     setState {
                                         copy(
                                             classInfo = classData,
                                             lessons = lessonsData,
                                             studentCount = studentCount,
+                                            lessonProgress = progressMap,
+                                            lessonContentCounts = contentCounts,
                                             isLoading = false,
                                             error = null
                                         )

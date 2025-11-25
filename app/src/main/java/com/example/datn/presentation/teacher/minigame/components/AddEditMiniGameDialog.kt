@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.models.MiniGame
+import com.example.datn.core.utils.validation.rules.minigame.ValidateMiniGameTitle
 
 @Composable
 fun AddEditMiniGameDialog(
@@ -46,16 +47,15 @@ fun AddEditMiniGameDialog(
     var selectedLevel by remember { mutableStateOf(game?.level ?: Level.EASY) }
     var contentUrl by remember { mutableStateOf(game?.contentUrl ?: "") }
 
+    val titleValidator = remember { ValidateMiniGameTitle() }
+
     var titleError by remember { mutableStateOf<String?>(null) }
     var isGameTypeExpanded by remember { mutableStateOf(false) }
     var isLevelExpanded by remember { mutableStateOf(false) }
 
     fun validateFields(): Boolean {
-        titleError = when {
-            title.isBlank() -> "Tiêu đề không được để trống"
-            title.length < 3 -> "Tiêu đề phải có ít nhất 3 ký tự"
-            else -> null
-        }
+        val titleResult = titleValidator.validate(title)
+        titleError = if (!titleResult.successful) titleResult.errorMessage else null
         return titleError == null
     }
 

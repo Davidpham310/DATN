@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.MiniGameQuestion
 import com.example.datn.domain.models.QuestionType
+import com.example.datn.core.utils.validation.rules.minigame.ValidateQuestionContent
 
 @Composable
 fun AddEditQuestionDialog(
@@ -56,15 +57,14 @@ fun AddEditQuestionDialog(
     var score by remember { mutableStateOf(question?.score ?: 1.0) }
     var timeLimit by remember { mutableStateOf(question?.timeLimit ?: 30L) }
 
+    val contentValidator = remember { ValidateQuestionContent() }
+
     var contentError by remember { mutableStateOf<String?>(null) }
     var isQuestionTypeExpanded by remember { mutableStateOf(false) }
 
     fun validateFields(): Boolean {
-        contentError = when {
-            content.isBlank() -> "Nội dung câu hỏi không được để trống"
-            content.length < 5 -> "Nội dung câu hỏi phải có ít nhất 5 ký tự"
-            else -> null
-        }
+        val result = contentValidator.validate(content)
+        contentError = if (!result.successful) result.errorMessage else null
         return contentError == null
     }
 

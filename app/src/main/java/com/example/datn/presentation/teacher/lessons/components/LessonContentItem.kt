@@ -21,8 +21,7 @@ import coil.compose.AsyncImage
 import com.bumptech.glide.Glide
 import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
-import java.time.format.DateTimeFormatter
-import java.time.ZoneId
+import com.example.datn.core.utils.extensions.formatAsDateTime
 
 @Composable
 fun LessonContentItem(
@@ -202,11 +201,5 @@ private fun getContentIcon(type: ContentType): ImageVector {
 }
 
 private fun formatInstant(instant: java.time.Instant): String {
-    return try {
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-            .withZone(ZoneId.systemDefault())
-        formatter.format(instant)
-    } catch (e: Exception) {
-        "N/A"
-    }
+    return instant.formatAsDateTime()
 }

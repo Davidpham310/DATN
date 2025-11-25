@@ -14,7 +14,7 @@ import com.example.datn.domain.models.Class
 import com.example.datn.domain.models.ClassStudent
 import com.example.datn.domain.models.EnrollmentStatus
 import com.example.datn.domain.usecase.parentstudent.LinkedStudentInfo
-import java.time.format.DateTimeFormatter
+import com.example.datn.core.utils.extensions.formatAsDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,8 +89,7 @@ fun ClassDetailsDialog(
                 ClassDetailItem(
                     icon = Icons.Default.CalendarToday,
                     label = "Ngày tạo",
-                    value = classItem.createdAt.atZone(java.time.ZoneId.systemDefault())
-                        .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                    value = classItem.createdAt.formatAsDate()
                 )
 
                 // Student info

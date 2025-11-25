@@ -10,6 +10,7 @@ import com.example.datn.data.mapper.toDomain
 import com.example.datn.data.mapper.toEntity
 import com.example.datn.core.utils.firebase.FirebaseErrorMapper
 import com.example.datn.domain.usecase.minio.MinIOUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -41,6 +42,7 @@ class LessonContentRepositoryImpl @Inject constructor(
                 else -> {}
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Error getContentByLesson", e)
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -67,6 +69,7 @@ class LessonContentRepositoryImpl @Inject constructor(
                 else -> {}
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Error getContentById", e)
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -115,6 +118,7 @@ class LessonContentRepositoryImpl @Inject constructor(
                 else -> {}
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Error addContent", e)
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         } finally {
@@ -200,6 +204,7 @@ class LessonContentRepositoryImpl @Inject constructor(
                 else -> {}
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Error updateContent", e)
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         } finally {
@@ -234,6 +239,7 @@ class LessonContentRepositoryImpl @Inject constructor(
                 else -> {}
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Error deleteContent", e)
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -245,11 +251,12 @@ class LessonContentRepositoryImpl @Inject constructor(
             val url = minIOUseCase.getFileUrl(content.content, expirySeconds)
             emit(Resource.Success(url))
         }.catch { e ->
+            // catch operator không bắt CancellationException, nên an toàn để emit lỗi người dùng
             emit(Resource.Error(e.localizedMessage ?: "Lấy URL thất bại"))
         }
     }
 
-    override fun getDirectContentUrl(path : String): Flow<Resource<String>> {
+    override fun getDirectContentUrl(path: String): Flow<Resource<String>> {
         return flow {
             emit(Resource.Loading())
             val url = minIOUseCase.getDirectFileUrl(path)

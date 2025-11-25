@@ -590,10 +590,12 @@ object AppModule {
     @Singleton
     fun provideProgressRepository(
         studentLessonProgressDao: StudentLessonProgressDao,
-        dailyStudyTimeDao: DailyStudyTimeDao
+        dailyStudyTimeDao: DailyStudyTimeDao,
+        firestore: FirebaseFirestore
     ): IProgressRepository = ProgressRepositoryImpl(
         studentLessonProgressDao,
-        dailyStudyTimeDao
+        dailyStudyTimeDao,
+        firestore
     )
 
     // Messaging Permission Repository

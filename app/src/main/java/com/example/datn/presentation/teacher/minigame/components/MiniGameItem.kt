@@ -30,8 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.models.MiniGame
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.example.datn.core.utils.extensions.formatAsDateTime
 
 @Composable
 fun MiniGameItem(
@@ -165,11 +164,5 @@ private fun getLevelColor(level: Level) = when (level) {
 }
 
 private fun formatInstant(instant: java.time.Instant): String {
-    return try {
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-            .withZone(ZoneId.systemDefault())
-        formatter.format(instant)
-    } catch (e: Exception) {
-        "N/A"
-    }
+    return instant.formatAsDateTime()
 }

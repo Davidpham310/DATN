@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.QuestionType
 import com.example.datn.presentation.student.tests.Answer
+import com.example.datn.core.utils.extensions.formatScore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -210,7 +211,7 @@ private fun MiniGameScoreSummaryCard(state: MiniGameResultState) {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${state.result?.score?.toInt() ?: 0}/${state.result?.maxScore?.toInt() ?: 0}",
+                        text = "${state.result?.score?.formatScore() ?: "0"}/${state.result?.maxScore?.formatScore() ?: "0"}",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -305,7 +306,7 @@ private fun BestScoreCard(state: MiniGameResultState) {
                 }
             }
             Text(
-                text = "${state.bestScore?.toInt() ?: 0}",
+                text = state.bestScore?.formatScore() ?: "0",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFFFD700)
@@ -355,7 +356,7 @@ private fun AttemptsHistoryCard(state: MiniGameResultState) {
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "${result.score.toInt()}",
+                            text = result.score.formatScore(),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -484,7 +485,7 @@ private fun MiniGameQuestionResultCard(
             // Score
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Điểm: ${questionWithAnswer.earnedScore}/${questionWithAnswer.question.score}",
+                text = "Điểm: ${questionWithAnswer.earnedScore.formatScore()}/${questionWithAnswer.question.score.formatScore()}",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold,
                 color = if (questionWithAnswer.isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)

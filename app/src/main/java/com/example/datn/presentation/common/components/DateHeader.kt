@@ -14,8 +14,8 @@ import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import com.example.datn.core.utils.extensions.formatAsDate
 
 /**
  * Date header for grouping messages by date
@@ -61,17 +61,17 @@ private fun formatDate(date: LocalDate): String {
         diff == 1L -> "Hôm qua"
         diff < 7 -> {
             // This week - show day name and date
-            val dayName = date.format(DateTimeFormatter.ofPattern("EEEE"))
-            val dateStr = date.format(DateTimeFormatter.ofPattern("dd/MM"))
+            val dayName = date.formatAsDate("EEEE")
+            val dateStr = date.formatAsDate("dd/MM")
             "$dayName, $dateStr"
         }
         date.year == today.year -> {
             // This year - show date without year
-            date.format(DateTimeFormatter.ofPattern("dd/MM"))
+            date.formatAsDate("dd/MM")
         }
         else -> {
             // Other years - show full date
-            date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+            date.formatAsDate("dd/MM/yyyy")
         }
     }
 }

@@ -27,9 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.data.local.dao.ConversationWithListDetails
 import com.example.datn.domain.models.ConversationType
+import com.example.datn.presentation.common.components.EnhancedConversationItem
+import com.example.datn.presentation.common.messaging.ConversationListEvent
 import com.example.datn.presentation.common.messaging.ConversationListViewModel
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +60,17 @@ fun ConversationListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tin nhắn") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Tin nhắn")
+                        if (state.totalUnreadCount > 0) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Badge {
+                                Text("${state.totalUnreadCount}")
+                            }
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại")
@@ -156,8 +166,11 @@ fun ConversationListScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(filteredConversations) { conversation ->
-                            ConversationItem(
+                        items(
+                            items = filteredConversations,
+                            key = { it.conversationId }
+                        ) { conversation ->
+                            EnhancedConversationItem(
                                 conversation = conversation,
                                 onClick = {
                                     // Phân biệt giữa ONE_TO_ONE và GROUP
@@ -166,21 +179,30 @@ fun ConversationListScreen(
                                     } else {
                                         "" // Group chat không có recipientId
                                     }
-                                    
+
                                     val displayName = if (conversation.conversationType == ConversationType.ONE_TO_ONE) {
                                         conversation.participantName ?: "Người dùng"
                                     } else {
                                         conversation.title ?: "Nhóm"
                                     }
-                                    
+
                                     onConversationClick(
                                         conversation.conversationId,
                                         recipientId,
                                         displayName
                                     )
+                                },
+                                onMarkAsRead = {
+                                    viewModel.onEvent(
+                                        ConversationListEvent.MarkAsRead(conversation.conversationId)
+                                    )
+                                },
+                                onMuteToggle = {
+                                    viewModel.onEvent(
+                                        ConversationListEvent.ToggleMute(conversation.conversationId)
+                                    )
                                 }
                             )
-                            HorizontalDivider()
                         }
                     }
                 }
@@ -190,126 +212,9 @@ fun ConversationListScreen(
     }
 }
 
-// Helper function to generate group display name
 private fun getGroupDisplayName(conversation: ConversationWithListDetails): String {
-    // If group has a title, use it
     if (!conversation.title.isNullOrBlank()) {
         return conversation.title
     }
-    
-    // Otherwise, get first 3 participant names
-    // This would need participant list from conversation
-    // For now, return default if no title
     return "Nhóm"
-}
-
-@Composable
-private fun ConversationItem(
-    conversation: ConversationWithListDetails,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Avatar
-        Surface(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape),
-            color = MaterialTheme.colorScheme.primary
-        ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.padding(12.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = when (conversation.type) {
-                        ConversationType.ONE_TO_ONE -> conversation.participantName ?: "Người dùng"
-                        ConversationType.GROUP -> getGroupDisplayName(conversation)
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Text(
-                    text = formatTime(conversation.lastMessageAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = conversation.lastMessage?.takeIf { it.isNotBlank() } ?: "Chưa có tin nhắn",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (conversation.unreadCount > 0) 
-                        MaterialTheme.colorScheme.onSurface 
-                    else 
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (conversation.unreadCount > 0) FontWeight.SemiBold else FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-
-                if (conversation.unreadCount > 0) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = conversation.unreadCount.toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun formatTime(instant: java.time.Instant): String {
-    val now = java.time.Instant.now()
-    val diff = java.time.Duration.between(instant, now)
-
-    return when {
-        diff.toMinutes() < 1 -> "Vừa xong"
-        diff.toMinutes() < 60 -> "${diff.toMinutes()} phút trước"
-        diff.toHours() < 24 -> "${diff.toHours()} giờ trước"
-        diff.toDays() < 7 -> "${diff.toDays()} ngày trước"
-        else -> {
-            val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-            instant.atZone(ZoneId.systemDefault()).format(formatter)
-        }
-    }
 }

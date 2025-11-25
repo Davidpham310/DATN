@@ -18,8 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.Message
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.example.datn.core.utils.extensions.formatAsDateTime
 
 /**
  * Message bubble with read receipts
@@ -149,8 +148,7 @@ private fun ReadReceipt(
  * Shows HH:mm format
  */
 private fun formatMessageTime(instant: Instant): String {
-    val time = instant.atZone(ZoneId.systemDefault())
-    return time.format(DateTimeFormatter.ofPattern("HH:mm"))
+    return instant.formatAsDateTime("HH:mm")
 }
 
 /**

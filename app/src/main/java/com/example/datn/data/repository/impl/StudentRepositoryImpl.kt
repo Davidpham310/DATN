@@ -5,9 +5,10 @@ import com.example.datn.domain.models.Student
 import com.example.datn.domain.models.User
 import com.example.datn.domain.repository.IStudentRepository
 import com.example.datn.core.network.datasource.FirebaseDataSource
+import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import javax.inject.Inject
 
 class StudentRepositoryImpl @Inject constructor(
     private val firebaseDataSource: FirebaseDataSource
@@ -23,6 +24,7 @@ class StudentRepositoryImpl @Inject constructor(
                 else -> emit(Resource.Loading())
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi lấy hồ sơ học sinh"))
         }
     }
@@ -37,6 +39,7 @@ class StudentRepositoryImpl @Inject constructor(
                 else -> emit(Resource.Loading())
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi lấy hồ sơ học sinh"))
         }
     }
@@ -63,6 +66,7 @@ class StudentRepositoryImpl @Inject constructor(
                 else -> emit(Resource.Loading())
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi lấy thông tin người dùng"))
         }
     }
@@ -73,6 +77,7 @@ class StudentRepositoryImpl @Inject constructor(
             firebaseDataSource.updateStudent(student.id, student)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi cập nhật hồ sơ học sinh"))
         }
     }
@@ -87,6 +92,7 @@ class StudentRepositoryImpl @Inject constructor(
             firebaseDataSource.linkParentToStudent(studentId, parentId, relationship)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi liên kết phụ huynh"))
         }
     }

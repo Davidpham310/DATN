@@ -35,6 +35,7 @@ class NetworkChecker @Inject constructor(
 
     private var monitoringScope: CoroutineScope? = null
     private var notificationJob: Job? = null
+    private var isOfflineNotificationVisible: Boolean = false
 
     fun startMonitoring() {
         // Đăng ký NetworkCallback
@@ -68,20 +69,26 @@ class NetworkChecker @Inject constructor(
 
     private fun showNoNetworkNotification() {
         // Không tạo nhiều job trùng nhau
-        if (notificationJob?.isActive == true) return
+        if (isOfflineNotificationVisible) return
 
-        notificationJob = CoroutineScope(Dispatchers.Main).launch {
+        isOfflineNotificationVisible = true
+
+        CoroutineScope(Dispatchers.Main).launch {
             notificationManager.onEvent(
                 NotificationEvent.Show(
                     message = "Không có mạng. Vui lòng bật Wi-Fi hoặc 4G",
                     type = NotificationType.ERROR,
-                    duration = 3000L // thông báo 3s nhưng sẽ update liên tục nếu vẫn offline
+                    duration = 3000L,
+                    autoDismiss = false,
                 )
             )
         }
     }
 
     private fun dismissNetworkNotification() {
+        if (!isOfflineNotificationVisible) return
+
+        isOfflineNotificationVisible = false
         notificationJob?.cancel()
         CoroutineScope(Dispatchers.Main).launch {
             notificationManager.onEvent(NotificationEvent.Dismiss)

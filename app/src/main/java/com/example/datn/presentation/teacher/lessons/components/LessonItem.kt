@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.Lesson
-import java.time.format.DateTimeFormatter
+import com.example.datn.core.utils.extensions.formatAsDateTime
 
 
 @Composable
@@ -130,22 +130,11 @@ fun LessonItem(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Cập nhật: ${formatDateTime(lesson.updatedAt.toString())}",
+                    text = "Cập nhật: ${lesson.updatedAt.formatAsDateTime()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-    }
-}
-
-private fun formatDateTime(dateTime: String): String {
-    return try {
-        val instant = java.time.Instant.parse(dateTime)
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-            .withZone(java.time.ZoneId.systemDefault())
-        formatter.format(instant)
-    } catch (e: Exception) {
-        "N/A"
     }
 }

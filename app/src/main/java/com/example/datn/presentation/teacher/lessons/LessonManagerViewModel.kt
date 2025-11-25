@@ -11,6 +11,7 @@ import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.lesson.CreateLessonParams
 import com.example.datn.domain.usecase.lesson.LessonUseCases
 import com.example.datn.domain.usecase.lesson.UpdateLessonParams
+import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonTitle
 import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
 import com.example.datn.presentation.common.lesson.LessonManagerEvent
 import com.example.datn.presentation.common.lesson.LessonManagerState
@@ -32,6 +33,8 @@ class LessonManagerViewModel @Inject constructor(
     private val authUseCases: AuthUseCases,
     notificationManager: NotificationManager
 ) : BaseViewModel<LessonManagerState, LessonManagerEvent>(LessonManagerState(), notificationManager) {
+
+    private val lessonTitleValidator = ValidateLessonTitle()
 
     // Reactive teacher id flow (same style as ClassManagerViewModel)
     private val currentTeacherIdFlow: StateFlow<String> = authUseCases.getCurrentIdUser.invoke()
@@ -124,8 +127,9 @@ class LessonManagerViewModel @Inject constructor(
             return
         }
 
-        if (title.isBlank()) {
-            showNotification("Tiêu đề bài học không được để trống", NotificationType.ERROR)
+        val titleResult = lessonTitleValidator.validate(title)
+        if (!titleResult.successful) {
+            showNotification(titleResult.errorMessage ?: "Tiêu đề bài học không được để trống", NotificationType.ERROR)
             return
         }
 

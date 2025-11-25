@@ -8,6 +8,7 @@ import com.example.datn.domain.models.StudentLessonProgress
 data class StudentLessonViewState(
     val lesson: Lesson? = null,
     val lessonContents: List<LessonContent> = emptyList(),
+    val contentUrls: Map<String, String> = emptyMap(),
     val progress: StudentLessonProgress? = null,
     val lessonId: String? = null,
     val studentId: String? = null,
@@ -32,5 +33,5 @@ data class StudentLessonViewState(
                else (viewedContentIds.size * 100) / lessonContents.size
     
     val isLessonCompleted: Boolean
-        get() = progressPercentage == 100
+        get() = progress?.isCompleted == true
 }

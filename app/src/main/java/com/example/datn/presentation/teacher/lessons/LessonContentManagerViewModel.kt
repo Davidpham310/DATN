@@ -8,6 +8,7 @@ import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
+import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonContentTitle
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.lesson.CreateLessonContentParams
 import com.example.datn.domain.usecase.lesson.LessonUseCases
@@ -31,6 +32,8 @@ class LessonContentManagerViewModel @Inject constructor(
 ) {
 
     private var currentTeacherId: String = ""
+
+    private val contentTitleValidator = ValidateLessonContentTitle()
 
     init {
         viewModelScope.launch {
@@ -150,8 +153,9 @@ class LessonContentManagerViewModel @Inject constructor(
             return
         }
 
-        if (event.title.isBlank()) {
-            showNotification("Tiêu đề không được để trống", NotificationType.ERROR)
+        val titleResult = contentTitleValidator.validate(event.title)
+        if (!titleResult.successful) {
+            showNotification(titleResult.errorMessage ?: "Tiêu đề không được để trống", NotificationType.ERROR)
             return
         }
 

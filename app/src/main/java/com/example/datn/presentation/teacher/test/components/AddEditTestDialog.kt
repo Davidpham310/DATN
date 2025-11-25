@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.Test
+import com.example.datn.core.utils.validation.rules.test.ValidateTestTitle
+import com.example.datn.core.utils.validation.rules.test.ValidateTotalScore
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -60,24 +62,20 @@ fun AddEditTestDialog(
         )
     }
 
+    val titleValidator = remember { ValidateTestTitle() }
+    val scoreValidator = remember { ValidateTotalScore() }
+
     var titleError by remember { mutableStateOf<String?>(null) }
     var totalScoreError by remember { mutableStateOf<String?>(null) }
     var startTimeError by remember { mutableStateOf<String?>(null) }
     var endTimeError by remember { mutableStateOf<String?>(null) }
 
     fun validateFields(): Boolean {
-        titleError = when {
-            title.isBlank() -> "Tiêu đề không được để trống"
-            title.length < 3 -> "Tiêu đề phải có ít nhất 3 ký tự"
-            else -> null
-        }
+        val titleResult = titleValidator.validate(title)
+        titleError = if (!titleResult.successful) titleResult.errorMessage else null
 
-        val scoreValue = totalScoreText.toDoubleOrNull()
-        totalScoreError = when {
-            scoreValue == null -> "Tổng điểm phải là số"
-            scoreValue <= 0 -> "Tổng điểm phải lớn hơn 0"
-            else -> null
-        }
+        val scoreResult = scoreValidator.validate(totalScoreText)
+        totalScoreError = if (!scoreResult.successful) scoreResult.errorMessage else null
 
         var startTime: Instant? = null
         var endTime: Instant? = null

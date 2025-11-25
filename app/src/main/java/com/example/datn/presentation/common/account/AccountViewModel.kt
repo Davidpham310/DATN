@@ -63,6 +63,7 @@ class AccountViewModel @Inject constructor(
                                 successMessage = "Đăng xuất thành công"
                             )
                         }
+                        dismissNotifications(clearQueue = true)
                         showNotification("Đăng xuất thành công", NotificationType.SUCCESS)
                     }
                     is Resource.Error -> {

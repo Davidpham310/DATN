@@ -5,6 +5,7 @@ data class NotificationState(
     val type: NotificationType = NotificationType.INFO,
     val isVisible: Boolean = false,
     val duration: Long = 3000L,
+    val autoDismiss: Boolean = true,
 )
 
 enum class NotificationType {

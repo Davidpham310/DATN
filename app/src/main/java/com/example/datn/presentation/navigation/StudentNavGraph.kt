@@ -15,6 +15,7 @@ import com.example.datn.presentation.student.classmanager.JoinClassScreen
 import com.example.datn.presentation.student.classmanager.MyClassesScreen
 import com.example.datn.presentation.student.home.StudentHomeScreen
 import com.example.datn.presentation.student.lessons.StudentClassDetailScreen
+import com.example.datn.presentation.student.lessons.StudentLessonContentListScreen
 import com.example.datn.presentation.student.lessons.StudentLessonViewScreen
 import com.example.datn.presentation.student.messaging.SelectTeacherScreen
 import com.example.datn.presentation.student.messaging.StudentSelectRecipientViewModel
@@ -87,14 +88,14 @@ fun StudentNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToLesson = { lessonId, lessonTitle ->
                     navController.navigate(
-                        Screen.StudentLessonView.createRoute(lessonId, lessonTitle)
+                        Screen.StudentLessonContentList.createRoute(lessonId, lessonTitle)
                     )
                 }
             )
         }
         
         composable(
-            route = Screen.StudentLessonView.routeWithArgs,
+            route = Screen.StudentLessonContentList.routeWithArgs,
             arguments = listOf(
                 navArgument("lessonId") { type = NavType.StringType },
                 navArgument("lessonTitle") { type = NavType.StringType }
@@ -107,9 +108,39 @@ fun StudentNavGraph(
             } catch (e: Exception) {
                 encodedTitle
             }
-            
+
+            StudentLessonContentListScreen(
+                lessonId = lessonId,
+                lessonTitle = lessonTitle,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToContent = { contentId ->
+                    navController.navigate(
+                        Screen.StudentLessonView.createRoute(lessonId, contentId, lessonTitle)
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = Screen.StudentLessonView.routeWithArgs,
+            arguments = listOf(
+                navArgument("lessonId") { type = NavType.StringType },
+                navArgument("contentId") { type = NavType.StringType },
+                navArgument("lessonTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
+            val contentId = backStackEntry.arguments?.getString("contentId") ?: ""
+            val encodedTitle = backStackEntry.arguments?.getString("lessonTitle") ?: ""
+            val lessonTitle = try {
+                java.net.URLDecoder.decode(encodedTitle, "UTF-8")
+            } catch (e: Exception) {
+                encodedTitle
+            }
+
             StudentLessonViewScreen(
                 lessonId = lessonId,
+                contentId = contentId,
                 lessonTitle = lessonTitle,
                 navController = navController,
                 onNavigateBack = { navController.popBackStack() }

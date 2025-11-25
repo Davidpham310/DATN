@@ -107,6 +107,7 @@ class MiniGameResultViewModel @Inject constructor(
                 var currentResult: com.example.datn.domain.models.StudentMiniGameResult? = null
                 var allResults: List<com.example.datn.domain.models.StudentMiniGameResult> = emptyList()
                 var questions: List<com.example.datn.domain.models.MiniGameQuestion> = emptyList()
+                var answers: List<com.example.datn.domain.models.StudentMiniGameAnswer> = emptyList()
 
                 // Load mini game details
                 miniGameUseCases.getMiniGameById(miniGameId).collect { gameResult ->
@@ -122,34 +123,33 @@ class MiniGameResultViewModel @Inject constructor(
                     }
                 }
 
-                // TODO: Uncomment when repository methods are ready
-                // Load current result
-                // miniGameUseCases.getStudentResult(studentId, miniGameId, resultId).collect { resultResult ->
-                //     when (resultResult) {
-                //         is Resource.Success -> {
-                //             currentResult = resultResult.data
-                //             Log.d(TAG, "[loadResult] Current result loaded - score: ${currentResult?.score}")
-                //         }
-                //         is Resource.Error -> {
-                //             Log.e(TAG, "[loadResult] Error loading result: ${resultResult.message}")
-                //         }
-                //         else -> {}
-                //     }
-                // }
+                // Load current result by ID
+                miniGameUseCases.getStudentResultById(resultId).collect { resultResult ->
+                    when (resultResult) {
+                        is Resource.Success -> {
+                            currentResult = resultResult.data
+                            Log.d(TAG, "[loadResult] Current result loaded - score: ${currentResult?.score}")
+                        }
+                        is Resource.Error -> {
+                            Log.e(TAG, "[loadResult] Error loading result: ${resultResult.message}")
+                        }
+                        else -> {}
+                    }
+                }
 
                 // Load ALL results for history
-                // miniGameUseCases.getAllStudentResults(studentId, miniGameId).collect { allResultsResult ->
-                //     when (allResultsResult) {
-                //         is Resource.Success -> {
-                //             allResults = allResultsResult.data ?: emptyList()
-                //             Log.d(TAG, "[loadResult] All results loaded: ${allResults.size} attempts")
-                //         }
-                //         is Resource.Error -> {
-                //             Log.e(TAG, "[loadResult] Error loading all results: ${allResultsResult.message}")
-                //         }
-                //         else -> {}
-                //     }
-                // }
+                miniGameUseCases.getAllStudentResults(studentId, miniGameId).collect { allResultsResult ->
+                    when (allResultsResult) {
+                        is Resource.Success -> {
+                            allResults = allResultsResult.data ?: emptyList()
+                            Log.d(TAG, "[loadResult] All results loaded: ${allResults.size} attempts")
+                        }
+                        is Resource.Error -> {
+                            Log.e(TAG, "[loadResult] Error loading all results: ${allResultsResult.message}")
+                        }
+                        else -> {}
+                    }
+                }
 
                 // Load questions
                 miniGameUseCases.getQuestionsByMiniGame(miniGameId).collect { questionsResult ->
@@ -165,47 +165,46 @@ class MiniGameResultViewModel @Inject constructor(
                     }
                 }
 
-                // TODO: Uncomment when repository methods are ready
                 // Load student answers
-                // var answers: List<com.example.datn.domain.models.StudentMiniGameAnswer> = emptyList()
-                // if (currentResult != null) {
-                //     miniGameUseCases.getStudentAnswers(currentResult.id).collect { answersResult ->
-                //         when (answersResult) {
-                //             is Resource.Success -> {
-                //                 answers = answersResult.data ?: emptyList()
-                //                 Log.d(TAG, "[loadResult] Answers loaded: ${answers.size}")
-                //             }
-                //             is Resource.Error -> {
-                //                 Log.e(TAG, "[loadResult] Error loading answers: ${answersResult.message}")
-                //             }
-                //             else -> {}
-                //         }
-                //     }
-                // }
+                val resultForAnswers = currentResult
+                if (resultForAnswers != null) {
+                    miniGameUseCases.getMiniGameAnswers(resultForAnswers.id).collect { answersResult ->
+                        when (answersResult) {
+                            is Resource.Success -> {
+                                answers = answersResult.data ?: emptyList()
+                                Log.d(TAG, "[loadResult] Answers loaded: ${answers.size}")
+                            }
+                            is Resource.Error -> {
+                                Log.e(TAG, "[loadResult] Error loading answers: ${answersResult.message}")
+                            }
+                            else -> {}
+                        }
+                    }
+                }
 
                 // Build QuestionWithAnswer list
-                // val questionsWithAnswers = if (questions.isNotEmpty()) {
-                //     buildMiniGameQuestionsWithAnswers(questions, answers, miniGameUseCases)
-                // } else {
-                //     emptyList()
-                // }
+                val questionsWithAnswers = if (questions.isNotEmpty()) {
+                    buildMiniGameQuestionsWithAnswers(questions, answers, miniGameUseCases)
+                } else {
+                    emptyList()
+                }
 
                 // Update state
-                if (miniGame != null) {
-                    Log.d(TAG, "[loadResult] SUCCESS - MiniGame data loaded")
+                if (miniGame != null && currentResult != null) {
+                    Log.d(TAG, "[loadResult] SUCCESS - MiniGame result data loaded")
                     setState {
                         copy(
                             miniGame = miniGame,
-                            // currentResult = currentResult,
-                            // questions = questionsWithAnswers,
-                            // allResults = allResults,
+                            result = currentResult,
+                            questions = questionsWithAnswers,
+                            allResults = allResults,
                             isLoading = false,
                             error = null
                         )
                     }
                     showNotification("Kết quả mini game đã sẵn sàng", NotificationType.SUCCESS)
                 } else {
-                    Log.e(TAG, "[loadResult] Missing data - minigame: ${miniGame != null}")
+                    Log.e(TAG, "[loadResult] Missing data - minigame: ${miniGame != null}, result: ${currentResult != null}")
                     setState {
                         copy(
                             isLoading = false,

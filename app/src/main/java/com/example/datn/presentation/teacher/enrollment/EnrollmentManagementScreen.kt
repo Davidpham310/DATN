@@ -20,9 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.datn.domain.models.EnrollmentStatus
+import com.example.datn.core.utils.extensions.formatAsDateTime
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -583,7 +582,5 @@ private fun filterAndSortEnrollments(
 }
 
 private fun formatEnrollmentDate(instant: Instant): String {
-    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-        .withZone(ZoneId.systemDefault())
-    return "Gửi lúc: ${formatter.format(instant)}"
+    return "Gửi lúc: ${instant.formatAsDateTime()}"
 }

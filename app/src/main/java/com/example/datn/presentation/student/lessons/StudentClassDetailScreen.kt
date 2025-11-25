@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,6 +15,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.Lesson
+import com.example.datn.domain.models.StudentLessonProgress
+import com.example.datn.domain.usecase.lesson.LessonStatus
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -170,10 +174,29 @@ fun StudentClassDetailScreen(
                         }
 
                         // Lesson list
-                        items(state.lessons) { lesson ->
+                        val nextUpLessonId = state.lessons
+                            .firstOrNull { it.canAccess && it.status == LessonStatus.UNLOCKED && it.progress?.isCompleted != true }
+                            ?.lesson?.id
+
+                        itemsIndexed(state.lessons) { _, lessonWithStatus ->
+                            val lesson = lessonWithStatus.lesson
+                            val progress = lessonWithStatus.progress
+                            val contentCount = state.lessonContentCounts[lesson.id] ?: 0
+
+                            val isLocked = !lessonWithStatus.canAccess || lessonWithStatus.status == LessonStatus.LOCKED
+                            val isNextUp = !isLocked && lesson.id == nextUpLessonId
+
                             LessonCard(
                                 lesson = lesson,
-                                onClick = { onNavigateToLesson(lesson.id, lesson.title) }
+                                progress = progress,
+                                contentCount = contentCount,
+                                isLocked = isLocked,
+                                isNextUp = isNextUp,
+                                onClick = {
+                                    if (!isLocked) {
+                                        onNavigateToLesson(lesson.id, lesson.title)
+                                    }
+                                }
                             )
                         }
                     }
@@ -263,14 +286,56 @@ private fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text
 @Composable
 private fun LessonCard(
     lesson: Lesson,
+    progress: StudentLessonProgress?,
+    contentCount: Int,
+    isLocked: Boolean = false,
+    isNextUp: Boolean = false,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .clickable(
+                enabled = !isLocked,
+                onClick = onClick
+            ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLocked) {
+                MaterialTheme.colorScheme.surfaceVariant
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        )
     ) {
+        val percentage = (progress?.progressPercentage ?: 0).coerceIn(0, 100)
+        val isCompleted = progress?.isCompleted == true
+        val viewedContents = if (contentCount > 0) {
+            ((percentage / 100f) * contentCount).roundToInt().coerceIn(0, contentCount)
+        } else {
+            0
+        }
+        val timeMinutes = (progress?.timeSpentSeconds ?: 0L) / 60
+        val isSeriousStudy = !isCompleted && percentage >= 80
+        val statusText = when {
+            isLocked -> "Hãy hoàn thành bài trước"
+            progress == null || percentage == 0 -> "Chưa học"
+            isCompleted -> "Đã hoàn thành"
+            isSeriousStudy -> "Đang học nghiêm túc"
+            else -> "Đang học"
+        }
+        val statusIcon = when {
+            isLocked -> Icons.Default.Lock
+            progress == null || percentage == 0 -> Icons.Default.RadioButtonUnchecked
+            isCompleted -> Icons.Default.CheckCircle
+            else -> Icons.Default.Schedule
+        }
+        val metaText = if (timeMinutes > 0) {
+            "${percentage}% • ${timeMinutes} phút"
+        } else {
+            "${percentage}%"
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -309,12 +374,80 @@ private fun LessonCard(
                         maxLines = 2
                     )
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = percentage / 100f,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp),
+                    color = if (isCompleted) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.secondary
+                    },
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                if (contentCount > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Đã xem: ${viewedContents}/${contentCount} nội dung",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = statusIcon,
+                            contentDescription = null,
+                            tint = when {
+                                progress == null || percentage == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
+                                !isCompleted -> MaterialTheme.colorScheme.secondary
+                                else -> MaterialTheme.colorScheme.primary
+                            },
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Text(
+                        text = metaText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                if (isNextUp && !isLocked && !isCompleted) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Bài tiếp theo nên học",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = "Xem bài học",
-                tint = MaterialTheme.colorScheme.primary
+                tint = if (isLocked) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                }
             )
         }
     }

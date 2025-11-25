@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
+import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonContentTitle
+
 import java.io.InputStream
 
 @Composable
@@ -50,6 +52,7 @@ fun AddEditLessonContentDialog(
     val isEditing = lessonContent != null
 
     var title by remember { mutableStateOf(lessonContent?.title ?: "") }
+
     var contentLink by remember { mutableStateOf(if (lessonContent?.contentType == ContentType.TEXT) lessonContent.content else "") }
     var selectedContentType by remember { mutableStateOf(lessonContent?.contentType ?: ContentType.TEXT) }
 
@@ -60,14 +63,15 @@ fun AddEditLessonContentDialog(
 
     // State error
     var titleError by remember { mutableStateOf<String?>(null) }
+
     var contentError by remember { mutableStateOf<String?>(null) }
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
+    val titleValidator = remember { ValidateLessonContentTitle() }
+
     fun validateFields(): Boolean {
-        titleError = when {
-            title.isBlank() -> "Tiêu đề không được để trống"
-            else -> null
-        }
+        val titleResult = titleValidator.validate(title)
+        titleError = if (!titleResult.successful) titleResult.errorMessage else null
 
         contentError = when (selectedContentType) {
             ContentType.TEXT -> if (contentLink.isBlank()) "Nội dung văn bản không được để trống" else null

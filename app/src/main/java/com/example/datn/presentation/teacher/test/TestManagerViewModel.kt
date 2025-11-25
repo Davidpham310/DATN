@@ -6,6 +6,8 @@ import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.Test
+import com.example.datn.core.utils.validation.rules.test.ValidateTestTitle
+import com.example.datn.core.utils.validation.rules.test.ValidateTotalScore
 import com.example.datn.domain.usecase.test.TestUseCases
 import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
 import com.example.datn.presentation.common.test.TestEvent
@@ -20,6 +22,9 @@ class TestManagerViewModel @Inject constructor(
     private val testUseCases: TestUseCases,
     notificationManager: NotificationManager
 ) : BaseViewModel<TestState, TestEvent>(TestState(), notificationManager) {
+
+    private val testTitleValidator = ValidateTestTitle()
+    private val totalScoreValidator = ValidateTotalScore()
 
     override fun onEvent(event: TestEvent) {
         when (event) {
@@ -94,13 +99,15 @@ class TestManagerViewModel @Inject constructor(
         startTime: Instant,
         endTime: Instant
     ) {
-        if (title.isBlank()) {
-            showNotification("Tiêu đề bài kiểm tra không được để trống", NotificationType.ERROR)
+        val titleResult = testTitleValidator.validate(title)
+        if (!titleResult.successful) {
+            showNotification(titleResult.errorMessage ?: "Tiêu đề bài kiểm tra không được để trống", NotificationType.ERROR)
             return
         }
 
-        if (totalScore <= 0) {
-            showNotification("Tổng điểm phải lớn hơn 0", NotificationType.ERROR)
+        val scoreResult = totalScoreValidator.validate(totalScore.toString())
+        if (!scoreResult.successful) {
+            showNotification(scoreResult.errorMessage ?: "Tổng điểm phải lớn hơn 0", NotificationType.ERROR)
             return
         }
 

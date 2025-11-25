@@ -91,4 +91,8 @@ class MiniGameUseCases @Inject constructor(
     fun getOptionById(optionId: String): Flow<Resource<MiniGameOption?>> {
         return repository.getOptionById(optionId)
     }
+
+    fun getStudentResultById(resultId: String): Flow<Resource<StudentMiniGameResult?>> {
+        return repository.getStudentResult(resultId)
+    }
 }
