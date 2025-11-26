@@ -94,7 +94,7 @@ fun ClassMembersScreen(
 
             // Student list
             val filteredStudents = viewModel.getFilteredStudents()
-            
+
             if (filteredStudents.isEmpty()) {
                 EmptyState()
             } else {
@@ -103,10 +103,10 @@ fun ClassMembersScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(filteredStudents) { student ->
+                    items(filteredStudents) { member ->
                         StudentCard(
-                            student = student,
-                            onClick = { onNavigateToStudentDetail(student.id, student.name) }
+                            student = member.user,
+                            onClick = { onNavigateToStudentDetail(member.studentId, member.user.name) }
                         )
                     }
                 }

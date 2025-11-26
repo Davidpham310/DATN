@@ -145,6 +145,13 @@ sealed class Screen(val route: String) {
     object ParentHome : Screen("parent/home")
     object ParentAccount : Screen("parent/account")
     object ParentConversations : Screen("parent/conversations")
+    object ParentStudentDetail : Screen("parent/student_detail/{studentId}/{studentName}") {
+        fun createRoute(studentId: String, studentName: String): String =
+            "parent/student_detail/$studentId/$studentName"
+
+        val routeWithArgs: String =
+            "parent/student_detail/{studentId}/{studentName}"
+    }
 
     // Student routes
     object StudentHome : Screen("student/home")

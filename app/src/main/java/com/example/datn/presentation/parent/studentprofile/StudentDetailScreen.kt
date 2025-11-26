@@ -13,6 +13,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.usecase.parentstudent.LinkedStudentInfo
+import com.example.datn.domain.usecase.progress.StudentDashboard
+import com.example.datn.domain.usecase.progress.StudentLessonProgressItem
+import com.example.datn.domain.models.StudyTimeStatistics
 import com.example.datn.core.utils.extensions.formatAsDate
 import com.example.datn.core.utils.extensions.formatAsDateTime
 
@@ -82,6 +85,9 @@ fun StudentDetailScreen(
                 state.studentInfo != null -> {
                     StudentDetailContent(
                         studentInfo = state.studentInfo!!,
+                        dashboard = state.dashboard,
+                        studyTime = state.studyTime,
+                        lessonProgressItems = state.lessonProgressItems,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -93,6 +99,9 @@ fun StudentDetailScreen(
 @Composable
 fun StudentDetailContent(
     studentInfo: LinkedStudentInfo,
+    dashboard: StudentDashboard?,
+    studyTime: StudyTimeStatistics?,
+    lessonProgressItems: List<StudentLessonProgressItem>,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -184,75 +193,109 @@ fun StudentDetailContent(
             )
         }
 
-        // Quick Actions
-        Text(
-            text = "Chức năng",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-
-        // TODO: Add action cards for viewing progress, test results, etc.
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Timeline,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Xem tiến độ học tập",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-                Text(
-                    text = "Sắp ra mắt",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
+        fun formatDuration(seconds: Long): String {
+            val totalMinutes = seconds / 60
+            val hours = totalMinutes / 60
+            val minutes = totalMinutes % 60
+            return when {
+                hours > 0 -> "${'$'}hours giờ ${'$'}minutes phút"
+                minutes > 0 -> "${'$'}minutes phút"
+                else -> "${'$'}seconds giây"
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+        if (dashboard != null) {
+            InfoSection(
+                title = "Tiến độ học tập",
+                icon = Icons.Default.Timeline
             ) {
-                Icon(
-                    imageVector = Icons.Default.Assignment,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                val overview = dashboard.overview
+                InfoRow(
+                    label = "Bài học đã hoàn thành",
+                    value = "${'$'}{overview.completedLessons}/${'$'}{overview.totalLessons}"
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Xem kết quả kiểm tra",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                InfoRow(
+                    label = "Tiến độ trung bình",
+                    value = "${'$'}{overview.averageLessonProgressPercent}%"
                 )
-                Text(
-                    text = "Sắp ra mắt",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                InfoRow(
+                    label = "Bài kiểm tra đã hoàn thành",
+                    value = "${'$'}{overview.completedTests}/${'$'}{overview.totalTests}"
                 )
+                overview.averageTestScorePercent?.let { avg ->
+                    InfoRow(
+                        label = "Điểm kiểm tra trung bình",
+                        value = String.format("%.1f/100", avg)
+                    )
+                }
+            }
+        }
+
+        if (studyTime != null) {
+            InfoSection(
+                title = "Thời gian học",
+                icon = Icons.Default.AccessTime
+            ) {
+                InfoRow("Hôm nay", formatDuration(studyTime.todaySeconds))
+                InfoRow("Tuần này", formatDuration(studyTime.weekSeconds))
+                InfoRow("Tháng này", formatDuration(studyTime.monthSeconds))
+                InfoRow("Tổng thời gian", formatDuration(studyTime.totalSeconds))
+            }
+        }
+
+        if (lessonProgressItems.isNotEmpty()) {
+            InfoSection(
+                title = "Tiến độ từng bài học",
+                icon = Icons.Default.Book
+            ) {
+                lessonProgressItems
+                    .sortedWith(compareBy({ it.className ?: "" }, { it.order }))
+                    .forEach { item ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = item.lessonTitle,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                            val classInfo = buildString {
+                                item.className?.let { append(it) }
+                                if (!item.subject.isNullOrBlank()) {
+                                    if (isNotEmpty()) append(" · ")
+                                    append(item.subject)
+                                }
+                            }
+                            if (classInfo.isNotBlank()) {
+                                Text(
+                                    text = classInfo,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Hoàn thành: ${'$'}{item.progressPercentage}%",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                if (item.isCompleted) {
+                                    Text(
+                                        text = "Đã hoàn thành",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            Divider(modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
             }
         }
     }

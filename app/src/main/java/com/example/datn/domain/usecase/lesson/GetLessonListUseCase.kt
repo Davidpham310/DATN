@@ -57,20 +57,21 @@ class GetLessonListUseCase @Inject constructor(
                             lessonRepository.getLessonsByClass(params.classId),
                             progressRepository.getProgressOverview(params.studentId)
                         ) { lessonsRes, progressRes ->
-                            when (lessonsRes) {
-                                is Resource.Loading -> Resource.Loading()
-                                is Resource.Error -> Resource.Error(
+                            when {
+                                lessonsRes is Resource.Loading -> Resource.Loading()
+                                lessonsRes is Resource.Error -> Resource.Error(
                                     lessonsRes.message ?: "Lỗi lấy danh sách bài học"
                                 )
-                                is Resource.Success -> {
-                                    val lessons = lessonsRes.data?.sortedBy { it.order }.orEmpty()
+                                lessonsRes is Resource.Success -> {
+                                    val lessons = (lessonsRes as Resource.Success<List<Lesson>>).data?.sortedBy { it.order }.orEmpty()
                                     val progressList = when (progressRes) {
-                                        is Resource.Success -> progressRes.data.orEmpty()
+                                        is Resource.Success -> (progressRes as Resource.Success<List<StudentLessonProgress>>).data.orEmpty()
                                         else -> emptyList()
                                     }
                                     val result = buildLessonWithStatus(lessons, progressList)
                                     Resource.Success(result)
                                 }
+                                else -> Resource.Error("Lỗi lấy danh sách bài học")
                             }
                         }
                     }

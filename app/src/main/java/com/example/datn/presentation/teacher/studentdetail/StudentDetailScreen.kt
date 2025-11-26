@@ -14,16 +14,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.datn.domain.usecase.progress.StudentLessonProgressItem
 
 /**
  * Screen to display comprehensive student information
  * Including progress, test scores, and assignments
+ * 
+ * Can be used by both Teacher (with classId) and Parent (without classId for all classes)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentDetailScreen(
     studentId: String,
-    classId: String,
+    classId: String = "",
     studentName: String,
     onNavigateBack: () -> Unit,
     viewModel: StudentDetailViewModel = hiltViewModel()
@@ -81,6 +84,26 @@ fun StudentDetailScreen(
                     StatisticsCards(state = state)
                 }
 
+                item {
+                    StudyAndGameSummary(state = state)
+                }
+
+                // Per-lesson progress list
+                if (state.lessonProgressItems.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Tiến độ từng bài học",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+
+                    items(state.lessonProgressItems) { lessonItem ->
+                        LessonProgressRow(item = lessonItem)
+                    }
+                }
+
                 // Test results
                 if (state.testResults.isNotEmpty()) {
                     item {
@@ -97,6 +120,68 @@ fun StudentDetailScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LessonProgressRow(item: StudentLessonProgressItem) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.lessonTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    // Show class name if available (parent view)
+                    if (!item.className.isNullOrEmpty()) {
+                        Text(
+                            text = "Lớp: ${item.className}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    if (item.order > 0) {
+                        Text(
+                            text = "Thứ tự: ${item.order}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Text(
+                    text = "${item.progressPercentage}%",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (item.isCompleted)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LinearProgressIndicator(
+                progress = (item.progressPercentage / 100f).coerceIn(0f, 1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(MaterialTheme.shapes.small)
+            )
         }
     }
 }
@@ -143,6 +228,16 @@ private fun StudentInfoHeader(state: StudentDetailState) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                
+                // Show grade level if available
+                if (!state.userInfo?.name.isNullOrEmpty()) {
+                    Text(
+                        text = "Lớp: ${state.userInfo?.name?.takeLastWhile { it.isDigit() } ?: "N/A"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
                 if (state.enrolledDate.isNotEmpty()) {
                     Text(
                         text = "Tham gia: ${state.enrolledDate}",
@@ -169,23 +264,122 @@ private fun StatisticsCards(state: StudentDetailState) {
             color = MaterialTheme.colorScheme.primary
         )
 
-        // Test scores
-        StatCard(
-            title = "Điểm trung bình",
-            value = String.format("%.1f/100", state.averageScore),
-            progress = state.averageScore / 100f,
-            icon = Icons.Default.AssignmentTurnedIn,
-            color = MaterialTheme.colorScheme.tertiary
-        )
+        // Test scores - show if tests have been completed
+        if (state.completedTests > 0) {
+            StatCard(
+                title = "Điểm trung bình",
+                value = String.format("%.1f/100", state.averageScore),
+                progress = state.averageScore / 100f,
+                icon = Icons.Default.AssignmentTurnedIn,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+        }
 
-        // Assignments
-        StatCard(
-            title = "Bài tập hoàn thành",
-            value = "${state.completedAssignments}/${state.totalAssignments}",
-            progress = state.assignmentProgress,
-            icon = Icons.Default.Assignment,
-            color = MaterialTheme.colorScheme.secondary
-        )
+        // Completed tests count - show if there are tests
+        if (state.totalTests > 0) {
+            StatCard(
+                title = "Kiểm tra hoàn thành",
+                value = "${state.completedTests}/${state.totalTests}",
+                progress = if (state.totalTests > 0) state.completedTests.toFloat() / state.totalTests else 0f,
+                icon = Icons.Default.Assignment,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun StudyAndGameSummary(state: StudentDetailState) {
+    if (state.totalStudyTimeSeconds <= 0L && state.totalMiniGamesPlayed <= 0) {
+        return
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Hoạt động học tập",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            val totalMinutes = state.totalStudyTimeSeconds / 60
+            val hours = totalMinutes / 60
+            val minutes = totalMinutes % 60
+            val timeText = if (hours > 0) {
+                "${hours} giờ ${minutes} phút"
+            } else {
+                "${minutes} phút"
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccessTime,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Thời gian học",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                Text(
+                    text = timeText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (state.totalMiniGamesPlayed > 0) {
+                val avgMiniGameScore = state.averageMiniGameScorePercent
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SportsEsports,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                        Text(
+                            text = "Mini game",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "${state.totalMiniGamesPlayed} lần chơi",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "${"%.1f".format(avgMiniGameScore)}% điểm TB",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -236,7 +430,7 @@ private fun StatCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             LinearProgressIndicator(
-                progress = progress,
+                progress = progress.coerceIn(0f, 1f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
@@ -245,7 +439,7 @@ private fun StatCard(
             )
 
             Text(
-                text = "${(progress * 100).toInt()}%",
+                text = "${(progress * 100).toInt().coerceIn(0, 100)}%",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)

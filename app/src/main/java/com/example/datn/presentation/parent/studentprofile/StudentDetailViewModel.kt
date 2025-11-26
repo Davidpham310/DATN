@@ -7,6 +7,12 @@ import com.example.datn.core.utils.Resource
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.parentstudent.LinkedStudentInfo
 import com.example.datn.domain.usecase.parentstudent.ParentStudentUseCases
+import com.example.datn.domain.usecase.progress.GetStudentDashboardUseCase
+import com.example.datn.domain.usecase.progress.GetStudyTimeStatisticsUseCase
+import com.example.datn.domain.usecase.progress.GetStudentAllLessonProgressUseCase
+import com.example.datn.domain.usecase.progress.StudentDashboard
+import com.example.datn.domain.usecase.progress.StudentLessonProgressItem
+import com.example.datn.domain.models.StudyTimeStatistics
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -14,21 +20,28 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class StudentDetailState(
     val isLoading: Boolean = false,
     val studentInfo: LinkedStudentInfo? = null,
+    val dashboard: StudentDashboard? = null,
+    val studyTime: StudyTimeStatistics? = null,
+    val lessonProgressItems: List<StudentLessonProgressItem> = emptyList(),
     val error: String? = null
 )
 
 @HiltViewModel
 class StudentDetailViewModel @Inject constructor(
     private val parentStudentUseCases: ParentStudentUseCases,
-    private val authUseCases: AuthUseCases
+    private val authUseCases: AuthUseCases,
+    private val getStudentDashboard: GetStudentDashboardUseCase,
+    private val getStudyTimeStatistics: GetStudyTimeStatisticsUseCase,
+    private val getStudentAllLessonProgress: GetStudentAllLessonProgressUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(StudentDetailState())
@@ -49,9 +62,15 @@ class StudentDetailViewModel @Inject constructor(
 
             try {
                 // Lấy parent ID từ StateFlow (đợi giá trị hợp lệ)
-                val parentId = currentParentIdFlow
-                    .filter { it.isNotBlank() }
-                    .first()
+                var parentId = currentParentIdFlow.value
+                if (parentId.isBlank()) {
+                    currentParentIdFlow
+                        .filter { it.isNotBlank() }
+                        .take(1)
+                        .collect { id ->
+                            parentId = id
+                        }
+                }
                 
                 Log.d("StudentDetailViewModel", "Current parent ID: $parentId")
 
@@ -69,6 +88,9 @@ class StudentDetailViewModel @Inject constructor(
                                     studentInfo = studentInfo,
                                     error = null
                                 )
+
+                                // Sau khi load xong thông tin cơ bản, tải thêm tiến độ học tập
+                                loadProgress(studentId)
                             } else {
                                 _state.value = _state.value.copy(
                                     isLoading = false,
@@ -84,10 +106,79 @@ class StudentDetailViewModel @Inject constructor(
                         }
                     }
                 }
+
+                // Danh sách chi tiết từng bài học trên tất cả lớp của học sinh
+                getStudentAllLessonProgress(studentId).collect { result ->
+                    when (result) {
+                        is Resource.Loading -> {
+                            // Không thay đổi trạng thái loading chung
+                        }
+                        is Resource.Success -> {
+                            _state.value = _state.value.copy(
+                                lessonProgressItems = result.data ?: emptyList()
+                            )
+                        }
+                        is Resource.Error -> {
+                            // Ghi log, không chặn màn hình nếu phần danh sách lỗi
+                            Log.e("StudentDetailViewModel", "Lỗi tải danh sách tiến độ từng bài: ${result.message}")
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = e.message ?: "Đã xảy ra lỗi"
+                )
+            }
+        }
+    }
+
+    private fun loadProgress(studentId: String) {
+        viewModelScope.launch {
+            try {
+                // Dashboard tổng quan: bài học, kiểm tra, minigame...
+                getStudentDashboard(studentId).collect { result ->
+                    when (result) {
+                        is Resource.Loading -> {
+                            _state.value = _state.value.copy(isLoading = true)
+                        }
+                        is Resource.Success -> {
+                            _state.value = _state.value.copy(
+                                isLoading = false,
+                                dashboard = result.data,
+                                error = null
+                            )
+                        }
+                        is Resource.Error -> {
+                            _state.value = _state.value.copy(
+                                isLoading = false,
+                                error = result.message ?: "Lỗi tải tiến độ học tập"
+                            )
+                        }
+                    }
+                }
+
+                // Thống kê thời gian học
+                getStudyTimeStatistics(studentId).collect { result ->
+                    when (result) {
+                        is Resource.Loading -> {
+                            // Giữ nguyên state loading hiện tại
+                        }
+                        is Resource.Success -> {
+                            _state.value = _state.value.copy(
+                                studyTime = result.data
+                            )
+                        }
+                        is Resource.Error -> {
+                            // Không chặn màn hình nếu thống kê thời gian học lỗi
+                            Log.e("StudentDetailViewModel", "Lỗi tải thống kê thời gian học: ${result.message}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Lỗi tải tiến độ học tập"
                 )
             }
         }

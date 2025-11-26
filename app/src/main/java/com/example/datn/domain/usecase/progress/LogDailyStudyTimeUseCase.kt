@@ -3,7 +3,7 @@ package com.example.datn.domain.usecase.progress
 import com.example.datn.domain.repository.IProgressRepository
 import java.time.LocalDate
 import javax.inject.Inject
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
 
 /**
  * Ghi nhận tổng thời gian học trong ngày (DailyStudyTime) cho một học sinh.
@@ -23,6 +23,8 @@ class LogDailyStudyTimeUseCase @Inject constructor(
             studentId = studentId,
             date = LocalDate.now(),
             durationSeconds = safeDuration
-        ).first()
+        ).collect { _ ->
+            // Chỉ cần chạy xong flow để đảm bảo đã ghi log, không cần dùng giá trị trả về
+        }
     }
 }

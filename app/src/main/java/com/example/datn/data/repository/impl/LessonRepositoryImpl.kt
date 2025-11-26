@@ -10,6 +10,7 @@ import com.example.datn.data.mapper.toEntity
 import com.example.datn.domain.models.Lesson
 import com.example.datn.domain.models.LessonContent
 import com.example.datn.domain.repository.ILessonRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -34,6 +35,7 @@ class LessonRepositoryImpl @Inject constructor(
                 is Resource.Loading -> { /* Skip */ }
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
     }
@@ -65,9 +67,11 @@ class LessonRepositoryImpl @Inject constructor(
                 is Resource.Loading -> { /* Skip */ }
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
     }
+
     fun updateLesson(lessonId: String, lesson: Lesson): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {

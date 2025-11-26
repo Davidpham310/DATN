@@ -4,6 +4,7 @@ import com.example.datn.core.base.BaseState
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.Student
 import com.example.datn.domain.models.ClassStudent
+import com.example.datn.domain.usecase.progress.StudentLessonProgressItem
 
 /**
  * State for Student Detail Screen
@@ -31,6 +32,11 @@ data class StudentDetailState(
     val averageScore: Float = 0f,
     val testResults: List<TestResult> = emptyList(),
     
+    // Study / Mini-game overview
+    val totalStudyTimeSeconds: Long = 0L,
+    val totalMiniGamesPlayed: Int = 0,
+    val averageMiniGameScorePercent: Float = 0f,
+
     // Assignment/MiniGame progress
     val totalAssignments: Int = 0,
     val completedAssignments: Int = 0,
@@ -39,6 +45,9 @@ data class StudentDetailState(
     // Attendance/Participation
     val enrolledDate: String = "",
     val lastActive: String = "",
+    
+    // Detailed per-lesson progress for the current class
+    val lessonProgressItems: List<StudentLessonProgressItem> = emptyList(),
     
     // UI State
     val selectedTab: Int = 0

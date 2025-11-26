@@ -81,12 +81,19 @@ class GetStudentDashboardUseCase @Inject constructor(
             // Lessons by class
             val lessonsByClassId = mutableMapOf<String, List<Lesson>>()
             classes.forEach { clazz ->
-                val lessonsRes = lessonRepository.getLessonsByClass(clazz.id).first()
-                val lessons = if (lessonsRes is Resource.Success) {
-                    lessonsRes.data ?: emptyList()
-                } else {
-                    emptyList()
+                val lessonsRes = lessonRepository
+                    .getLessonsByClass(clazz.id)
+                    .first { it !is Resource.Loading }
+
+                val lessons: List<Lesson> = when (lessonsRes) {
+                    is Resource.Success -> lessonsRes.data ?: emptyList()
+                    is Resource.Error -> {
+                        Log.w(TAG, "Error loading lessons for classId=${clazz.id}: ${lessonsRes.message}")
+                        emptyList()
+                    }
+                    is Resource.Loading -> emptyList()
                 }
+
                 lessonsByClassId[clazz.id] = lessons
             }
             val lessonById: Map<String, Lesson> = lessonsByClassId.values
@@ -166,8 +173,22 @@ class GetStudentDashboardUseCase @Inject constructor(
             )
 
             // 2. Build overview
-            val totalLessons: Int = lessonsByClassId.values.sumOf { it.size }
-            val completedLessons: Int = progressList.count { it.isCompleted }
+            val totalLessonsFromRepo: Int = lessonsByClassId.values.sumOf { it.size }
+            val totalLessonsFromProgress: Int = progressList.map { it.lessonId }.toSet().size
+            val totalLessons: Int = when {
+                totalLessonsFromRepo > 0 -> totalLessonsFromRepo
+                totalLessonsFromProgress > 0 -> totalLessonsFromProgress
+                else -> 0
+            }
+            Log.d(
+                TAG,
+                "Computed totalLessons: fromRepo=$totalLessonsFromRepo, fromProgress=$totalLessonsFromProgress, final=$totalLessons"
+            )
+            val completedLessons: Int = progressList
+                .filter { it.isCompleted }
+                .map { it.lessonId }
+                .toSet()
+                .size
             val averageLessonProgressPercent: Int = if (progressList.isNotEmpty()) {
                 progressList.map { it.progressPercentage }.average().toInt()
             } else {
@@ -227,7 +248,7 @@ class GetStudentDashboardUseCase @Inject constructor(
             // 3. Subject-wise statistics
             data class SubjectAgg(
                 val lessonIds: MutableSet<String> = mutableSetOf(),
-                var completedLessons: Int = 0,
+                val completedLessonIds: MutableSet<String> = mutableSetOf(),
                 var sumLessonProgress: Int = 0,
                 var lessonProgressCount: Int = 0,
                 var totalStudyTimeSeconds: Long = 0L,
@@ -260,7 +281,7 @@ class GetStudentDashboardUseCase @Inject constructor(
                 val agg = subjectAggs.getOrPut(subject) { SubjectAgg() }
 
                 if (progress.isCompleted) {
-                    agg.completedLessons++
+                    agg.completedLessonIds.add(progress.lessonId)
                 }
                 agg.sumLessonProgress += progress.progressPercentage
                 agg.lessonProgressCount++
@@ -298,7 +319,7 @@ class GetStudentDashboardUseCase @Inject constructor(
                 SubjectProgressStatistics(
                     subject = subject,
                     totalLessons = agg.lessonIds.size,
-                    completedLessons = agg.completedLessons,
+                    completedLessons = agg.completedLessonIds.size,
                     averageLessonProgressPercent = avgLessonProgress,
                     averageTestScorePercent = avgTestScore,
                     totalStudyTimeSeconds = agg.totalStudyTimeSeconds,
