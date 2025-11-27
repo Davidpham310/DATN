@@ -18,6 +18,7 @@ fun ParentMainScreen(
     val navController = rememberNavController()
     val items = listOf(
         Screen.ParentHome,
+        Screen.ParentMyClasses,
         Screen.ParentConversations,
         Screen.ParentAccount
     )
@@ -39,6 +40,7 @@ fun ParentMainScreen(
                         icon = {
                             when (screen) {
                                 Screen.ParentHome -> Icon(Icons.Default.Home, null)
+                                Screen.ParentMyClasses -> Icon(Icons.Default.School, null)
                                 Screen.ParentConversations -> Icon(Icons.Default.Chat, null)
                                 Screen.ParentAccount -> Icon(Icons.Default.Person, null)
                                 else -> Icon(Icons.Default.Home, null)
@@ -48,6 +50,7 @@ fun ParentMainScreen(
                             Text(
                                 when (screen) {
                                     Screen.ParentHome -> "Trang chủ"
+                                    Screen.ParentMyClasses -> "Lớp học"
                                     Screen.ParentConversations -> "Tin nhắn"
                                     Screen.ParentAccount -> "Tài khoản"
                                     else -> ""

@@ -143,14 +143,57 @@ sealed class Screen(val route: String) {
 
     // Parent routes
     object ParentHome : Screen("parent/home")
-    object ParentAccount : Screen("parent/account")
+    object ParentMyClasses : Screen("parent/my_classes")
+    object ParentJoinClass : Screen("parent/join_class")
     object ParentConversations : Screen("parent/conversations")
+    object ParentAccount : Screen("parent/account")
+
+    object ParentManageChildren : Screen("parent/manage_children")
+    object ParentCreateStudentAccount : Screen("parent/create_student_account")
+
     object ParentStudentDetail : Screen("parent/student_detail/{studentId}/{studentName}") {
         fun createRoute(studentId: String, studentName: String): String =
             "parent/student_detail/$studentId/$studentName"
 
         val routeWithArgs: String =
             "parent/student_detail/{studentId}/{studentName}"
+    }
+
+    object ParentChat :
+        Screen("parent/chat/{conversationId}/{recipientId}/{recipientName}") {
+
+        fun createRoute(
+            conversationId: String,
+            recipientId: String,
+            recipientName: String
+        ): String = "parent/chat/$conversationId/$recipientId/$recipientName"
+
+        val routeWithArgs: String =
+            "parent/chat/{conversationId}/{recipientId}/{recipientName}"
+    }
+
+    object ParentSelectRecipient : Screen("parent/select_recipient")
+
+    object ParentSelectGroupParticipants :
+        Screen("parent/select_group_participants")
+
+    object ParentGroupDetails :
+        Screen("parent/group_details/{conversationId}/{groupTitle}") {
+
+        fun createRoute(conversationId: String, groupTitle: String): String =
+            "parent/group_details/$conversationId/$groupTitle"
+
+        val routeWithArgs: String =
+            "parent/group_details/{conversationId}/{groupTitle}"
+    }
+
+    object ParentAddMembersToGroup :
+        Screen("parent/add_members/{conversationId}") {
+
+        fun createRoute(conversationId: String): String =
+            "parent/add_members/$conversationId"
+
+        val routeWithArgs: String = "parent/add_members/{conversationId}"
     }
 
     // Student routes

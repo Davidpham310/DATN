@@ -21,6 +21,7 @@ import com.example.datn.domain.usecase.parentstudent.LinkedStudentInfo
 @Composable
 fun ParentHomeScreen(
     onNavigateToStudentDetail: (studentId: String, studentName: String) -> Unit = { _, _ -> },
+    onNavigateToManageChildren: () -> Unit = {},
     viewModel: ParentHomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -29,6 +30,14 @@ fun ParentHomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Thông tin con em") },
+                actions = {
+                    IconButton(onClick = onNavigateToManageChildren) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Quản lý con em"
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary

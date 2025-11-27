@@ -631,9 +631,22 @@ class FirebaseDataSource @Inject constructor(
 
     /**
      * Lấy danh sách học sinh (Student) theo parentId.
+     * Sử dụng collection parent_student để lấy các liên kết, rồi map sang Student.
      */
     suspend fun getStudentsByParentId(parentId: String): Resource<List<Student>> = safeCallWithResult {
-        studentService.getStudentsByParentId(parentId)
+        val links = parentStudentService.getStudentsByParentId(parentId)
+
+        if (links.isEmpty()) {
+            emptyList()
+        } else {
+            links.mapNotNull { link ->
+                try {
+                    studentService.getById(link.studentId)
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
     }.toResource()
 
     /**
@@ -652,8 +665,21 @@ class FirebaseDataSource @Inject constructor(
         studentId: String? = null,
         enrollmentStatus: EnrollmentStatus? = null
     ): Resource<List<ClassEnrollmentInfo>> = safeCallWithResult {
-        // 1. Lấy tất cả học sinh của phụ huynh
-        val allChildren: List<Student> = studentService.getStudentsByParentId(parentId)
+        // 1. Lấy tất cả liên kết phụ huynh - học sinh
+        val links = parentStudentService.getStudentsByParentId(parentId)
+
+        // Map sang danh sách Student tương ứng
+        val allChildren: List<Student> = if (links.isEmpty()) {
+            emptyList()
+        } else {
+            links.mapNotNull { link ->
+                try {
+                    studentService.getById(link.studentId)
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
 
         val filteredChildren = if (studentId != null) {
             allChildren.filter { it.id == studentId }

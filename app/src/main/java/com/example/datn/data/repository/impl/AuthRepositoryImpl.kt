@@ -56,7 +56,7 @@ class AuthRepositoryImpl @Inject constructor(
         userDao.insert(userWithId.toEntity())
         // Đăng xuất sau khi tạo tài khoản thành công
         firebaseAuthDataSource.signOut()
-        emit(Resource.Success(user))
+        emit(Resource.Success(userWithId))
     }.catch { e -> emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))}
 
     override fun forgotPassword(email: String): Flow<Resource<String>> = flow {

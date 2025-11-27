@@ -1,5 +1,6 @@
 package com.example.datn.presentation.parent.home
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.utils.Resource
@@ -23,27 +24,37 @@ class ParentHomeViewModel @Inject constructor(
     private val authUseCases: AuthUseCases
 ) : ViewModel() {
 
+    companion object {
+        private const val TAG = "ParentHomeViewModel"
+    }
+
     private val _state = MutableStateFlow(ParentHomeState())
     val state: StateFlow<ParentHomeState> = _state.asStateFlow()
 
     init {
+        Log.d(TAG, "init: loadLinkedStudents()")
         loadLinkedStudents()
     }
 
     private fun loadLinkedStudents() {
+        Log.d(TAG, "loadLinkedStudents() called")
         viewModelScope.launch {
             authUseCases.getCurrentIdUser.invoke()
                 .filter { it.isNotBlank() }
                 .flatMapLatest { parentId ->
+                    Log.d(TAG, "loadLinkedStudents() parentId=$parentId")
                     parentStudentUseCases.getLinkedStudents(parentId)
                 }
                 .distinctUntilChanged()
                 .collect { resource ->
                     when (resource) {
                         is Resource.Loading -> {
+                            Log.d(TAG, "loadLinkedStudents() -> Loading")
                             _state.value = _state.value.copy(isLoading = true)
                         }
                         is Resource.Success -> {
+                            val count = resource.data?.size ?: 0
+                            Log.d(TAG, "loadLinkedStudents() -> Success, count=$count")
                             _state.value = _state.value.copy(
                                 isLoading = false,
                                 linkedStudents = resource.data ?: emptyList(),
@@ -51,6 +62,7 @@ class ParentHomeViewModel @Inject constructor(
                             )
                         }
                         is Resource.Error -> {
+                            Log.e(TAG, "loadLinkedStudents() -> Error: ${resource.message}")
                             _state.value = _state.value.copy(
                                 isLoading = false,
                                 error = resource.message
