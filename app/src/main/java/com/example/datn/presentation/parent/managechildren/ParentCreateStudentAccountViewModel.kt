@@ -14,7 +14,6 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import javax.inject.Inject
-import kotlinx.coroutines.flow.first
 
 @HiltViewModel
 class ParentCreateStudentAccountViewModel @Inject constructor(
@@ -61,8 +60,16 @@ class ParentCreateStudentAccountViewModel @Inject constructor(
         }
 
         launch {
-            val parentId = authUseCases.getCurrentIdUser.invoke().first()
-            if (parentId.isBlank()) {
+            var resolvedParentId: String? = null
+
+            authUseCases.getCurrentIdUser.invoke().collect { id ->
+                if (id.isNotBlank()) {
+                    resolvedParentId = id
+                }
+            }
+
+            val parentId = resolvedParentId
+            if (parentId.isNullOrBlank()) {
                 Log.e(TAG, "submit() -> parentId is blank")
                 showNotification("Không tìm thấy tài khoản phụ huynh", NotificationType.ERROR)
                 return@launch

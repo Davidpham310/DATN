@@ -31,8 +31,17 @@ class ParentHomeViewModel @Inject constructor(
     private val _state = MutableStateFlow(ParentHomeState())
     val state: StateFlow<ParentHomeState> = _state.asStateFlow()
 
+    private val refreshTrigger = MutableSharedFlow<Unit>(replay = 1).apply {
+        tryEmit(Unit)
+    }
+
     init {
         Log.d(TAG, "init: loadLinkedStudents()")
+        loadLinkedStudents()
+    }
+
+    fun refreshChildren() {
+        Log.d(TAG, "refreshChildren() called -> reload linked students")
         loadLinkedStudents()
     }
 

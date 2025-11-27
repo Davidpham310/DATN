@@ -1,5 +1,6 @@
 package com.example.datn.domain.usecase.progress
 
+import android.util.Log
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.DailyStudyTime
 import com.example.datn.domain.models.StudyTimeStatistics
@@ -20,7 +21,17 @@ class GetStudyTimeStatisticsUseCase @Inject constructor(
                 is Resource.Error -> Resource.Error(resource.message)
                 is Resource.Success -> {
                     val records = resource.data ?: emptyList()
-                    Resource.Success(calculateStatistics(studentId, records))
+                    Log.d("GetStudyTimeStatsUC", "StudentId=$studentId, dailyRecordsCount=${records.size}")
+                    val stats = calculateStatistics(studentId, records)
+                    Log.d(
+                        "GetStudyTimeStatsUC",
+                        "Computed stats for studentId=$studentId: " +
+                            "today=${stats.todaySeconds}, " +
+                            "week=${stats.weekSeconds}, " +
+                            "month=${stats.monthSeconds}, " +
+                            "total=${stats.totalSeconds}"
+                    )
+                    Resource.Success(stats)
                 }
             }
         }

@@ -14,7 +14,6 @@ import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.collect
 import javax.inject.Inject
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -31,6 +30,18 @@ class ParentManageChildrenViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "ParentManageChildrenVM"
+    }
+
+    private suspend fun resolveParentId(): String? {
+        var resolvedParentId: String? = null
+
+        authUseCases.getCurrentIdUser.invoke().collect { id ->
+            if (id.isNotBlank()) {
+                resolvedParentId = id
+            }
+        }
+
+        return resolvedParentId
     }
 
     init {
@@ -132,8 +143,8 @@ class ParentManageChildrenViewModel @Inject constructor(
         val student = current.selectedStudent ?: return
 
         launch {
-            val parentId = authUseCases.getCurrentIdUser.invoke().first()
-            if (parentId.isBlank()) {
+            val parentId = resolveParentId()
+            if (parentId.isNullOrBlank()) {
                 Log.e(TAG, "saveRelationship() -> parentId is blank")
                 showNotification("Không tìm thấy tài khoản phụ huynh", NotificationType.ERROR)
                 return@launch
@@ -190,8 +201,8 @@ class ParentManageChildrenViewModel @Inject constructor(
     private fun unlinkStudent(student: com.example.datn.domain.usecase.parentstudent.LinkedStudentInfo) {
         Log.d(TAG, "unlinkStudent() studentId=${student.student.id}")
         launch {
-            val parentId = authUseCases.getCurrentIdUser.invoke().first()
-            if (parentId.isBlank()) {
+            val parentId = resolveParentId()
+            if (parentId.isNullOrBlank()) {
                 Log.e(TAG, "unlinkStudent() -> parentId is blank")
                 showNotification("Không tìm thấy tài khoản phụ huynh", NotificationType.ERROR)
                 return@launch
@@ -288,8 +299,8 @@ class ParentManageChildrenViewModel @Inject constructor(
             "linkExistingStudent() studentId=${result.student.id}, relationship=$relationship, isPrimary=$isPrimaryGuardian"
         )
         launch {
-            val parentId = authUseCases.getCurrentIdUser.invoke().first()
-            if (parentId.isBlank()) {
+            val parentId = resolveParentId()
+            if (parentId.isNullOrBlank()) {
                 Log.e(TAG, "linkExistingStudent() -> parentId is blank")
                 showNotification("Không tìm thấy tài khoản phụ huynh", NotificationType.ERROR)
                 return@launch

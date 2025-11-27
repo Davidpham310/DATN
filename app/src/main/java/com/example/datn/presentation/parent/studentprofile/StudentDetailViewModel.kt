@@ -143,6 +143,20 @@ class StudentDetailViewModel @Inject constructor(
                             _state.value = _state.value.copy(isLoading = true)
                         }
                         is Resource.Success -> {
+                            val overview = result.data?.overview
+                            Log.d(
+                                "StudentDetailViewModel",
+                                "Dashboard loaded for studentId=$studentId: " +
+                                    "totalLessons=${overview?.totalLessons}, " +
+                                    "completedLessons=${overview?.completedLessons}, " +
+                                    "avgLessonProgress=${overview?.averageLessonProgressPercent}, " +
+                                    "totalTests=${overview?.totalTests}, " +
+                                    "completedTests=${overview?.completedTests}, " +
+                                    "avgTestScore=${overview?.averageTestScorePercent}, " +
+                                    "totalStudyTime=${overview?.totalStudyTimeSeconds}, " +
+                                    "totalMiniGames=${overview?.totalMiniGamesPlayed}, " +
+                                    "avgMiniGameScore=${overview?.averageMiniGameScorePercent}"
+                            )
                             _state.value = _state.value.copy(
                                 isLoading = false,
                                 dashboard = result.data,
@@ -165,8 +179,17 @@ class StudentDetailViewModel @Inject constructor(
                             // Giữ nguyên state loading hiện tại
                         }
                         is Resource.Success -> {
+                            val stats = result.data
+                            Log.d(
+                                "StudentDetailViewModel",
+                                "Study time stats loaded for studentId=$studentId: " +
+                                    "today=${stats?.todaySeconds}, " +
+                                    "week=${stats?.weekSeconds}, " +
+                                    "month=${stats?.monthSeconds}, " +
+                                    "total=${stats?.totalSeconds}"
+                            )
                             _state.value = _state.value.copy(
-                                studyTime = result.data
+                                studyTime = stats
                             )
                         }
                         is Resource.Error -> {

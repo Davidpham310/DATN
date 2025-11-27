@@ -198,9 +198,9 @@ fun StudentDetailContent(
             val hours = totalMinutes / 60
             val minutes = totalMinutes % 60
             return when {
-                hours > 0 -> "${'$'}hours giờ ${'$'}minutes phút"
-                minutes > 0 -> "${'$'}minutes phút"
-                else -> "${'$'}seconds giây"
+                hours > 0 -> "${hours} giờ ${minutes} phút"
+                minutes > 0 -> "${minutes} phút"
+                else -> "${seconds} giây"
             }
         }
 
@@ -212,15 +212,15 @@ fun StudentDetailContent(
                 val overview = dashboard.overview
                 InfoRow(
                     label = "Bài học đã hoàn thành",
-                    value = "${'$'}{overview.completedLessons}/${'$'}{overview.totalLessons}"
+                    value = "${overview.completedLessons}/${overview.totalLessons}"
                 )
                 InfoRow(
                     label = "Tiến độ trung bình",
-                    value = "${'$'}{overview.averageLessonProgressPercent}%"
+                    value = "${overview.averageLessonProgressPercent}%"
                 )
                 InfoRow(
                     label = "Bài kiểm tra đã hoàn thành",
-                    value = "${'$'}{overview.completedTests}/${'$'}{overview.totalTests}"
+                    value = "${overview.completedTests}/${overview.totalTests}"
                 )
                 overview.averageTestScorePercent?.let { avg ->
                     InfoRow(
@@ -281,7 +281,7 @@ fun StudentDetailContent(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Hoàn thành: ${'$'}{item.progressPercentage}%",
+                                    text = "Hoàn thành: ${item.progressPercentage}%",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 if (item.isCompleted) {

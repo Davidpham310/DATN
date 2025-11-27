@@ -26,6 +26,10 @@ fun ParentHomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
+    LaunchedEffect(Unit) {
+        viewModel.refreshChildren()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
