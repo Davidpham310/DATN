@@ -30,7 +30,7 @@ class AuthViewModel @Inject constructor(
         when (event) {
             is AuthEvent.OnLogin -> login(event.email, event.password , event.role)
             is AuthEvent.OnRegister -> register(event.email, event.password, event.name, event.role)
-            is AuthEvent.OnForgotPassword -> forgotPassword(event.email)
+            is AuthEvent.OnForgotPassword -> forgotPassword(event.email, event.role)
         }
     }
 
@@ -97,7 +97,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    private fun forgotPassword(email: String) {
+    private fun forgotPassword(email: String, role: UserRole) {
         val emailResult = emailValidator.validate(email)
         if (!emailResult.successful) {
             showNotification(emailResult.errorMessage!!, NotificationType.ERROR)
@@ -111,7 +111,14 @@ class AuthViewModel @Inject constructor(
                     is Resource.Success -> {
                         setState { copy(isLoading = false, error = null) }
                         Log.d("AuthViewModel" , "Password reset email sent")
-                        showNotification(resource.data ?: "Password reset email sent", NotificationType.SUCCESS)
+
+                        val successMessage = when (role) {
+                            UserRole.TEACHER -> "Đã gửi email đặt lại mật khẩu cho tài khoản Giáo viên"
+                            UserRole.PARENT -> "Đã gửi email đặt lại mật khẩu cho tài khoản Phụ huynh"
+                            UserRole.STUDENT -> "Đã gửi email đặt lại mật khẩu cho tài khoản Học sinh"
+                        }
+
+                        showNotification(resource.data ?: successMessage, NotificationType.SUCCESS)
                     }
                     is Resource.Error -> {
                         setState { copy(isLoading = false, error = resource.message) }

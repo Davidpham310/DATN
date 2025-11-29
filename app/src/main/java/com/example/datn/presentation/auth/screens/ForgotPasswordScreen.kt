@@ -43,7 +43,7 @@ fun ForgotPasswordScreen(
         Spacer(Modifier.height(16.dp))
 
         RoleSelector(
-            roles = listOf(UserRole.TEACHER, UserRole.PARENT),
+            roles = listOf(UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT),
             selectedRole = selectedRole,
             onRoleSelected = { selectedRole = it }
         )
@@ -60,7 +60,7 @@ fun ForgotPasswordScreen(
 
         Button(
             onClick = {
-                viewModel.onEvent(AuthEvent.OnForgotPassword(email))
+                viewModel.onEvent(AuthEvent.OnForgotPassword(email, selectedRole))
             }
         )
         {

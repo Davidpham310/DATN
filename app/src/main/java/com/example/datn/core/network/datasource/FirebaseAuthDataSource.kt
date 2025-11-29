@@ -3,9 +3,11 @@ package com.example.datn.core.network.datasource
 import com.example.datn.core.base.BaseDataSource
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.UserRole
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+
 import java.time.Instant
 import javax.inject.Inject
 
@@ -103,6 +105,18 @@ class FirebaseAuthDataSource @Inject constructor(
     // Gửi email reset mật khẩu
     suspend fun sendPasswordReset(email: String) {
         auth.sendPasswordResetEmail(email).await()
+    }
+
+    // Đổi mật khẩu cho user hiện tại
+    suspend fun changePassword(currentPassword: String, newPassword: String) {
+        val user = auth.currentUser ?: throw Exception("Người dùng chưa đăng nhập.")
+        val email = user.email ?: throw Exception("Không tìm thấy email của người dùng.")
+
+        val credential = EmailAuthProvider.getCredential(email, currentPassword)
+
+        // Re-authenticate before changing password
+        user.reauthenticate(credential).await()
+        user.updatePassword(newPassword).await()
     }
 
     fun getCurrentUserId(): String? {

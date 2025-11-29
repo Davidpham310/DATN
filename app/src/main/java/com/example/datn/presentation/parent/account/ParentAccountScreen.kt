@@ -22,6 +22,7 @@ import com.example.datn.presentation.dialogs.SimpleConfirmationDialog
 @Composable
 fun ParentAccountScreen(
     onNavigateToLogin: () -> Unit,
+    onNavigateToChangePassword: () -> Unit,
     viewModel: AccountViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -115,7 +116,11 @@ fun ParentAccountScreen(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            AccountOption(icon = Icons.Default.Lock, title = "Đổi mật khẩu", onClick = {})
+            AccountOption(
+                icon = Icons.Default.Lock,
+                title = "Đổi mật khẩu",
+                onClick = onNavigateToChangePassword
+            )
             AccountOption(icon = Icons.Default.Info, title = "Thông tin ứng dụng", onClick = {})
 
             Spacer(modifier = Modifier.weight(1f))

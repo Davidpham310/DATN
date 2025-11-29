@@ -64,6 +64,13 @@ class AuthRepositoryImpl @Inject constructor(
         firebaseAuthDataSource.sendPasswordReset(email)
         emit(Resource.Success("Password reset email sent"))
     }.catch { e -> emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e))) }
+
+    override fun changePassword(currentPassword: String, newPassword: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        firebaseAuthDataSource.changePassword(currentPassword, newPassword)
+        emit(Resource.Success(Unit))
+    }.catch { e -> emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e))) }
+
     override fun signOut(): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {

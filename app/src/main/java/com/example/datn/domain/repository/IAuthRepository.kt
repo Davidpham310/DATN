@@ -10,6 +10,7 @@ interface IAuthRepository {
     fun login(email: String, password: String , role: UserRole): Flow<Resource<User>>
     fun register(user: User, password: String): Flow<Resource<User>>
     fun forgotPassword(email : String): Flow<Resource<String>>
+    fun changePassword(currentPassword: String, newPassword: String): Flow<Resource<Unit>>
     fun signOut(): Flow<Resource<Unit>>
     fun getCurrentUser(): Flow<Resource<User?>>
     fun isUserLoggedIn(): Flow<Resource<Boolean>>

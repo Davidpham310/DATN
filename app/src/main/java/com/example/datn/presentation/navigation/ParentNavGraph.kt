@@ -210,7 +210,18 @@ fun ParentNavGraph(
 
         // Account
         composable(Screen.ParentAccount.route) {
-            ParentAccountScreen(onNavigateToLogin = onNavigateToLogin)
+            ParentAccountScreen(
+                onNavigateToLogin = onNavigateToLogin,
+                onNavigateToChangePassword = {
+                    navController.navigate(Screen.ParentChangePassword.route)
+                }
+            )
+        }
+
+        composable(Screen.ParentChangePassword.route) {
+            com.example.datn.presentation.parent.account.ParentChangePasswordScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         // Quản lý con em (stub màn hình, sẽ triển khai đầy đủ logic sau)

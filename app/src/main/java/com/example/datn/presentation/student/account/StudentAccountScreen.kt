@@ -22,6 +22,7 @@ import com.example.datn.presentation.dialogs.SimpleConfirmationDialog
 @Composable
 fun StudentAccountScreen(
     onNavigateToLogin: () -> Unit,
+    onNavigateToChangePassword: () -> Unit,
     viewModel: AccountViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -123,7 +124,7 @@ fun StudentAccountScreen(
             AccountOption(
                 icon = Icons.Default.Lock,
                 title = "Đổi mật khẩu",
-                onClick = { /* TODO: Navigate to change password */ }
+                onClick = onNavigateToChangePassword
             )
 
             AccountOption(

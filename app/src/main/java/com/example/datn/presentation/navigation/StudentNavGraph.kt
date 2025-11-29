@@ -156,7 +156,18 @@ fun StudentNavGraph(
         }
 
         composable(Screen.StudentAccount.route) {
-            StudentAccountScreen(onNavigateToLogin = onNavigateToLogin)
+            StudentAccountScreen(
+                onNavigateToLogin = onNavigateToLogin,
+                onNavigateToChangePassword = {
+                    navController.navigate(Screen.StudentChangePassword.route)
+                }
+            )
+        }
+
+        composable(Screen.StudentChangePassword.route) {
+            com.example.datn.presentation.student.account.StudentChangePasswordScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         
         composable(Screen.StudentConversations.route) {

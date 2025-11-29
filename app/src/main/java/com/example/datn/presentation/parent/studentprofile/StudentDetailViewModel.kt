@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.usecase.auth.AuthUseCases
+import com.example.datn.domain.usecase.auth.ForgotPasswordParams
 import com.example.datn.domain.usecase.parentstudent.LinkedStudentInfo
 import com.example.datn.domain.usecase.parentstudent.ParentStudentUseCases
 import com.example.datn.domain.usecase.progress.GetStudentDashboardUseCase
@@ -32,7 +33,10 @@ data class StudentDetailState(
     val dashboard: StudentDashboard? = null,
     val studyTime: StudyTimeStatistics? = null,
     val lessonProgressItems: List<StudentLessonProgressItem> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val isResettingPassword: Boolean = false,
+    val resetPasswordSuccess: String? = null,
+    val resetPasswordError: String? = null
 )
 
 @HiltViewModel
@@ -203,6 +207,48 @@ class StudentDetailViewModel @Inject constructor(
                     isLoading = false,
                     error = e.message ?: "Lỗi tải tiến độ học tập"
                 )
+            }
+        }
+    }
+
+    fun resetStudentPassword() {
+        val currentState = _state.value
+        val studentEmail = currentState.studentInfo?.user?.email
+        if (studentEmail.isNullOrBlank()) {
+            _state.value = currentState.copy(
+                resetPasswordError = "Không tìm thấy email của học sinh",
+                resetPasswordSuccess = null
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            authUseCases.forgotPassword(ForgotPasswordParams(studentEmail)).collect { result ->
+                when (result) {
+                    is Resource.Loading -> {
+                        _state.value = _state.value.copy(
+                            isResettingPassword = true,
+                            resetPasswordError = null,
+                            resetPasswordSuccess = null
+                        )
+                    }
+                    is Resource.Success -> {
+                        _state.value = _state.value.copy(
+                            isResettingPassword = false,
+                            resetPasswordError = null,
+                            resetPasswordSuccess = result.data
+                                ?: "Đã gửi email đổi mật khẩu cho học sinh"
+                        )
+                    }
+                    is Resource.Error -> {
+                        _state.value = _state.value.copy(
+                            isResettingPassword = false,
+                            resetPasswordSuccess = null,
+                            resetPasswordError = result.message
+                                ?: "Lỗi gửi email đổi mật khẩu"
+                        )
+                    }
+                }
             }
         }
     }
