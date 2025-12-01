@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,7 @@ import coil.compose.AsyncImage
 import com.example.datn.presentation.navigation.Screen
 import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -264,7 +266,10 @@ fun StudentLessonViewScreen(
                                     navController.navigate(
                                         Screen.StudentMiniGamePlay.createRoute(gameId, lessonId)
                                     )
-                                } else { _ -> }
+                                } else { _ -> },
+                                onVideoForceExit = {
+                                    onNavigateBack()
+                                }
                             )
                         }
                     }
@@ -457,7 +462,8 @@ private fun LessonContentCard(
     content: LessonContent,
     resolvedContent: String? = null,
     onOpenContent: () -> Unit = {},
-    onPlayGame: (String) -> Unit = {}
+    onPlayGame: (String) -> Unit = {},
+    onVideoForceExit: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -498,7 +504,8 @@ private fun LessonContentCard(
                 ContentType.VIDEO -> {
                     VideoContentView(
                         content = resolvedContent ?: content.content,
-                        onClick = onOpenContent
+                        onClick = onOpenContent,
+                        onForceExit = onVideoForceExit
                     )
                 }
                 ContentType.AUDIO -> {
@@ -568,21 +575,34 @@ private fun ContentTypeBadge(contentType: ContentType) {
 @Composable
 private fun VideoContentView(
     content: String,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onForceExit: () -> Unit = {}
 ) {
-    // Sử dụng ExoPlayer giống Teacher để phát video ngay trong app
     StudentVideoPlayer(
         videoUrl = content,
         modifier = Modifier
             .fillMaxWidth()
-            .height(230.dp)
+            .height(230.dp),
+        onUserInteraction = {},
+        onForceExit = onForceExit,
+        onCompleted = onClick
     )
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-private fun StudentVideoPlayer(videoUrl: String, modifier: Modifier = Modifier) {
+private fun StudentVideoPlayer(
+    videoUrl: String,
+    modifier: Modifier = Modifier,
+    onUserInteraction: () -> Unit = {},
+    onForceExit: () -> Unit = {},
+    onCompleted: () -> Unit = {}
+) {
     val context = LocalContext.current
+    var hasInteracted by remember { mutableStateOf(false) }
+    var showCompletionPrompt by remember { mutableStateOf(false) }
+    var hasCompleted by remember { mutableStateOf(false) }
+    var maxWatchedPositionMs by remember { mutableStateOf(0L) }
 
     val exoPlayer = remember {
         val httpDataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
@@ -598,11 +618,72 @@ private fun StudentVideoPlayer(videoUrl: String, modifier: Modifier = Modifier) 
                 try {
                     val mediaItem = MediaItem.fromUri(Uri.parse(videoUrl))
                     setMediaItem(mediaItem)
+
+                    addListener(object : Player.Listener {
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            if (isPlaying && !hasInteracted) {
+                                hasInteracted = true
+                                onUserInteraction()
+                            }
+                        }
+
+                        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                            if (playWhenReady && !hasInteracted) {
+                                hasInteracted = true
+                                onUserInteraction()
+                            }
+                        }
+                    })
+
                     prepare()
                 } catch (e: Exception) {
                     android.util.Log.e("StudentVideoPlayer", "Error initializing video: ${e.message}", e)
                 }
             }
+    }
+
+    LaunchedEffect(videoUrl) {
+        val timeoutMillis = 30_000L
+        delay(timeoutMillis)
+        if (!hasInteracted) {
+            onForceExit()
+        }
+    }
+
+    LaunchedEffect(videoUrl, hasInteracted) {
+        if (!hasInteracted) return@LaunchedEffect
+
+        val completionThreshold = 0.8f
+        val seekLeewayMs = 10_000L
+
+        while (true) {
+            val duration = exoPlayer.duration
+            val position = exoPlayer.currentPosition
+
+            if (duration > 0 && position >= 0) {
+                if (exoPlayer.isPlaying && position > maxWatchedPositionMs) {
+                    maxWatchedPositionMs = position
+                }
+
+                val maxAllowed = (maxWatchedPositionMs + seekLeewayMs).coerceAtMost(duration)
+                if (position > maxAllowed) {
+                    exoPlayer.seekTo(maxAllowed)
+                }
+
+                if (!hasCompleted) {
+                    val progress = if (duration > 0) {
+                        maxWatchedPositionMs.toFloat() / duration.toFloat()
+                    } else {
+                        0f
+                    }
+                    if (progress >= completionThreshold && !showCompletionPrompt) {
+                        showCompletionPrompt = true
+                    }
+                }
+            }
+
+            delay(500L)
+        }
     }
 
     DisposableEffect(Unit) {
@@ -611,18 +692,58 @@ private fun StudentVideoPlayer(videoUrl: String, modifier: Modifier = Modifier) 
         }
     }
 
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
+    Box(modifier = modifier) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = exoPlayer
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            modifier = Modifier.matchParentSize()
+        )
+
+        if (showCompletionPrompt) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(16.dp),
+                tonalElevation = 4.dp,
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Bạn đã xem gần hết video",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Bấm \"Xác nhận đã xem\" để tiếp tục học",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Button(
+                        onClick = {
+                            if (!hasCompleted) {
+                                hasCompleted = true
+                                showCompletionPrompt = false
+                                onCompleted()
+                            }
+                        }
+                    ) {
+                        Text("Xác nhận đã xem")
+                    }
+                }
             }
-        },
-        modifier = modifier
-    )
+        }
+    }
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)

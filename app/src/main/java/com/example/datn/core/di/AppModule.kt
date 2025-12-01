@@ -92,6 +92,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.minio.MinioClient
+import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
 @Module
@@ -119,13 +120,16 @@ object AppModule {
     @Provides
     @Singleton
     fun provideMinioClient(): MinioClient {
-        val endpoint = BuildConfig.MINIO_ENDPOINT
-        val accessKey = BuildConfig.MINIO_ACCESS_KEY
-        val secretKey = BuildConfig.MINIO_SECRET_KEY
+        val endpoint = BuildConfig.MINIO_ENDPOINT.trim()
+        val accessKey = BuildConfig.MINIO_ACCESS_KEY.trim()
+        val secretKey = BuildConfig.MINIO_SECRET_KEY.trim()
+        val okHttpClient = OkHttpClient.Builder()
+            .build()
 
         return MinioClient.builder()
             .endpoint(endpoint)
             .credentials(accessKey, secretKey)
+            .httpClient(okHttpClient)
             .build()
     }
 

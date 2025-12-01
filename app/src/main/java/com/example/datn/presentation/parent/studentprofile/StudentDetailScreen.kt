@@ -88,6 +88,10 @@ fun StudentDetailScreen(
                         dashboard = state.dashboard,
                         studyTime = state.studyTime,
                         lessonProgressItems = state.lessonProgressItems,
+                        isResettingPassword = state.isResettingPassword,
+                        resetPasswordSuccess = state.resetPasswordSuccess,
+                        resetPasswordError = state.resetPasswordError,
+                        onResetPasswordClick = { viewModel.resetStudentPassword() },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -102,6 +106,10 @@ fun StudentDetailContent(
     dashboard: StudentDashboard?,
     studyTime: StudyTimeStatistics?,
     lessonProgressItems: List<StudentLessonProgressItem>,
+    isResettingPassword: Boolean,
+    resetPasswordSuccess: String?,
+    resetPasswordError: String?,
+    onResetPasswordClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -191,6 +199,45 @@ fun StudentDetailContent(
                 "Ngày liên kết",
                 studentInfo.parentStudent.linkedAt.formatAsDateTime()
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onResetPasswordClick,
+                    enabled = !isResettingPassword,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isResettingPassword) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(18.dp)
+                                .padding(end = 8.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    Text("Gửi email đổi mật khẩu cho học sinh")
+                }
+
+                resetPasswordSuccess?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                resetPasswordError?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
 
         fun formatDuration(seconds: Long): String {

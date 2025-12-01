@@ -180,6 +180,8 @@ class LessonContentManagerViewModel @Inject constructor(
                     }
                     is Resource.Error -> {
                         setState { copy(isLoading = false) }
+                        // Nếu upload/add thất bại, reset file selection để tránh dùng lại stream đã đóng
+                        resetFileSelection()
                         showNotification(result.message ?: "Thêm nội dung thất bại", NotificationType.ERROR)
                     }
                 }
@@ -230,6 +232,8 @@ class LessonContentManagerViewModel @Inject constructor(
                     }
                     is Resource.Error -> {
                         setState { copy(isLoading = false) }
+                        // Nếu update thất bại, cũng reset file selection để tránh stream cũ
+                        resetFileSelection()
                         showNotification(result.message ?: "Cập nhật nội dung thất bại", NotificationType.ERROR)
                     }
                 }

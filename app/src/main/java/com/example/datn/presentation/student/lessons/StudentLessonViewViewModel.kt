@@ -147,17 +147,19 @@ class StudentLessonViewViewModel @Inject constructor(
                             loadExistingProgressForLesson(studentId, lessonId)
                         }
 
-                        // If a specific contentId is requested (detail route), navigate to it,
-                        // otherwise default to marking the first/selected content as viewed.
+                        // If a specific contentId is requested (detail route), navigate to it first
                         if (!initialContentId.isNullOrBlank()) {
                             navigateToContentById(initialContentId)
-                            markCurrentContentAsViewed()
-                        } else {
-                            // Mark the current content as viewed so progress can be calculated correctly
-                            markCurrentContentAsViewed()
                         }
 
-                        saveProgress()
+                        // Automatically mark content as viewed + save progress ONLY for non-video contents.
+                        // Video contents will be marked as viewed explicitly from the UI after the student
+                        // has watched enough (≥80%) and confirmed in the player overlay.
+                        val currentContent = state.value.currentContent
+                        if (currentContent != null && currentContent.contentType != ContentType.VIDEO) {
+                            markCurrentContentAsViewed()
+                            saveProgress()
+                        }
 
                         startAutoSave()
                     }
@@ -306,7 +308,11 @@ class StudentLessonViewViewModel @Inject constructor(
             setState {
                 copy(
                     currentContentIndex = newIndex,
-                    viewedContentIds = viewedContentIds + targetContent.id
+                    viewedContentIds = if (targetContent.contentType != ContentType.VIDEO) {
+                        viewedContentIds + targetContent.id
+                    } else {
+                        viewedContentIds
+                    }
                 )
             }
         }
@@ -320,7 +326,11 @@ class StudentLessonViewViewModel @Inject constructor(
             setState {
                 copy(
                     currentContentIndex = newIndex,
-                    viewedContentIds = viewedContentIds + targetContent.id
+                    viewedContentIds = if (targetContent.contentType != ContentType.VIDEO) {
+                        viewedContentIds + targetContent.id
+                    } else {
+                        viewedContentIds
+                    }
                 )
             }
         }
@@ -336,7 +346,11 @@ class StudentLessonViewViewModel @Inject constructor(
         setState {
             copy(
                 currentContentIndex = index,
-                viewedContentIds = viewedContentIds + targetContent.id
+                viewedContentIds = if (targetContent.contentType != ContentType.VIDEO) {
+                    viewedContentIds + targetContent.id
+                } else {
+                    viewedContentIds
+                }
             )
         }
     }
@@ -357,7 +371,11 @@ class StudentLessonViewViewModel @Inject constructor(
         setState {
             copy(
                 currentContentIndex = index,
-                viewedContentIds = viewedContentIds + targetContent.id
+                viewedContentIds = if (targetContent.contentType != ContentType.VIDEO) {
+                    viewedContentIds + targetContent.id
+                } else {
+                    viewedContentIds
+                }
             )
         }
     }

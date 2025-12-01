@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">0p5dwwbg-9000.asse.devtunnels.ms</domain>
-        <domain includeSubdomains="true">0p5dwwbg-9001.asse.devtunnels.ms</domain>
-    </domain-config>
 
-    <!-- Cho phép localhost và truy cập nội bộ -->
-    <domain-config cleartextTrafficPermitted="true">
+        <!-- IP LAN MinIO -->
+        <domain includeSubdomains="true">192.168.10.163</domain>
+
+        <!-- Localhost cho dev -->
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
+
+        <!-- Dev Tunnel -->
+        <domain includeSubdomains="true">asse.devtunnels.ms</domain>
+
     </domain-config>
 </network-security-config>

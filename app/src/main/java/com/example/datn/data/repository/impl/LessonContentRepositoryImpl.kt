@@ -85,27 +85,31 @@ class LessonContentRepositoryImpl @Inject constructor(
         try {
             var contentToUpload = content
 
-            if (fileStream != null) {
-                val extension = when (content.contentType.name.lowercase()) {
-                    "image" -> ".jpg"
-                    "video" -> ".mp4"
-                    "audio" -> ".mp3"
-                    "pdf" -> ".pdf"
-                    else -> ""
+            if (fileStream != null && fileSize > 0) {
+                // 🔹 Xác định extension và MIME type
+                val (extension, mimeType) = when (content.contentType.name.lowercase()) {
+                    "image" -> ".jpg" to "image/jpeg"
+                    "video" -> ".mp4" to "video/mp4"
+                    "audio" -> ".mp3" to "audio/mpeg"
+                    "pdf" -> ".pdf" to "application/pdf"
+                    else -> "" to "application/octet-stream"
                 }
 
                 val objectName = "lessons/${content.lessonId}/content_${System.currentTimeMillis()}$extension"
 
-                val uploadResult = minIOUseCase.uploadFile(
+                minIOUseCase.uploadFile(
                     objectName,
                     fileStream,
                     fileSize,
-                    content.contentType.name.lowercase()
+                    mimeType
                 )
                 Log.i(TAG, "✅ Uploaded file to MinIO: $objectName")
+
+                // 🔹 Cập nhật đường dẫn file trong content
                 contentToUpload = contentToUpload.copy(content = objectName)
             }
 
+            // 🔹 Thêm vào Firebase
             val added = firebaseDataSource.addLessonContent(contentToUpload, null, 0)
             when (added) {
                 is Resource.Success -> {
@@ -130,42 +134,35 @@ class LessonContentRepositoryImpl @Inject constructor(
     override fun updateContent(
         contentId: String,
         content: LessonContent,
-        newFileStream: InputStream?,
+        newFileStream: InputStream? ,
         newFileSize: Long
     ): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
-            // 🔹 Lấy bản ghi cũ từ local DB
             val oldContent = lessonContentDao.getContentById(contentId)?.toDomain()
-
-            // 🔹 Nếu không tồn tại thì báo lỗi
             if (oldContent == null) {
                 emit(Resource.Error("Không tìm thấy nội dung cũ để cập nhật"))
                 return@flow
             }
 
-            var updatedContent = content.copy(
-                createdAt = oldContent.createdAt
-            )
+            var updatedContent = content.copy(createdAt = oldContent.createdAt)
 
-            // 🔹 Nếu có file mới thì upload lên MinIO
-            if (newFileStream != null) {
-                val extension = when (content.contentType.name.lowercase()) {
-                    "image" -> ".jpg"
-                    "video" -> ".mp4"
-                    "audio" -> ".mp3"
-                    "pdf" -> ".pdf"
-                    else -> ""
+            if (newFileStream != null && newFileSize > 0) {
+                val (extension, mimeType) = when (content.contentType.name.lowercase()) {
+                    "image" -> ".jpg" to "image/jpeg"
+                    "video" -> ".mp4" to "video/mp4"
+                    "audio" -> ".mp3" to "audio/mpeg"
+                    "pdf" -> ".pdf" to "application/pdf"
+                    else -> "" to "application/octet-stream"
                 }
 
-                val newObject =
-                    "lessons/${content.lessonId}/content_${System.currentTimeMillis()}$extension"
+                val newObject = "lessons/${content.lessonId}/content_${System.currentTimeMillis()}$extension"
 
                 minIOUseCase.uploadFile(
                     newObject,
                     newFileStream,
                     newFileSize,
-                    content.contentType.name.lowercase()
+                    mimeType
                 )
                 Log.i(TAG, "✅ Uploaded new file to MinIO: $newObject")
 
@@ -179,27 +176,17 @@ class LessonContentRepositoryImpl @Inject constructor(
                     }
                 }
 
-                // 🔹 Cập nhật lại đường dẫn file
                 updatedContent = updatedContent.copy(content = newObject)
             }
 
-            // 🔹 Cập nhật Firestore
-            val result = firebaseDataSource.updateLessonContent(
-                contentId,
-                updatedContent,
-                null,
-                0
-            )
-
+            val result = firebaseDataSource.updateLessonContent(contentId, updatedContent, null, 0)
             when (result) {
                 is Resource.Success -> {
                     if (result.data) {
-                        // 🔹 Cập nhật local DB
                         lessonContentDao.update(updatedContent.toEntity())
                         emit(Resource.Success(true))
                     } else emit(Resource.Error("Cập nhật thất bại"))
                 }
-
                 is Resource.Error -> emit(Resource.Error(result.message))
                 else -> {}
             }
@@ -211,6 +198,7 @@ class LessonContentRepositoryImpl @Inject constructor(
             newFileStream?.close()
         }
     }
+
 
 
     // 🔴 DELETE CONTENT + MinIO
