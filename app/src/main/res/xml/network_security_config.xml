@@ -3,7 +3,7 @@
     <domain-config cleartextTrafficPermitted="true">
 
         <!-- IP LAN MinIO -->
-        <domain includeSubdomains="true">192.168.10.163</domain>
+        <domain includeSubdomains="true">192.168.10.48</domain>
 
         <!-- Localhost cho dev -->
         <domain includeSubdomains="true">localhost</domain>

@@ -56,6 +56,13 @@ fun StudentLessonViewScreen(
         )
     }
 
+    // Handle auto-exit when inactivity limit reached
+    LaunchedEffect(state.shouldAutoExitLesson) {
+        if (state.shouldAutoExitLesson) {
+            onNavigateBack()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -105,6 +112,30 @@ fun StudentLessonViewScreen(
             )
         }
     ) { padding ->
+        // Inactivity warning dialog
+        if (state.showInactivityWarning) {
+            InactivityWarningDialog(
+                warningCount = state.inactivityWarningCount,
+                maxWarnings = 3,
+                isMaxWarning = state.inactivityWarningCount >= 3,
+                onContinue = {
+                    viewModel.onEvent(StudentLessonViewEvent.ContinueLesson)
+                },
+                onExit = {
+                    viewModel.onEvent(StudentLessonViewEvent.ExitLessonWithoutSaving)
+                }
+            )
+            
+            // Auto-continue if warning is not max warning (only for testing/debugging)
+            // Remove this LaunchedEffect in production
+            // LaunchedEffect(state.showInactivityWarning) {
+            //     delay(3000)  // 3 seconds
+            //     if (state.showInactivityWarning && state.inactivityWarningCount < 3) {
+            //         viewModel.onEvent(StudentLessonViewEvent.ContinueLesson)
+            //     }
+            // }
+        }
+
         if (state.showProgressDialog) {
             val totalContents = state.lessonContents.size
             val viewedContents = state.viewedContentIds.size.coerceAtMost(totalContents)
@@ -252,11 +283,14 @@ fun StudentLessonViewScreen(
                                 content = currentContent,
                                 resolvedContent = resolvedUrl,
                                 onOpenContent = {
+                                    // Record interaction for inactivity tracking
+                                    viewModel.onEvent(StudentLessonViewEvent.RecordInteraction("CLICK"))
                                     // chỉ cập nhật tracking, viewer hiển thị trực tiếp trong card
                                     viewModel.onEvent(StudentLessonViewEvent.MarkCurrentAsViewed)
                                     viewModel.onEvent(StudentLessonViewEvent.SaveProgress)
                                 },
                                 onPlayGame = if (isMiniGame) { gameId ->
+                                    viewModel.onEvent(StudentLessonViewEvent.RecordInteraction("CLICK"))
                                     viewModel.onEvent(StudentLessonViewEvent.MarkCurrentAsViewed)
                                     viewModel.onEvent(StudentLessonViewEvent.SaveProgress)
                                     android.util.Log.d(
@@ -269,7 +303,11 @@ fun StudentLessonViewScreen(
                                 } else { _ -> },
                                 onVideoForceExit = {
                                     onNavigateBack()
-                                }
+                                },
+                                onRecordInteraction = {
+                                    viewModel.onEvent(StudentLessonViewEvent.RecordInteraction("CLICK"))
+                                },
+                                shouldPauseMedia = state.showInactivityWarning
                             )
                         }
                     }
@@ -463,7 +501,9 @@ private fun LessonContentCard(
     resolvedContent: String? = null,
     onOpenContent: () -> Unit = {},
     onPlayGame: (String) -> Unit = {},
-    onVideoForceExit: () -> Unit = {}
+    onVideoForceExit: () -> Unit = {},
+    onRecordInteraction: () -> Unit = {},
+    shouldPauseMedia: Boolean = false
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -496,7 +536,10 @@ private fun LessonContentCard(
                 ContentType.TEXT -> {
                     Text(
                         text = content.content,
-                        modifier = Modifier.clickable { onOpenContent() },
+                        modifier = Modifier.clickable { 
+                            onRecordInteraction()
+                            onOpenContent() 
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -505,31 +548,37 @@ private fun LessonContentCard(
                     VideoContentView(
                         content = resolvedContent ?: content.content,
                         onClick = onOpenContent,
-                        onForceExit = onVideoForceExit
+                        onForceExit = onVideoForceExit,
+                        onRecordInteraction = onRecordInteraction,
+                        shouldPause = shouldPauseMedia
                     )
                 }
                 ContentType.AUDIO -> {
                     AudioContentView(
                         content = resolvedContent ?: content.content,
-                        onClick = onOpenContent
+                        onClick = onOpenContent,
+                        onRecordInteraction = onRecordInteraction
                     )
                 }
                 ContentType.IMAGE -> {
                     ImageContentView(
                         content = resolvedContent ?: content.content,
-                        onClick = onOpenContent
+                        onClick = onOpenContent,
+                        onRecordInteraction = onRecordInteraction
                     )
                 }
                 ContentType.PDF -> {
                     PdfContentView(
                         content = resolvedContent ?: content.content,
-                        onClick = onOpenContent
+                        onClick = onOpenContent,
+                        onRecordInteraction = onRecordInteraction
                     )
                 }
                 ContentType.MINIGAME -> {
                     MinigameContentView(
                         content = content.content,
-                        onPlayGame = onPlayGame
+                        onPlayGame = onPlayGame,
+                        onRecordInteraction = onRecordInteraction
                     )
                 }
             }
@@ -576,16 +625,19 @@ private fun ContentTypeBadge(contentType: ContentType) {
 private fun VideoContentView(
     content: String,
     onClick: () -> Unit = {},
-    onForceExit: () -> Unit = {}
+    onForceExit: () -> Unit = {},
+    onRecordInteraction: () -> Unit = {},
+    shouldPause: Boolean = false
 ) {
     StudentVideoPlayer(
         videoUrl = content,
         modifier = Modifier
             .fillMaxWidth()
             .height(230.dp),
-        onUserInteraction = {},
+        onUserInteraction = onRecordInteraction,
         onForceExit = onForceExit,
-        onCompleted = onClick
+        onCompleted = onClick,
+        shouldPause = shouldPause
     )
 }
 
@@ -596,7 +648,8 @@ private fun StudentVideoPlayer(
     modifier: Modifier = Modifier,
     onUserInteraction: () -> Unit = {},
     onForceExit: () -> Unit = {},
-    onCompleted: () -> Unit = {}
+    onCompleted: () -> Unit = {},
+    shouldPause: Boolean = false
 ) {
     val context = LocalContext.current
     var hasInteracted by remember { mutableStateOf(false) }
@@ -647,6 +700,17 @@ private fun StudentVideoPlayer(
         delay(timeoutMillis)
         if (!hasInteracted) {
             onForceExit()
+        }
+    }
+
+    // Pause/Resume video when inactivity warning appears
+    LaunchedEffect(shouldPause) {
+        if (shouldPause) {
+            exoPlayer.pause()
+            android.util.Log.d("StudentVideoPlayer", "Video paused due to inactivity warning")
+        } else {
+            exoPlayer.play()
+            android.util.Log.d("StudentVideoPlayer", "Video resumed after inactivity warning dismissed")
         }
     }
 
@@ -751,7 +815,8 @@ private fun StudentVideoPlayer(
 private fun StudentAudioPlayer(
     audioUrl: String,
     title: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onUserInteraction: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -769,6 +834,15 @@ private fun StudentAudioPlayer(
                 try {
                     val mediaItem = MediaItem.fromUri(Uri.parse(audioUrl))
                     setMediaItem(mediaItem)
+                    
+                    addListener(object : Player.Listener {
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            if (isPlaying) {
+                                onUserInteraction()
+                            }
+                        }
+                    })
+                    
                     prepare()
                 } catch (e: Exception) {
                     android.util.Log.e("StudentAudioPlayer", "Error initializing audio: ${e.message}", e)
@@ -806,7 +880,8 @@ private fun StudentAudioPlayer(
 @Composable
 private fun AudioContentView(
     content: String,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onRecordInteraction: () -> Unit = {}
 ) {
     // Sử dụng ExoPlayer giống Teacher để phát audio ngay trong app
     StudentAudioPlayer(
@@ -814,19 +889,22 @@ private fun AudioContentView(
         title = "File âm thanh",
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp)
+            .padding(top = 8.dp),
+        onUserInteraction = onRecordInteraction
     )
 }
 
 @Composable
 private fun ImageContentView(
     content: String,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onRecordInteraction: () -> Unit = {}
 ) {
     // Hiển thị hình ảnh trực tiếp giống Teacher (AsyncImage)
     Card(
         modifier = Modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .clickable { onRecordInteraction() },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -845,13 +923,15 @@ private fun ImageContentView(
 @Composable
 private fun PdfContentView(
     content: String,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onRecordInteraction: () -> Unit = {}
 ) {
     // Embed PDF viewer giống Teacher (sử dụng WebView + Google Docs Viewer)
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(400.dp),
+            .height(400.dp)
+            .clickable { onRecordInteraction() },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer
         )
@@ -878,12 +958,16 @@ private fun PdfContentView(
 @Composable
 private fun MinigameContentView(
     content: String,
-    onPlayGame: (String) -> Unit = {}
+    onPlayGame: (String) -> Unit = {},
+    onRecordInteraction: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onPlayGame(content) },
+            .clickable { 
+                onRecordInteraction()
+                onPlayGame(content) 
+            },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer
         )
@@ -916,4 +1000,115 @@ private fun MinigameContentView(
             }
         }
     }
+}
+
+@Composable
+private fun InactivityWarningDialog(
+    warningCount: Int,
+    maxWarnings: Int = 3,
+    isMaxWarning: Boolean = false,
+    onContinue: () -> Unit = {},
+    onExit: () -> Unit = {}
+) {
+    AlertDialog(
+        onDismissRequest = { },
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(48.dp)
+            )
+        },
+        title = {
+            Text(
+                text = "Bạn vẫn đang học chứ?",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (isMaxWarning) {
+                    // 3rd warning - final message
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text(
+                            text = "Bạn đã không tương tác quá lâu. Tiến trình học tập sẽ không được lưu.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                } else {
+                    // 1st or 2nd warning
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text(
+                            text = "Hãy tương tác để tiếp tục! Nếu không có tương tác, bài học sẽ bị thoát.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+                
+                // Warning count display
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Cảnh báo: $warningCount/$maxWarnings",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onContinue,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Tôi đang học")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onExit,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Thoát")
+            }
+        }
+    )
 }
