@@ -44,17 +44,26 @@ class ProgressRepositoryImpl @Inject constructor(
         try {
             // Sử dụng REPLACE insert để upsert tiến độ bài học vào Room
             studentLessonProgressDao.insert(progress.toEntity())
+            android.util.Log.d("ProgressRepositoryImpl", "✅ Saved to Room: student_lesson_progress")
+            android.util.Log.d("ProgressRepositoryImpl", "   - Student ID: ${progress.studentId}")
+            android.util.Log.d("ProgressRepositoryImpl", "   - Lesson ID: ${progress.lessonId}")
+            android.util.Log.d("ProgressRepositoryImpl", "   - Progress: ${progress.progressPercentage}%")
 
             // Đồng bộ thêm lên Firestore
             val map = internalToFirestoreMap(progress, StudentLessonProgress::class.java)
+            android.util.Log.d("ProgressRepositoryImpl", "📤 Uploading to Firestore: student_lesson_progress")
             firestore.collection("student_lesson_progress")
                 .document(progress.id)
                 .set(map)
                 .await()
+            android.util.Log.d("ProgressRepositoryImpl", "✅ Created/Updated Firestore collection: student_lesson_progress")
+            android.util.Log.d("ProgressRepositoryImpl", "   - Document ID: ${progress.id}")
+            android.util.Log.d("ProgressRepositoryImpl", "   - Collection path: student_lesson_progress/${progress.id}")
 
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            android.util.Log.e("ProgressRepositoryImpl", "❌ Error updating lesson progress: ${e.message}", e)
             emit(Resource.Error(e.message ?: "Lỗi cập nhật tiến độ bài học"))
         }
     }
@@ -94,14 +103,22 @@ class ProgressRepositoryImpl @Inject constructor(
 
             // Đồng bộ thêm thống kê thời gian học lên Firestore
             val map = internalToFirestoreMap(resultDomain, DailyStudyTime::class.java)
+            android.util.Log.d("ProgressRepositoryImpl", "📤 Uploading to Firestore: student_daily_study_time")
+            android.util.Log.d("ProgressRepositoryImpl", "   - Student ID: ${resultDomain.studentId}")
+            android.util.Log.d("ProgressRepositoryImpl", "   - Date: ${resultDomain.date}")
+            android.util.Log.d("ProgressRepositoryImpl", "   - Duration: ${resultDomain.durationSeconds}s")
             firestore.collection("student_daily_study_time")
                 .document(resultDomain.id)
                 .set(map)
                 .await()
+            android.util.Log.d("ProgressRepositoryImpl", "✅ Created/Updated Firestore collection: student_daily_study_time")
+            android.util.Log.d("ProgressRepositoryImpl", "   - Document ID: ${resultDomain.id}")
+            android.util.Log.d("ProgressRepositoryImpl", "   - Collection path: student_daily_study_time/${resultDomain.id}")
 
             emit(Resource.Success(resultDomain))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            android.util.Log.e("ProgressRepositoryImpl", "❌ Error logging daily study time: ${e.message}", e)
             emit(Resource.Error(e.message ?: "Lỗi ghi lại thời gian học"))
         }
     }

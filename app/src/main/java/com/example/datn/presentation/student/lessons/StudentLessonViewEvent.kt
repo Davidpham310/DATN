@@ -444,4 +444,75 @@ sealed class StudentLessonViewEvent : BaseEvent {
      * Shows confirmation dialog if unsaved changes
      */
     object ForceExit : StudentLessonViewEvent()
+
+    // ========== CONTENT VIEW TRACKING (Theo dõi nội dung TEXT/IMAGE/PDF) ==========
+
+    /**
+     * Bắt đầu xem nội dung (TEXT, IMAGE, PDF)
+     * Ghi nhận thời gian bắt đầu để tính thời gian xem
+     */
+    data class StartContentView(
+        val contentId: String,
+        val contentType: String
+    ) : StudentLessonViewEvent()
+
+    /**
+     * Cập nhật thời gian xem nội dung
+     * @param contentId ID của nội dung
+     * @param elapsedSeconds Thời gian đã xem (giây)
+     * @param contentType Loại nội dung (TEXT, IMAGE)
+     */
+    data class UpdateContentViewTime(
+        val contentId: String,
+        val elapsedSeconds: Long,
+        val contentType: String
+    ) : StudentLessonViewEvent()
+
+    /**
+     * Cập nhật tiến độ cuộn PDF
+     * @param contentId ID của PDF
+     * @param scrollPercentage Phần trăm đã cuộn (0-100)
+     */
+    data class UpdatePdfScrollProgress(
+        val contentId: String,
+        val scrollPercentage: Int
+    ) : StudentLessonViewEvent()
+
+    /**
+     * Cập nhật vị trí phát video
+     * @param contentId ID của video
+     * @param currentPositionMs Vị trí hiện tại (ms)
+     * @param durationMs Tổng thời lượng (ms)
+     */
+    data class UpdateVideoPosition(
+        val contentId: String,
+        val currentPositionMs: Long,
+        val durationMs: Long
+    ) : StudentLessonViewEvent()
+
+    /**
+     * Cập nhật vị trí phát audio
+     * @param contentId ID của audio
+     * @param currentPositionMs Vị trí hiện tại (ms)
+     * @param durationMs Tổng thời lượng (ms)
+     */
+    data class UpdateAudioPosition(
+        val contentId: String,
+        val currentPositionMs: Long,
+        val durationMs: Long
+    ) : StudentLessonViewEvent()
+
+    /**
+     * Lấy thông tin quy tắc hoàn thành của nội dung
+     */
+    data class GetCompletionRule(
+        val contentType: String
+    ) : StudentLessonViewEvent()
+
+    /**
+     * Kiểm tra nội dung có hoàn thành không
+     */
+    data class CheckContentCompletion(
+        val contentId: String
+    ) : StudentLessonViewEvent()
 }
