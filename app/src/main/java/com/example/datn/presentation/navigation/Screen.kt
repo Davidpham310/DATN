@@ -320,4 +320,12 @@ sealed class Screen(val route: String) {
         val routeWithArgs: String =
             "student/minigame_list/{lessonId}/{lessonTitle}"
     }
+
+    // Common Profile Edit Screen
+    object EditProfile : Screen("edit_profile/{userId}/{role}") {
+        fun createRoute(userId: String, role: String): String =
+            "edit_profile/$userId/$role"
+
+        val routeWithArgs: String = "edit_profile/{userId}/{role}"
+    }
 }

@@ -3,22 +3,32 @@ package com.example.datn.data.repository.impl
 
 import android.util.Log
 import com.example.datn.core.network.datasource.FirebaseAuthDataSource
+import com.example.datn.core.network.service.parent.ParentProfileService
+import com.example.datn.core.network.service.student.StudentService
+import com.example.datn.core.network.service.teacher.TeacherService
 import com.example.datn.core.utils.Resource
 import com.example.datn.core.utils.firebase.FirebaseErrorMapper
 import com.example.datn.data.local.dao.UserDao
 import com.example.datn.data.mapper.toDomain
 import com.example.datn.data.mapper.toEntity
+import com.example.datn.domain.models.Parent
+import com.example.datn.domain.models.Student
+import com.example.datn.domain.models.Teacher
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.UserRole
 import com.example.datn.domain.repository.IAuthRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import java.time.Instant
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuthDataSource: FirebaseAuthDataSource,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val studentService: StudentService,
+    private val teacherService: TeacherService,
+    private val parentProfileService: ParentProfileService
 ) : IAuthRepository {
 
     override fun login(
@@ -54,6 +64,51 @@ class AuthRepositoryImpl @Inject constructor(
         )
         val userWithId = user.copy(id = userId)
         userDao.insert(userWithId.toEntity())
+
+        // Tạo collection tương ứng với vai trò người dùng
+        try {
+            when (user.role) {
+                UserRole.STUDENT -> {
+                    val student = Student(
+                        id = userId,
+                        userId = userId,
+                        dateOfBirth = java.time.LocalDate.now(),
+                        gradeLevel = "",
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now()
+                    )
+                    studentService.add(userId, student)
+                    Log.d("AuthRepositoryImpl", "Student profile created for user: $userId")
+                }
+                UserRole.TEACHER -> {
+                    val teacher = Teacher(
+                        id = userId,
+                        userId = userId,
+                        specialization = "",
+                        level = "",
+                        experienceYears = 0,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now()
+                    )
+                    teacherService.add(userId, teacher)
+                    Log.d("AuthRepositoryImpl", "Teacher profile created for user: $userId")
+                }
+                UserRole.PARENT -> {
+                    val parent = Parent(
+                        id = userId,
+                        userId = userId,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now()
+                    )
+                    parentProfileService.add(userId, parent)
+                    Log.d("AuthRepositoryImpl", "Parent profile created for user: $userId")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepositoryImpl", "Error creating profile for user: $userId", e)
+            // Không emit error vì user đã được tạo thành công, chỉ log warning
+        }
+
         // Đăng xuất sau khi tạo tài khoản thành công
         firebaseAuthDataSource.signOut()
         emit(Resource.Success(userWithId))

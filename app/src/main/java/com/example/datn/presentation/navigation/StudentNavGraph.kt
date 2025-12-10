@@ -32,6 +32,7 @@ import com.example.datn.presentation.student.tests.StudentTestResultScreen
 import com.example.datn.presentation.student.games.MiniGameResultScreen
 import com.example.datn.presentation.student.games.MiniGamePlayScreen
 import com.example.datn.presentation.student.games.MiniGameListScreen
+import com.example.datn.presentation.common.profile.EditProfileScreen
 
 @Composable
 fun StudentNavGraph(
@@ -160,6 +161,9 @@ fun StudentNavGraph(
                 onNavigateToLogin = onNavigateToLogin,
                 onNavigateToChangePassword = {
                     navController.navigate(Screen.StudentChangePassword.route)
+                },
+                onNavigateToEditProfile = { userId, role ->
+                    navController.navigate(Screen.EditProfile.createRoute(userId, role))
                 }
             )
         }
@@ -448,6 +452,24 @@ fun StudentNavGraph(
                         Screen.StudentMiniGamePlay.createRoute(gameId, lessonId ?: "")
                     )
                 }
+            )
+        }
+
+        // Edit Profile Screen
+        composable(
+            route = Screen.EditProfile.routeWithArgs,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("role") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+            val role = backStackEntry.arguments?.getString("role") ?: return@composable
+            
+            EditProfileScreen(
+                userId = userId,
+                role = role,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

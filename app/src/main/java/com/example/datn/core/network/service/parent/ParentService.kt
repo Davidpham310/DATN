@@ -8,18 +8,53 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class ParentService @Inject constructor() :
-    BaseFirestoreService<User>(collectionName = "users", clazz = User::class.java) {
+    BaseFirestoreService<Parent>(collectionName = "parents", clazz = Parent::class.java) {
 
-    // Lấy danh sách học sinh của phụ huynh
-    suspend fun getChildrenByParentId(parentId: String): List<User> {
+    // Override getById để tìm theo field 'id' thay vì Firestore document ID
+    override suspend fun getById(id: String): Parent? {
         val snapshot = collectionRef
+            .whereEqualTo("id", id)
+            .limit(1)
+            .get()
+            .await()
+
+        return snapshot.documents.firstOrNull()?.let {
+            try {
+                it.internalToDomain(clazz)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    // Lấy phụ huynh theo user ID
+    suspend fun getParentByUserId(userId: String): Parent? {
+        val snapshot = collectionRef
+            .whereEqualTo("userId", userId)
+            .limit(1)
+            .get()
+            .await()
+
+        return snapshot.documents.firstOrNull()?.let {
+            try {
+                it.internalToDomain(clazz)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    // Lấy danh sách học sinh của phụ huynh (từ users collection)
+    suspend fun getChildrenByParentId(parentId: String): List<User> {
+        val usersRef = firestore.collection("users")
+        val snapshot = usersRef
             .whereEqualTo("parentId", parentId)
             .get()
             .await()
 
         return snapshot.documents.mapNotNull {
             try {
-                it.internalToDomain(clazz)
+                it.internalToDomain(User::class.java)
             } catch (_: Exception) {
                 null
             }

@@ -3,14 +3,13 @@
     <domain-config cleartextTrafficPermitted="true">
 
         <!-- IP LAN MinIO -->
-        <domain includeSubdomains="true">192.168.10.48</domain>
+        <domain includeSubdomains="true">192.168.10.24</domain>
 
         <!-- Localhost cho dev -->
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
 
-        <!-- Dev Tunnel -->
-        <domain includeSubdomains="true">asse.devtunnels.ms</domain>
+
 
     </domain-config>
 </network-security-config>

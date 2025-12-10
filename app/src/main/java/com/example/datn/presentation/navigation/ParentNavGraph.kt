@@ -24,6 +24,7 @@ import com.example.datn.presentation.common.messaging.screens.AddMembersToGroupS
 import com.example.datn.presentation.common.messaging.ConversationListViewModel
 import com.example.datn.presentation.common.messaging.ChatViewModel
 import com.example.datn.presentation.teacher.messaging.SelectRecipientViewModel
+import com.example.datn.presentation.common.profile.EditProfileScreen
 
 @Composable
 fun ParentNavGraph(
@@ -214,6 +215,9 @@ fun ParentNavGraph(
                 onNavigateToLogin = onNavigateToLogin,
                 onNavigateToChangePassword = {
                     navController.navigate(Screen.ParentChangePassword.route)
+                },
+                onNavigateToEditProfile = { userId, role ->
+                    navController.navigate(Screen.EditProfile.createRoute(userId, role))
                 }
             )
         }
@@ -256,6 +260,24 @@ fun ParentNavGraph(
             StudentDetailScreen(
                 studentId = studentId,
                 studentName = studentName,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Edit Profile Screen
+        composable(
+            route = Screen.EditProfile.routeWithArgs,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("role") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+            val role = backStackEntry.arguments?.getString("role") ?: return@composable
+            
+            EditProfileScreen(
+                userId = userId,
+                role = role,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 
 data class CreateStudentAccountParams(
-    val parentId: String,
+    val parentId: String,  // Parent's id from parents collection (not userId)
     val email: String,
     val password: String,
     val name: String,
@@ -84,6 +84,7 @@ class CreateStudentAccountForParentUseCase @Inject constructor(
             studentService.add(studentId, student)
 
             // 3. Liên kết phụ huynh với học sinh
+            // parentId là ID từ collection parents (không phải userId)
             firebaseDataSource.linkParentToStudent(
                 studentId = studentId,
                 parentId = params.parentId,

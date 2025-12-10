@@ -26,6 +26,7 @@ class ParentStudentService @Inject constructor() :
     }
 
     // Lấy danh sách học sinh của phụ huynh
+    // parentId là ID từ collection parents (không phải userId)
     suspend fun getStudentsByParentId(parentId: String): List<ParentStudent> {
         val snapshot = collectionRef
             .whereEqualTo("parentId", parentId)
@@ -58,6 +59,7 @@ class ParentStudentService @Inject constructor() :
     }
 
     // Lấy quan hệ giữa phụ huynh và học sinh
+    // parentId là ID từ collection parents (không phải userId)
     suspend fun getRelationship(parentId: String, studentId: String): ParentStudent? {
         // 1. Thử theo chuẩn mới: dùng documentId = "parentId_studentId"
         val docId = "${parentId}_${studentId}"
@@ -93,6 +95,7 @@ class ParentStudentService @Inject constructor() :
     }
 
     // Tạo hoặc cập nhật liên kết giữa phụ huynh và học sinh
+    // parentId là ID từ collection parents (không phải userId)
     suspend fun linkParentStudent(
         parentId: String,
         studentId: String,

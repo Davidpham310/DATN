@@ -23,6 +23,7 @@ import com.example.datn.presentation.dialogs.SimpleConfirmationDialog
 fun StudentAccountScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
+    onNavigateToEditProfile: (String, String) -> Unit,
     viewModel: AccountViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -119,6 +120,16 @@ fun StudentAccountScreen(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            AccountOption(
+                icon = Icons.Default.Edit,
+                title = "Chỉnh sửa hồ sơ",
+                onClick = {
+                    state.currentUser?.id?.let { userId ->
+                        onNavigateToEditProfile(userId, "STUDENT")
+                    }
+                }
             )
 
             AccountOption(

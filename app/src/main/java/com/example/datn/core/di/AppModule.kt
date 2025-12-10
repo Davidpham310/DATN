@@ -12,11 +12,14 @@ import com.example.datn.core.network.service.lesson.LessonContentService
 import com.example.datn.core.network.service.lesson.LessonService
 import com.example.datn.core.network.service.mini_game.MiniGameService
 import com.example.datn.core.network.service.parent.ParentStudentService
+import com.example.datn.core.network.service.parent.ParentService
 import com.example.datn.core.network.service.student.StudentService
+import com.example.datn.core.network.service.teacher.TeacherService
 import com.example.datn.core.network.service.test.TestService
 import com.example.datn.core.network.service.minio.MinIOService
 import com.example.datn.core.network.service.user.UserService
 import com.example.datn.core.network.service.notification.FirestoreNotificationService
+import com.example.datn.core.network.service.parent.ParentProfileService
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.ClassDao
@@ -282,8 +285,11 @@ object AppModule {
     @Singleton
     fun provideAuthRepository(
         firebaseAuthDataSource: FirebaseAuthDataSource,
-        userDao: UserDao
-    ): IAuthRepository = AuthRepositoryImpl(firebaseAuthDataSource, userDao)
+        userDao: UserDao,
+        studentService: StudentService,
+        teacherService: TeacherService,
+        parentProfileService: ParentProfileService
+    ): IAuthRepository = AuthRepositoryImpl(firebaseAuthDataSource, userDao, studentService, teacherService, parentProfileService)
 
     @Provides
     @Singleton
