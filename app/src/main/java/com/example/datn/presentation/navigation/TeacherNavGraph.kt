@@ -31,6 +31,7 @@ import com.example.datn.presentation.teacher.test.screens.TestQuestionManagerScr
 import com.example.datn.presentation.teacher.test.screens.TestOptionManagerScreen
 import com.example.datn.presentation.teacher.account.TeacherAccountScreen
 import com.example.datn.presentation.teacher.notification.TeacherNotificationScreen
+import com.example.datn.presentation.teacher.notification.TeacherSendNotificationScreen
 import com.example.datn.presentation.common.messaging.ChatViewModel
 import com.example.datn.presentation.common.messaging.ConversationListViewModel
 import com.example.datn.presentation.common.messaging.screens.ChatScreen
@@ -493,6 +494,12 @@ fun TeacherNavGraph(
         // ==================== NOTIFICATION NAVIGATION ====================
         composable(Screen.TeacherNotification.route) {
             TeacherNotificationScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.TeacherSendNotification.route) {
+            TeacherSendNotificationScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

@@ -1,4 +1,4 @@
-package com.example.datn.core.network.service
+package com.example.datn.core.network.service.firestore
 
 import com.example.datn.core.utils.mapper.internalToDomain
 import com.example.datn.core.utils.mapper.internalToFirestoreMap
@@ -13,10 +13,10 @@ abstract class BaseFirestoreService<T : Any>(
 ) {
     protected val firestore = FirebaseFirestore.getInstance()
     protected val collectionRef = firestore.collection(collectionName)
-    
+
     //Helper để chuyển snapshot → entity
     protected fun DocumentSnapshot.toEntity(): T = internalToDomain(clazz)
-    
+
     //Helper để tạo document ID mới
     protected fun generateDocumentId(): String = collectionRef.document().id
 

@@ -25,6 +25,7 @@ import com.example.datn.presentation.common.messaging.ConversationListViewModel
 import com.example.datn.presentation.common.messaging.ChatViewModel
 import com.example.datn.presentation.teacher.messaging.SelectRecipientViewModel
 import com.example.datn.presentation.common.profile.EditProfileScreen
+import com.example.datn.presentation.parent.notification.ParentNotificationScreen
 
 @Composable
 fun ParentNavGraph(
@@ -218,6 +219,9 @@ fun ParentNavGraph(
                 },
                 onNavigateToEditProfile = { userId, role ->
                     navController.navigate(Screen.EditProfile.createRoute(userId, role))
+                },
+                onNavigateToNotifications = {
+                    navController.navigate(Screen.ParentNotifications.route)
                 }
             )
         }
@@ -278,6 +282,17 @@ fun ParentNavGraph(
             EditProfileScreen(
                 userId = userId,
                 role = role,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Parent Notifications Screen
+        composable(Screen.ParentNotifications.route) {
+            val userId = hiltViewModel<com.example.datn.presentation.common.account.AccountViewModel>()
+                .state.collectAsState().value.currentUser?.id ?: ""
+            
+            ParentNotificationScreen(
+                userId = userId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

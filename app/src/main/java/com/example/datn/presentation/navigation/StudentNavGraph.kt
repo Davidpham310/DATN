@@ -33,6 +33,7 @@ import com.example.datn.presentation.student.games.MiniGameResultScreen
 import com.example.datn.presentation.student.games.MiniGamePlayScreen
 import com.example.datn.presentation.student.games.MiniGameListScreen
 import com.example.datn.presentation.common.profile.EditProfileScreen
+import com.example.datn.presentation.student.notification.StudentNotificationScreen
 
 @Composable
 fun StudentNavGraph(
@@ -164,6 +165,9 @@ fun StudentNavGraph(
                 },
                 onNavigateToEditProfile = { userId, role ->
                     navController.navigate(Screen.EditProfile.createRoute(userId, role))
+                },
+                onNavigateToNotifications = {
+                    navController.navigate(Screen.StudentNotifications.route)
                 }
             )
         }
@@ -469,6 +473,17 @@ fun StudentNavGraph(
             EditProfileScreen(
                 userId = userId,
                 role = role,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Student Notifications Screen
+        composable(Screen.StudentNotifications.route) {
+            val userId = hiltViewModel<com.example.datn.presentation.common.account.AccountViewModel>()
+                .state.collectAsState().value.currentUser?.id ?: ""
+            
+            StudentNotificationScreen(
+                userId = userId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

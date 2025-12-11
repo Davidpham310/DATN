@@ -149,6 +149,7 @@ sealed class Screen(val route: String) {
     object ParentConversations : Screen("parent/conversations")
     object ParentAccount : Screen("parent/account")
     object ParentChangePassword : Screen("parent/change_password")
+    object ParentNotifications : Screen("parent/notifications")
 
     object ParentManageChildren : Screen("parent/manage_children")
     object ParentCreateStudentAccount : Screen("parent/create_student_account")
@@ -205,6 +206,7 @@ sealed class Screen(val route: String) {
     object StudentAccount : Screen("student/account")
     object StudentConversations : Screen("student/conversations")
     object StudentChangePassword : Screen("student/change_password")
+    object StudentNotifications : Screen("student/notifications")
 
     object StudentClassDetail : Screen("student/class_detail/{classId}/{className}") {
         fun createRoute(classId: String, className: String): String =

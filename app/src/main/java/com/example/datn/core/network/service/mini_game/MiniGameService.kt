@@ -1,7 +1,7 @@
 package com.example.datn.core.network.service.mini_game
 
 import android.util.Log
-import com.example.datn.core.network.service.BaseFirestoreService
+import com.example.datn.core.network.service.firestore.BaseFirestoreService
 import com.example.datn.core.utils.mapper.internalToDomain
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.domain.models.MiniGameQuestion

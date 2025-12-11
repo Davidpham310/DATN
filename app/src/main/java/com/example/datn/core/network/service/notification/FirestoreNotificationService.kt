@@ -1,7 +1,7 @@
 package com.example.datn.core.network.service.notification
 
 import android.util.Log
-import com.example.datn.core.network.service.BaseFirestoreService
+import com.example.datn.core.network.service.firestore.BaseFirestoreService
 import com.example.datn.domain.models.Notification
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await

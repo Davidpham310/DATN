@@ -1,6 +1,6 @@
 package com.example.datn.core.network.service.conversation
 
-import com.example.datn.core.network.service.BaseFirestoreService
+import com.example.datn.core.network.service.firestore.BaseFirestoreService
 import com.example.datn.core.utils.mapper.internalToDomain
 import com.example.datn.domain.models.Conversation
 import com.example.datn.domain.models.ConversationType

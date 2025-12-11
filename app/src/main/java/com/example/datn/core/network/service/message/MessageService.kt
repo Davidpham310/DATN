@@ -1,6 +1,6 @@
 package com.example.datn.core.network.service.message
 
-import com.example.datn.core.network.service.BaseFirestoreService
+import com.example.datn.core.network.service.firestore.BaseFirestoreService
 import com.example.datn.core.utils.mapper.internalToDomain
 import com.example.datn.domain.models.Message
 import com.google.firebase.firestore.FieldValue

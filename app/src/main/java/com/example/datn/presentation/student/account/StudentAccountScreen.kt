@@ -26,6 +26,7 @@ fun StudentAccountScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
     onNavigateToEditProfile: (String, String) -> Unit,
+    onNavigateToNotifications: () -> Unit = {},
     viewModel: AccountViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -136,6 +137,12 @@ fun StudentAccountScreen(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            AccountOption(
+                icon = Icons.Default.Notifications,
+                title = "Thông báo",
+                onClick = onNavigateToNotifications
             )
 
             AccountOption(
