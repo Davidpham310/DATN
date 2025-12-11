@@ -11,9 +11,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.example.datn.presentation.common.account.AccountEvent
 import com.example.datn.presentation.common.account.AccountViewModel
 import com.example.datn.presentation.dialogs.SimpleConfirmationDialog
@@ -74,12 +76,26 @@ fun StudentAccountScreen(
                             .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Avatar",
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        if (!state.currentUser?.avatarUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = state.currentUser!!.avatarUrl,
+                                contentDescription = "Avatar",
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop,
+                                onError = {
+                                    // Nếu tải ảnh thất bại, hiển thị icon mặc định
+                                }
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Avatar",
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))

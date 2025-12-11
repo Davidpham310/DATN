@@ -12,6 +12,11 @@ data class EditProfileState(
     override val error: String? = null,
     val isSuccess: Boolean = false,
     
+    // Avatar fields
+    val isUploadingAvatar: Boolean = false,
+    val avatarUploadProgress: Float = 0f,
+    val avatarUrl: String? = null,
+    
     // Student specific
     val student: Student? = null,
     val gradeLevel: String = "",

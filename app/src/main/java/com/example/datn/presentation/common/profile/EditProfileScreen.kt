@@ -1,19 +1,32 @@
 package com.example.datn.presentation.common.profile
 
+import android.content.Context
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.UserRole
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,6 +39,49 @@ fun EditProfileScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
+    var showAvatarDialog by remember { mutableStateOf(false) }
+    var selectedFileName by remember { mutableStateOf<String?>(null) }
+    
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // File Picker Launcher for Avatar
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val contentResolver = context.contentResolver
+                    val inputStream = contentResolver.openInputStream(it)
+                    val fileName = contentResolver.query(it, null, null, null, null)?.use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("_display_name")
+                        cursor.moveToFirst()
+                        cursor.getString(nameIndex)
+                    } ?: "avatar"
+                    val fileSize = contentResolver.query(it, null, null, null, null)?.use { cursor ->
+                        val sizeIndex = cursor.getColumnIndex("_size")
+                        cursor.moveToFirst()
+                        cursor.getLong(sizeIndex)
+                    } ?: 0L
+
+                    if (inputStream != null && fileSize > 0) {
+                        selectedFileName = fileName
+                        viewModel.onEvent(
+                            EditProfileEvent.UploadAvatar(
+                                inputStream = inputStream,
+                                fileName = fileName,
+                                fileSize = fileSize,
+                                contentType = "image/*"
+                            )
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e("AvatarPicker", "Error reading file", e)
+                }
+            }
+        }
+    }
 
     LaunchedEffect(userId, role) {
         viewModel.onEvent(EditProfileEvent.LoadProfile(userId, role))
@@ -79,6 +135,65 @@ fun EditProfileScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Avatar Section
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Avatar",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        // Hiển thị avatar hiện tại hoặc hình ảnh mặc định
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (state.avatarUrl != null) {
+                                AsyncImage(
+                                    model = state.avatarUrl,
+                                    contentDescription = "Avatar hiện tại",
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop,
+                                    onError = {
+                                        // Nếu tải ảnh thất bại, hiển thị icon mặc định
+                                    }
+                                )
+                            } else {
+                                // Hiển thị icon mặc định khi không có URL
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Avatar mặc định",
+                                    modifier = Modifier.size(50.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = { showAvatarDialog = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Cập nhật avatar")
+                        }
+
+
+                    }
+                }
+
                 // Render role-specific fields
                 when (role.uppercase()) {
                     UserRole.STUDENT.name -> StudentProfileFields(state, viewModel, { showDatePicker = true })
@@ -119,6 +234,33 @@ fun EditProfileScreen(
                 showDatePicker = false
             },
             onDismiss = { showDatePicker = false }
+        )
+    }
+
+    // Avatar Picker Dialog
+    if (showAvatarDialog) {
+        AvatarPickerDialog(
+            currentAvatarUrl = state.avatarUrl,
+            isUploading = state.isUploadingAvatar,
+            uploadProgress = state.avatarUploadProgress,
+            selectedFileName = selectedFileName,
+            onDismiss = { showAvatarDialog = false },
+            onSelectFile = {
+                filePickerLauncher.launch("image/*")
+            },
+            onConfirm = {
+                val currentState = state
+                val currentUserId = when {
+                    currentState.student != null -> currentState.student!!.userId
+                    currentState.teacher != null -> currentState.teacher!!.userId
+                    currentState.parent != null -> currentState.parent!!.userId
+                    else -> null
+                }
+                currentUserId?.let {
+                    viewModel.saveAvatarToProfile(it)
+                    showAvatarDialog = false
+                }
+            }
         )
     }
 }

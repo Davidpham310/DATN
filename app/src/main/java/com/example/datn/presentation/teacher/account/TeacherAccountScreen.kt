@@ -1,5 +1,6 @@
 package com.example.datn.presentation.teacher.account
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -11,9 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.example.datn.presentation.common.account.AccountEvent
 import com.example.datn.presentation.common.account.AccountViewModel
 import com.example.datn.presentation.dialogs.SimpleConfirmationDialog
@@ -71,12 +74,32 @@ fun TeacherAccountScreen(
                             .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Avatar",
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Log.d("TeacherAccountScreen", "🔹 Avatar Box - currentUser: ${state.currentUser?.name}")
+                        Log.d("TeacherAccountScreen", "🖼️ Avatar URL: ${state.currentUser?.avatarUrl}")
+                        
+                        if (!state.currentUser?.avatarUrl.isNullOrBlank()) {
+                            Log.d("TeacherAccountScreen", "✅ Avatar URL is valid, displaying image")
+                            Log.d("AvatarUrl", state.currentUser!!.avatarUrl!!)
+                            AsyncImage(
+                                model = state.currentUser!!.avatarUrl,
+                                contentDescription = "Avatar",
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop,
+                                onError = {
+                                    Log.e("TeacherAccountScreen", "❌ Image load error for URL: ${state.currentUser!!.avatarUrl}")
+                                }
+                            )
+                        } else {
+                            Log.d("TeacherAccountScreen", "❌ Avatar URL is null or empty, showing default icon")
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Avatar",
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))

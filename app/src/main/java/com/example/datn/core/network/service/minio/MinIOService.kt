@@ -22,6 +22,23 @@ class MinIOService @Inject constructor(
 
     private val TAG = "MinIO Upload"
 
+    init {
+        // 🔹 Tự động tạo bucket khi service khởi tạo (nếu chưa tồn tại)
+        try {
+            Log.d(TAG, "🔍 Checking if bucket exists: $bucketName")
+            if (!bucketExists()) {
+                Log.d(TAG, "📁 Bucket không tồn tại, đang tạo: $bucketName")
+                createBucket()
+                Log.d(TAG, "✅ Bucket đã được tạo thành công: $bucketName")
+            } else {
+                Log.d(TAG, "✅ Bucket đã tồn tại: $bucketName")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "⚠️ Lỗi khi kiểm tra/tạo bucket: ${e.message}")
+            // Không throw exception, để upload có thể tiếp tục
+        }
+    }
+
     /**
      * 🔹 Upload từ File lớn với progress
      */
@@ -188,6 +205,31 @@ class MinIOService @Inject constructor(
             true
         } catch (e: Exception) {
             false
+        }
+    }
+
+    /**
+     * 🔹 Kiểm tra bucket có tồn tại không
+     */
+    private fun bucketExists(): Boolean {
+        return try {
+            client.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build())
+        } catch (e: Exception) {
+            Log.w(TAG, "⚠️ Lỗi kiểm tra bucket: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * 🔹 Tạo bucket mới
+     */
+    private fun createBucket() {
+        try {
+            client.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build())
+            Log.d(TAG, "✅ Bucket tạo thành công: $bucketName")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Lỗi tạo bucket: ${e.message}")
+            throw e
         }
     }
 }
