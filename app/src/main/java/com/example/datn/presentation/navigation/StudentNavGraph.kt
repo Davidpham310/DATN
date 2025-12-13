@@ -10,15 +10,16 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.datn.presentation.student.account.StudentAccountScreen
-import com.example.datn.presentation.student.classmanager.JoinClassScreen
-import com.example.datn.presentation.student.classmanager.MyClassesScreen
-import com.example.datn.presentation.student.home.StudentHomeScreen
-import com.example.datn.presentation.student.lessons.StudentClassDetailScreen
-import com.example.datn.presentation.student.lessons.StudentLessonContentListScreen
-import com.example.datn.presentation.student.lessons.StudentLessonViewScreen
-import com.example.datn.presentation.student.messaging.SelectTeacherScreen
-import com.example.datn.presentation.student.messaging.StudentSelectRecipientViewModel
+import com.example.datn.presentation.student.account.ui.StudentAccountScreen
+import com.example.datn.presentation.student.account.ui.StudentChangePasswordScreen
+import com.example.datn.presentation.student.classmanager.ui.JoinClassScreen
+import com.example.datn.presentation.student.classmanager.ui.MyClassesScreen
+import com.example.datn.presentation.student.home.ui.StudentHomeScreen
+import com.example.datn.presentation.student.lessons.ui.StudentClassDetailScreen
+import com.example.datn.presentation.student.lessons.ui.StudentLessonContentListScreen
+import com.example.datn.presentation.student.lessons.ui.StudentLessonViewScreen
+import com.example.datn.presentation.student.messaging.ui.SelectTeacherScreen
+import com.example.datn.presentation.student.messaging.viewmodel.StudentSelectRecipientViewModel
 import com.example.datn.presentation.common.messaging.ChatViewModel
 import com.example.datn.presentation.common.messaging.ConversationListViewModel
 import com.example.datn.presentation.common.messaging.screens.ChatScreen
@@ -26,14 +27,14 @@ import com.example.datn.presentation.common.messaging.screens.ConversationListSc
 import com.example.datn.presentation.common.messaging.screens.GroupDetailsScreen
 import com.example.datn.presentation.common.messaging.screens.AddMembersToGroupScreen
 import com.example.datn.presentation.common.messaging.screens.SelectGroupParticipantsScreen
-import com.example.datn.presentation.student.tests.StudentTestListScreen
-import com.example.datn.presentation.student.tests.StudentTestTakingScreen
-import com.example.datn.presentation.student.tests.StudentTestResultScreen
-import com.example.datn.presentation.student.games.MiniGameResultScreen
-import com.example.datn.presentation.student.games.MiniGamePlayScreen
-import com.example.datn.presentation.student.games.MiniGameListScreen
+import com.example.datn.presentation.student.tests.ui.StudentTestListScreen
+import com.example.datn.presentation.student.tests.ui.StudentTestTakingScreen
+import com.example.datn.presentation.student.tests.ui.StudentTestResultScreen
+import com.example.datn.presentation.student.games.ui.MiniGameResultScreen
+import com.example.datn.presentation.student.games.ui.MiniGamePlayScreen
+import com.example.datn.presentation.student.games.ui.MiniGameListScreen
 import com.example.datn.presentation.common.profile.EditProfileScreen
-import com.example.datn.presentation.student.notification.StudentNotificationScreen
+import com.example.datn.presentation.student.notification.ui.StudentNotificationScreen
 
 @Composable
 fun StudentNavGraph(
@@ -173,7 +174,7 @@ fun StudentNavGraph(
         }
 
         composable(Screen.StudentChangePassword.route) {
-            com.example.datn.presentation.student.account.StudentChangePasswordScreen(
+            StudentChangePasswordScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -198,7 +199,7 @@ fun StudentNavGraph(
         }
         
         composable(Screen.StudentSelectTeacher.route) {
-            com.example.datn.presentation.student.messaging.SelectTeacherScreen(
+            SelectTeacherScreen(
                 onTeacherSelected = { teacherId, teacherName ->
                     // Debug log
                     android.util.Log.d("StudentNavGraph", "onTeacherSelected - teacherId: '$teacherId', teacherName: '$teacherName'")

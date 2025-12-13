@@ -1,6 +1,6 @@
 package com.example.datn.data.repository.impl
 
-import com.example.datn.core.network.service.FirebaseMessagingService
+import com.example.datn.core.network.service.messaging.FirebaseMessagingService
 import com.example.datn.core.utils.Resource
 import com.example.datn.data.local.dao.ConversationDao
 import com.example.datn.data.local.dao.ConversationParticipantDao

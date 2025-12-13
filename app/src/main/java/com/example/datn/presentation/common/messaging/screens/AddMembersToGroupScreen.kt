@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.User
 import com.example.datn.presentation.common.messaging.AddMembersViewModel
-import com.example.datn.presentation.teacher.messaging.SelectRecipientViewModel
+import com.example.datn.presentation.teacher.messaging.viewmodel.SelectRecipientViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

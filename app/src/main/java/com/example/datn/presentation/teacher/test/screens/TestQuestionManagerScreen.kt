@@ -22,8 +22,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.TestQuestion
 import com.example.datn.presentation.common.test.TestQuestionEvent
 import com.example.datn.presentation.dialogs.ConfirmationDialog
-import com.example.datn.presentation.teacher.test.TestQuestionManagerViewModel
 import com.example.datn.presentation.teacher.test.components.AddEditTestQuestionDialog
+import com.example.datn.presentation.teacher.test.viewmodel.TestQuestionManagerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

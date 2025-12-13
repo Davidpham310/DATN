@@ -1,6 +1,6 @@
 package com.example.datn.domain.usecase.messaging
 
-import com.example.datn.core.network.service.FirebaseMessagingService
+import com.example.datn.core.network.service.messaging.FirebaseMessagingService
 import com.example.datn.core.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow

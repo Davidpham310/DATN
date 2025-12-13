@@ -14,9 +14,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.presentation.common.test.TestEvent
 import com.example.datn.presentation.dialogs.ConfirmationDialog
-import com.example.datn.presentation.teacher.test.TestManagerViewModel
 import com.example.datn.presentation.teacher.test.components.AddEditTestDialog
 import com.example.datn.presentation.teacher.test.components.TestList
+import com.example.datn.presentation.teacher.test.viewmodel.TestManagerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -13,13 +13,9 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.datn.core.utils.Resource
-import com.example.datn.domain.models.User
-import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.presentation.teacher.classes.screens.ClassManagerScreen
 import com.example.datn.presentation.teacher.enrollment.EnrollmentManagementScreen
-import com.example.datn.presentation.teacher.home.TeacherHomeScreen
-import com.example.datn.presentation.teacher.lessons.LessonContentManagerViewModel
+import com.example.datn.presentation.teacher.lessons.viewmodel.LessonContentManagerViewModel
 import com.example.datn.presentation.teacher.lessons.screens.LessonContentDetailScreen
 import com.example.datn.presentation.teacher.lessons.screens.LessonContentManagerScreen
 import com.example.datn.presentation.teacher.lessons.screens.LessonManagerScreen
@@ -29,18 +25,19 @@ import com.example.datn.presentation.teacher.minigame.screens.MiniGameOptionMana
 import com.example.datn.presentation.teacher.test.screens.LessonTestManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestQuestionManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestOptionManagerScreen
-import com.example.datn.presentation.teacher.account.TeacherAccountScreen
-import com.example.datn.presentation.teacher.notification.TeacherNotificationScreen
-import com.example.datn.presentation.teacher.notification.TeacherSendNotificationScreen
-import com.example.datn.presentation.common.messaging.ChatViewModel
 import com.example.datn.presentation.common.messaging.ConversationListViewModel
 import com.example.datn.presentation.common.messaging.screens.ChatScreen
 import com.example.datn.presentation.common.messaging.screens.ConversationListScreen
 import com.example.datn.presentation.common.messaging.screens.GroupDetailsScreen
 import com.example.datn.presentation.common.messaging.screens.AddMembersToGroupScreen
 import com.example.datn.presentation.common.messaging.screens.SelectGroupParticipantsScreen
-import com.example.datn.presentation.teacher.messaging.SelectRecipientViewModel
 import com.example.datn.presentation.common.profile.EditProfileScreen
+import com.example.datn.presentation.teacher.account.ui.TeacherAccountScreen
+import com.example.datn.presentation.teacher.home.ui.TeacherHomeScreen
+import com.example.datn.presentation.teacher.messaging.ui.SelectRecipientScreen
+import com.example.datn.presentation.teacher.messaging.viewmodel.SelectRecipientViewModel
+import com.example.datn.presentation.teacher.notification.ui.TeacherNotificationScreen
+import com.example.datn.presentation.teacher.notification.ui.TeacherSendNotificationScreen
 
 @Composable
 fun TeacherNavGraph(
@@ -359,13 +356,13 @@ fun TeacherNavGraph(
         }
         
         composable(Screen.TeacherSelectRecipient.route) {
-            com.example.datn.presentation.teacher.messaging.SelectRecipientScreen(
+            SelectRecipientScreen(
                 onRecipientSelected = { recipientId, recipientName ->
                     // Debug log
-                    android.util.Log.d("TeacherNavGraph", "onRecipientSelected - recipientId: '$recipientId', recipientName: '$recipientName'")
+                    Log.d("TeacherNavGraph", "onRecipientSelected - recipientId: '$recipientId', recipientName: '$recipientName'")
                     
                     if (recipientId.isBlank()) {
-                        android.util.Log.e("TeacherNavGraph", "ERROR: recipientId is blank! Cannot navigate.")
+                        Log.e("TeacherNavGraph", "ERROR: recipientId is blank! Cannot navigate.")
                         return@SelectRecipientScreen
                     }
                     
@@ -375,7 +372,7 @@ fun TeacherNavGraph(
                         recipientName = recipientName
                     )
                     
-                    android.util.Log.d("TeacherNavGraph", "Navigating to route: $route")
+                    Log.d("TeacherNavGraph", "Navigating to route: $route")
                     navController.navigate(route)
                 },
                 onDismiss = {
@@ -425,15 +422,15 @@ fun TeacherNavGraph(
             val recipientName = try {
                 java.net.URLDecoder.decode(encodedName, "UTF-8")
             } catch (e: Exception) {
-                android.util.Log.e("TeacherNavGraph", "Error decoding recipientName: ${e.message}")
+                Log.e("TeacherNavGraph", "Error decoding recipientName: ${e.message}")
                 encodedName
             }
             
             // Debug log
-            android.util.Log.d("TeacherNavGraph", "ChatScreen arguments - conversationId: '$conversationId', recipientId: '$recipientId', recipientName: '$recipientName'")
+            Log.d("TeacherNavGraph", "ChatScreen arguments - conversationId: '$conversationId', recipientId: '$recipientId', recipientName: '$recipientName'")
             
             if (recipientId.isBlank()) {
-                android.util.Log.e("TeacherNavGraph", "ERROR: recipientId is blank in ChatScreen!")
+                Log.e("TeacherNavGraph", "ERROR: recipientId is blank in ChatScreen!")
             }
             
             ChatScreen(
@@ -518,7 +515,7 @@ fun TeacherNavGraph(
         }
 
         composable(Screen.TeacherChangePassword.route) {
-            com.example.datn.presentation.teacher.account.TeacherChangePasswordScreen(
+            com.example.datn.presentation.teacher.account.ui.TeacherChangePasswordScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

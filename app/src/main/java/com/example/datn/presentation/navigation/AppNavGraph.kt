@@ -5,10 +5,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.datn.domain.models.UserRole
-import com.example.datn.domain.repository.IAuthRepository
-import com.example.datn.presentation.auth.screens.ForgotPasswordScreen
-import com.example.datn.presentation.auth.screens.LoginScreen
-import com.example.datn.presentation.auth.screens.RegisterScreen
+import com.example.datn.presentation.auth.ui.ForgotPasswordScreen
+import com.example.datn.presentation.auth.ui.LoginScreen
+import com.example.datn.presentation.auth.ui.RegisterScreen
 import com.example.datn.presentation.splash.screen.SplashScreen
 import com.example.datn.presentation.teacher.TeacherMainScreen
 import com.example.datn.presentation.parent.ParentMainScreen

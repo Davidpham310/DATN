@@ -19,9 +19,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.ContentType
 import com.example.datn.presentation.common.lesson.LessonContentManagerEvent
 import com.example.datn.presentation.dialogs.ConfirmationDialog
-import com.example.datn.presentation.teacher.lessons.LessonContentManagerViewModel
 import com.example.datn.presentation.teacher.lessons.components.AddEditLessonContentDialog
 import com.example.datn.presentation.teacher.lessons.components.LessonContentList
+import com.example.datn.presentation.teacher.lessons.viewmodel.LessonContentManagerViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 

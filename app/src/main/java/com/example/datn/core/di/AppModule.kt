@@ -6,7 +6,7 @@ import androidx.room.Room
 import com.example.datn.BuildConfig
 import com.example.datn.core.network.datasource.FirebaseAuthDataSource
 import com.example.datn.core.network.datasource.FirebaseDataSource
-import com.example.datn.core.network.service.FirebaseMessagingService
+import com.example.datn.core.network.service.messaging.FirebaseMessagingService
 import com.example.datn.core.network.service.classroom.ClassService
 import com.example.datn.core.network.service.lesson.LessonContentService
 import com.example.datn.core.network.service.lesson.LessonService

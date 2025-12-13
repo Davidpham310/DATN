@@ -11,8 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.presentation.common.minigame.MiniGameManagerEvent
 import com.example.datn.presentation.dialogs.ConfirmationDialog
-import com.example.datn.presentation.teacher.minigame.LessonMiniGameManagerViewModel
 import com.example.datn.presentation.teacher.minigame.components.*
+import com.example.datn.presentation.teacher.minigame.viewmodel.LessonMiniGameManagerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

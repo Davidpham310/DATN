@@ -28,8 +28,8 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
-import com.example.datn.presentation.teacher.lessons.LessonContentManagerViewModel
 import com.example.datn.core.utils.extensions.formatAsDateTime
+import com.example.datn.presentation.teacher.lessons.viewmodel.LessonContentManagerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

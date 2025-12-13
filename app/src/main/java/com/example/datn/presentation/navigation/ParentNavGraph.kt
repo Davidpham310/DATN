@@ -1,5 +1,5 @@
 package com.example.datn.presentation.navigation
-
+ 
 import androidx.navigation.NavType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -10,12 +10,12 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.datn.presentation.parent.account.ParentAccountScreen
-import com.example.datn.presentation.parent.home.ParentHomeScreen
-import com.example.datn.presentation.parent.classlist.ParentClassListScreen
-import com.example.datn.presentation.parent.classmanager.ParentJoinClassScreen
-import com.example.datn.presentation.parent.studentprofile.StudentDetailScreen
-import com.example.datn.presentation.parent.messaging.ParentSelectRecipientScreen
+import com.example.datn.presentation.parent.account.ui.ParentAccountScreen
+import com.example.datn.presentation.parent.home.ui.ParentHomeScreen
+import com.example.datn.presentation.parent.classlist.ui.ParentClassListScreen
+import com.example.datn.presentation.parent.classlist.ui.ParentJoinClassScreen
+import com.example.datn.presentation.parent.relative.ui.StudentDetailScreen
+import com.example.datn.presentation.parent.messaging.ui.ParentSelectRecipientScreen
 import com.example.datn.presentation.common.messaging.screens.ConversationListScreen
 import com.example.datn.presentation.common.messaging.screens.ChatScreen
 import com.example.datn.presentation.common.messaging.screens.SelectGroupParticipantsScreen
@@ -23,9 +23,11 @@ import com.example.datn.presentation.common.messaging.screens.GroupDetailsScreen
 import com.example.datn.presentation.common.messaging.screens.AddMembersToGroupScreen
 import com.example.datn.presentation.common.messaging.ConversationListViewModel
 import com.example.datn.presentation.common.messaging.ChatViewModel
-import com.example.datn.presentation.teacher.messaging.SelectRecipientViewModel
+import com.example.datn.presentation.parent.messaging.viewmodel.ParentSelectRecipientViewModel
 import com.example.datn.presentation.common.profile.EditProfileScreen
-import com.example.datn.presentation.parent.notification.ParentNotificationScreen
+import com.example.datn.presentation.parent.account.ui.ParentChangePasswordScreen
+import com.example.datn.presentation.parent.notification.ui.ParentNotificationScreen
+import com.example.datn.presentation.teacher.messaging.viewmodel.SelectRecipientViewModel
 
 @Composable
 fun ParentNavGraph(
@@ -227,14 +229,14 @@ fun ParentNavGraph(
         }
 
         composable(Screen.ParentChangePassword.route) {
-            com.example.datn.presentation.parent.account.ParentChangePasswordScreen(
+            ParentChangePasswordScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
 
         // Quản lý con em (stub màn hình, sẽ triển khai đầy đủ logic sau)
         composable(Screen.ParentManageChildren.route) {
-            com.example.datn.presentation.parent.managechildren.ParentManageChildrenScreen(
+            com.example.datn.presentation.parent.relative.ui.ParentManageChildrenScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToCreateStudentAccount = {
                     navController.navigate(Screen.ParentCreateStudentAccount.route)
@@ -244,7 +246,7 @@ fun ParentNavGraph(
 
         // Tạo tài khoản học sinh mới (stub màn hình)
         composable(Screen.ParentCreateStudentAccount.route) {
-            com.example.datn.presentation.parent.managechildren.ParentCreateStudentAccountScreen(
+            com.example.datn.presentation.parent.relative.ui.ParentCreateStudentAccountScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

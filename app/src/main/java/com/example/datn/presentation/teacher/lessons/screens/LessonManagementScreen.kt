@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,9 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.presentation.common.lesson.LessonManagerEvent
 import com.example.datn.presentation.dialogs.ConfirmationDialog
-import com.example.datn.presentation.teacher.lessons.LessonManagerViewModel
 import com.example.datn.presentation.teacher.lessons.components.AddEditLessonDialog
 import com.example.datn.presentation.teacher.lessons.components.LessonList
+import com.example.datn.presentation.teacher.lessons.viewmodel.LessonManagerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

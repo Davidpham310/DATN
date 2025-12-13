@@ -8,8 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.presentation.common.classmanager.ClassManagerEvent
+import com.example.datn.presentation.common.classmanager.ClassManagerViewModel
 import com.example.datn.presentation.dialogs.ConfirmationDialog
-import com.example.datn.presentation.teacher.classes.ClassManagerViewModel
 import com.example.datn.presentation.teacher.classes.components.ClassList
 import com.example.datn.presentation.teacher.classes.components.AddEditClassDialog
 
