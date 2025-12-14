@@ -16,6 +16,7 @@ import com.example.datn.domain.models.Test
 fun TestList(
     tests: List<Test>,
     onTestClick: (Test) -> Unit,
+    onGradeClick: ((Test) -> Unit)? = null,
     onEdit: ((Test) -> Unit)? = null,
     onDelete: ((Test) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -52,6 +53,7 @@ fun TestList(
                 TestItem(
                     test = test,
                     onClick = { onTestClick(test) },
+                    onGrade = onGradeClick?.let { { it(test) } },
                     onEdit = onEdit?.let { { it(test) } },
                     onDelete = onDelete?.let { { it(test) } }
                 )

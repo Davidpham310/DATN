@@ -1,6 +1,7 @@
 package com.example.datn.domain.repository
 
 import com.example.datn.core.utils.Resource
+import com.example.datn.domain.models.StudentTestAnswer
 import com.example.datn.domain.models.StudentTestResult
 import com.example.datn.domain.models.Test
 import com.example.datn.domain.models.TestQuestion
@@ -36,5 +37,9 @@ interface ITestRepository {
     fun getQuestionOptions(questionId: String): Flow<Resource<List<TestOption>>>
     
     // NEW: Student answers
-    fun getStudentAnswers(resultId: String): Flow<Resource<List<com.example.datn.domain.models.StudentTestAnswer>>>
+    fun getStudentAnswers(resultId: String): Flow<Resource<List<StudentTestAnswer>>>
+    
+    // NEW: Manual grading support
+    fun updateStudentAnswer(answer: StudentTestAnswer): Flow<Resource<StudentTestAnswer>>
+    fun updateTestResult(result: StudentTestResult): Flow<Resource<StudentTestResult>>
 }

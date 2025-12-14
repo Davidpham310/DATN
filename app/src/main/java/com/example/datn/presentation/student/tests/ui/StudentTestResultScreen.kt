@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.QuestionType
+import com.example.datn.domain.models.TestStatus
 import com.example.datn.presentation.student.tests.event.StudentTestResultEvent
 import com.example.datn.presentation.student.tests.state.Answer
 import com.example.datn.presentation.student.tests.state.QuestionWithAnswer
@@ -154,8 +155,9 @@ private fun ScoreSummaryCard(state: StudentTestResultState) {
             )
             Spacer(modifier = Modifier.height(16.dp))
 
+            val totalScore = if (state.totalPossibleScore > 0) state.totalPossibleScore else (state.test?.totalScore ?: 0.0)
             Text(
-                text = "${state.result?.score ?: 0.0}/${state.test?.totalScore ?: 0.0}",
+                text = "${state.result?.score ?: 0.0}/$totalScore",
                 style = MaterialTheme.typography.displayLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -165,6 +167,15 @@ private fun ScoreSummaryCard(state: StudentTestResultState) {
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )
+
+            if (state.result?.completionStatus == TestStatus.SUBMITTED) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Chờ giáo viên chấm phần tự luận",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 

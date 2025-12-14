@@ -50,9 +50,18 @@ suspend fun buildQuestionsWithAnswers(
         """.trimIndent())
         // ====================================
         
-        // ✅ RE-CALCULATE isCorrect thay vì dùng từ DB
-        val isCorrectCalculated = calculateIsCorrect(parsedAnswer, correctAnswer)
-        val earnedScoreCalculated = if (isCorrectCalculated) question.score else 0.0
+        val isCorrectCalculated = if (question.questionType == QuestionType.ESSAY) {
+            val earned = studentAnswer?.earnedScore ?: 0.0
+            earned >= question.score
+        } else {
+            calculateIsCorrect(parsedAnswer, correctAnswer)
+        }
+
+        val earnedScoreCalculated = if (question.questionType == QuestionType.ESSAY) {
+            studentAnswer?.earnedScore ?: 0.0
+        } else {
+            if (isCorrectCalculated) question.score else 0.0
+        }
         
         // Create QuestionWithAnswer
         val questionWithAnswer = QuestionWithAnswer(

@@ -3,6 +3,7 @@ package com.example.datn.presentation.teacher.test.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -20,6 +21,7 @@ import com.example.datn.core.utils.extensions.formatScore
 fun TestItem(
     test: Test,
     onClick: () -> Unit,
+    onGrade: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -51,6 +53,15 @@ fun TestItem(
                 )
                 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    onGrade?.let {
+                        IconButton(onClick = it, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                Icons.Default.AssignmentTurnedIn,
+                                contentDescription = "Chấm bài",
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                    }
                     onEdit?.let {
                         IconButton(onClick = it, modifier = Modifier.size(36.dp)) {
                             Icon(

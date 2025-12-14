@@ -365,13 +365,15 @@ class StudentTestTakingViewModel @Inject constructor(
             Log.d(TAG, "[submitTest] Grading complete - Total: $totalScore/${test.totalScore}")
             gradingLog.forEach { Log.d(TAG, "[submitTest] $it") }
 
+            val hasEssay = questions.any { it.question.questionType == QuestionType.ESSAY }
+
             // Create result object
             val result = StudentTestResult(
                 id = UUID.randomUUID().toString(),
                 studentId = studentId,
                 testId = test.id,
                 score = totalScore,
-                completionStatus = TestStatus.GRADED,
+                completionStatus = if (hasEssay) TestStatus.SUBMITTED else TestStatus.GRADED,
                 submissionTime = Instant.now(),
                 durationSeconds = duration,
                 createdAt = Instant.now(),
@@ -395,7 +397,11 @@ class StudentTestTakingViewModel @Inject constructor(
                         Log.d(TAG, "[submitTest] SUCCESS - Result ID: ${resource.data?.id}")
                         logDailyStudyTime(studentId, duration)
                         setState { copy(isSubmitting = false, isSubmitted = true) }
-                        showNotification("Đã nộp bài thành công! Điểm: $totalScore/${test.totalScore}", NotificationType.SUCCESS)
+                        val msg = if (hasEssay)
+                            "Đã nộp bài thành công! Bài có câu tự luận sẽ được giáo viên chấm. Điểm tạm tính: $totalScore/${test.totalScore}"
+                        else
+                            "Đã nộp bài thành công! Điểm: $totalScore/${test.totalScore}"
+                        showNotification(msg, NotificationType.SUCCESS)
                         // Navigation will be handled by the screen
                     }
                     is Resource.Error -> {

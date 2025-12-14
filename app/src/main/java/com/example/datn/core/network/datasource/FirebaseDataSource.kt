@@ -529,6 +529,10 @@ class FirebaseDataSource @Inject constructor(
         testService.submitResult(result)
     }.toResource()
 
+    suspend fun updateTestResult(result: com.example.datn.domain.models.StudentTestResult): Resource<com.example.datn.domain.models.StudentTestResult?> = safeCallWithResult {
+        testService.updateResult(result.id, result)
+    }.toResource()
+
     suspend fun getStudentResult(studentId: String, testId: String): Resource<com.example.datn.domain.models.StudentTestResult?> = safeCallWithResult {
         testService.getResultByStudentAndTest(studentId, testId)
     }.toResource()
@@ -543,6 +547,10 @@ class FirebaseDataSource @Inject constructor(
     
     suspend fun saveStudentAnswers(answers: List<com.example.datn.domain.models.StudentTestAnswer>): Resource<Boolean> = safeCallWithResult {
         testService.saveStudentAnswers(answers)
+    }.toResource()
+
+    suspend fun updateStudentAnswer(answer: com.example.datn.domain.models.StudentTestAnswer): Resource<com.example.datn.domain.models.StudentTestAnswer?> = safeCallWithResult {
+        testService.updateStudentAnswer(answer.id, answer)
     }.toResource()
     
     suspend fun getAnswersByResultId(resultId: String): Resource<List<com.example.datn.domain.models.StudentTestAnswer>> = safeCallWithResult {

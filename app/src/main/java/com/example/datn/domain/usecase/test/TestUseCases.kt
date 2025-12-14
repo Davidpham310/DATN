@@ -1,6 +1,7 @@
 package com.example.datn.domain.usecase.test
 
 import com.example.datn.core.utils.Resource
+import com.example.datn.domain.models.StudentTestAnswer
 import com.example.datn.domain.models.StudentTestResult
 import com.example.datn.domain.models.Test
 import com.example.datn.domain.repository.ITestRepository
@@ -53,8 +54,14 @@ class TestUseCases @Inject constructor(
         repository.submitTestResult(result, answers)
     
     // Get student answers for a result
-    fun getStudentAnswers(resultId: String): Flow<Resource<List<com.example.datn.domain.models.StudentTestAnswer>>> =
+    fun getStudentAnswers(resultId: String): Flow<Resource<List<StudentTestAnswer>>> =
         repository.getStudentAnswers(resultId)
+
+    fun updateStudentAnswer(answer: StudentTestAnswer): Flow<Resource<StudentTestAnswer>> =
+        repository.updateStudentAnswer(answer)
+
+    fun updateTestResult(result: StudentTestResult): Flow<Resource<StudentTestResult>> =
+        repository.updateTestResult(result)
 }
 
 

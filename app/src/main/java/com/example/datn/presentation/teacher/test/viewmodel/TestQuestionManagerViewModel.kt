@@ -8,6 +8,7 @@ import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.models.TestQuestion
+import com.example.datn.domain.usecase.test.ImportTestQuestionsFromExcelUseCase
 import com.example.datn.domain.usecase.test.TestQuestionUseCases
 import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
 import com.example.datn.presentation.common.test.TestQuestionEvent
@@ -16,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.io.InputStream
 import java.time.Instant
 import javax.inject.Inject
 
@@ -23,6 +25,7 @@ import javax.inject.Inject
 @HiltViewModel
 class TestQuestionManagerViewModel @Inject constructor(
     private val testQuestionUseCases: TestQuestionUseCases,
+    private val importTestQuestionsFromExcelUseCase: ImportTestQuestionsFromExcelUseCase,
     notificationManager: NotificationManager
 ) : BaseViewModel<TestQuestionState, TestQuestionEvent>(TestQuestionState(), notificationManager) {
 
@@ -199,6 +202,36 @@ class TestQuestionManagerViewModel @Inject constructor(
     private fun refresh() {
         val id = state.value.testId
         if (id.isNotEmpty()) load(id)
+    }
+
+    fun importFromExcel(testId: String, inputStream: InputStream) {
+        val existingMaxOrder = state.value.questions.maxOfOrNull { it.order } ?: 0
+        val startingOrder = existingMaxOrder + 1
+
+        importTestQuestionsFromExcelUseCase(testId, inputStream, startingOrder)
+            .onEach { result ->
+                when (result) {
+                    is Resource.Loading -> setState { copy(isLoading = true) }
+                    is Resource.Success -> {
+                        setState { copy(isLoading = false) }
+                        val summary = result.data
+                        if (summary != null) {
+                            showNotification(
+                                "Import xong: ${summary.importedQuestions} câu hỏi, ${summary.importedOptions} đáp án. Bỏ qua ${summary.skippedRows}/${summary.totalRows} dòng.",
+                                NotificationType.SUCCESS
+                            )
+                        } else {
+                            showNotification("Import xong", NotificationType.SUCCESS)
+                        }
+                        refresh()
+                    }
+                    is Resource.Error -> {
+                        setState { copy(isLoading = false) }
+                        showNotification(result.message ?: "Import thất bại", NotificationType.ERROR)
+                    }
+                }
+            }
+            .launchIn(viewModelScope)
     }
 }
 

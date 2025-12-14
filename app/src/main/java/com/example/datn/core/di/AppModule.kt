@@ -80,6 +80,8 @@ import com.example.datn.domain.repository.ITeacherRepository
 import com.example.datn.domain.repository.IProgressRepository
 import com.example.datn.domain.repository.IMessagingPermissionRepository
 import com.example.datn.domain.usecase.messaging.*
+import com.example.datn.domain.usecase.test.ImportTestQuestionsFromExcelUseCase
+import com.example.datn.domain.usecase.test.TestOptionUseCases
 import com.example.datn.domain.usecase.test.TestQuestionUseCases
 import com.example.datn.domain.usecase.minio.MinIOUseCase
 import com.example.datn.domain.usecase.notification.SendTeacherNotificationUseCase
@@ -386,6 +388,20 @@ object AppModule {
     fun provideTestQuestionUseCases(
         repository: ITestQuestionRepository
     ): TestQuestionUseCases = TestQuestionUseCases(repository)
+
+    @Provides
+    fun provideTestOptionUseCases(
+        repository: ITestOptionRepository
+    ): TestOptionUseCases = TestOptionUseCases(repository)
+
+    @Provides
+    fun provideImportTestQuestionsFromExcelUseCase(
+        testQuestionRepository: ITestQuestionRepository,
+        testOptionRepository: ITestOptionRepository
+    ): ImportTestQuestionsFromExcelUseCase = ImportTestQuestionsFromExcelUseCase(
+        testQuestionRepository,
+        testOptionRepository
+    )
 
     @Provides
     @Singleton

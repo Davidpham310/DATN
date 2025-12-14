@@ -6,6 +6,8 @@ import com.example.datn.core.utils.mapper.internalToDomain
 import com.example.datn.domain.models.Test
 import com.example.datn.domain.models.TestOption
 import com.example.datn.domain.models.TestQuestion
+import com.example.datn.domain.models.StudentTestAnswer
+import com.example.datn.domain.models.StudentTestResult
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
@@ -187,13 +189,23 @@ class TestService @Inject constructor() :
     }
 
     // ==================== RESULTS ====================
-    suspend fun submitResult(result: com.example.datn.domain.models.StudentTestResult): com.example.datn.domain.models.StudentTestResult? = try {
+    suspend fun submitResult(result: StudentTestResult): StudentTestResult? = try {
         val docRef = if (result.id.isNotEmpty()) resultRef.document(result.id) else resultRef.document()
         val now = Instant.now()
         val data = result.copy(id = docRef.id, createdAt = now, updatedAt = now)
         docRef.set(data).await(); data
     } catch (e: Exception) {
         Log.e(TAG, "Error submitResult", e); null
+    }
+
+    suspend fun updateResult(resultId: String, result: StudentTestResult): StudentTestResult? = try {
+        val now = Instant.now()
+        val data = result.copy(id = resultId, updatedAt = now)
+        resultRef.document(resultId).set(data).await()
+        data
+    } catch (e: Exception) {
+        Log.e(TAG, "Error updateResult", e)
+        null
     }
 
     suspend fun getResultByStudentAndTest(studentId: String, testId: String): com.example.datn.domain.models.StudentTestResult? {
@@ -249,7 +261,7 @@ class TestService @Inject constructor() :
     }
     
     // ==================== STUDENT ANSWERS ====================
-    suspend fun saveStudentAnswers(answers: List<com.example.datn.domain.models.StudentTestAnswer>): Boolean = try {
+    suspend fun saveStudentAnswers(answers: List<StudentTestAnswer>): Boolean = try {
         answers.forEach { answer ->
             val docRef = if (answer.id.isNotEmpty()) answerRef.document(answer.id) else answerRef.document()
             val data = answer.copy(id = docRef.id)
@@ -260,12 +272,22 @@ class TestService @Inject constructor() :
         Log.e(TAG, "Error saveStudentAnswers", e)
         false
     }
+
+    suspend fun updateStudentAnswer(answerId: String, answer: StudentTestAnswer): StudentTestAnswer? = try {
+        val now = Instant.now()
+        val data = answer.copy(id = answerId, updatedAt = now)
+        answerRef.document(answerId).set(data).await()
+        data
+    } catch (e: Exception) {
+        Log.e(TAG, "Error updateStudentAnswer", e)
+        null
+    }
     
-    suspend fun getAnswersByResultId(resultId: String): List<com.example.datn.domain.models.StudentTestAnswer> = try {
+    suspend fun getAnswersByResultId(resultId: String): List<StudentTestAnswer> = try {
         val snapshot = answerRef.whereEqualTo("resultId", resultId).get().await()
         snapshot.documents.mapNotNull { doc ->
             try {
-                doc.internalToDomain(com.example.datn.domain.models.StudentTestAnswer::class.java)
+                doc.internalToDomain(StudentTestAnswer::class.java)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to map answer ${doc.id}", e)
                 null

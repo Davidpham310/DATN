@@ -609,6 +609,52 @@ class TestRepositoryImpl @Inject constructor(
             emit(Resource.Error("Lỗi khi lấy câu trả lời: ${e.message}"))
         }
     }
+
+    override fun updateStudentAnswer(answer: StudentTestAnswer): Flow<Resource<StudentTestAnswer>> = flow {
+        try {
+            emit(Resource.Loading())
+
+            when (val remote = firebaseDataSource.updateStudentAnswer(answer)) {
+                is Resource.Success -> {
+                    val saved = remote.data ?: answer
+                    try {
+                        studentTestAnswerDao.insert(saved.toEntity())
+                    } catch (e: Exception) {
+                        android.util.Log.w("TestRepository", "Failed to cache updated answer ${saved.id}: ${e.message}")
+                    }
+                    emit(Resource.Success(saved))
+                }
+                is Resource.Error -> emit(Resource.Error(remote.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            emit(Resource.Error("Lỗi khi cập nhật câu trả lời: ${e.message}"))
+        }
+    }
+
+    override fun updateTestResult(result: StudentTestResult): Flow<Resource<StudentTestResult>> = flow {
+        try {
+            emit(Resource.Loading())
+
+            when (val remote = firebaseDataSource.updateTestResult(result)) {
+                is Resource.Success -> {
+                    val saved = remote.data ?: result
+                    try {
+                        studentTestResultDao.insert(saved.toEntity())
+                    } catch (e: Exception) {
+                        android.util.Log.w("TestRepository", "Failed to cache updated result ${saved.id}: ${e.message}")
+                    }
+                    emit(Resource.Success(saved))
+                }
+                is Resource.Error -> emit(Resource.Error(remote.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            emit(Resource.Error("Lỗi khi cập nhật kết quả: ${e.message}"))
+        }
+    }
 }
 
 

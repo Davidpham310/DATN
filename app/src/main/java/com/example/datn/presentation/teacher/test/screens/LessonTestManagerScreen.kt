@@ -25,6 +25,7 @@ fun LessonTestManagerScreen(
     lessonTitle: String,
     classId: String,
     onNavigateToQuestions: (testId: String, testTitle: String) -> Unit,
+    onNavigateToSubmissions: (testId: String, testTitle: String) -> Unit,
     onNavigateBack: () -> Unit = {},
     viewModel: TestManagerViewModel = hiltViewModel()
 ) {
@@ -67,6 +68,7 @@ fun LessonTestManagerScreen(
                 TestList(
                     tests = state.tests,
                     onTestClick = { test -> onNavigateToQuestions(test.id, test.title) },
+                    onGradeClick = { test -> onNavigateToSubmissions(test.id, test.title) },
                     onEdit = { test -> viewModel.onEvent(TestEvent.EditTest(test)) },
                     onDelete = { test -> viewModel.onEvent(TestEvent.DeleteTest(test)) }
                 )

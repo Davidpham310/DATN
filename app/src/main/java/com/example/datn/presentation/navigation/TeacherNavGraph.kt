@@ -23,6 +23,8 @@ import com.example.datn.presentation.teacher.minigame.screens.LessonMiniGameMana
 import com.example.datn.presentation.teacher.minigame.screens.LessonMiniGameQuestionManagerScreen
 import com.example.datn.presentation.teacher.minigame.screens.MiniGameOptionManagerScreen
 import com.example.datn.presentation.teacher.test.screens.LessonTestManagerScreen
+import com.example.datn.presentation.teacher.test.screens.TeacherGradeEssayScreen
+import com.example.datn.presentation.teacher.test.screens.TeacherTestSubmissionsScreen
 import com.example.datn.presentation.teacher.test.screens.TestQuestionManagerScreen
 import com.example.datn.presentation.teacher.test.screens.TestOptionManagerScreen
 import com.example.datn.presentation.common.messaging.ConversationListViewModel
@@ -296,6 +298,11 @@ fun TeacherNavGraph(
                         Screen.TeacherTestQuestionManager.createRoute(testId, testTitle)
                     )
                 },
+                onNavigateToSubmissions = { testId, testTitle ->
+                    navController.navigate(
+                        Screen.TeacherTestSubmissions.createRoute(testId, testTitle)
+                    )
+                },
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -333,6 +340,43 @@ fun TeacherNavGraph(
             TestOptionManagerScreen(
                 questionId = questionId,
                 questionContent = questionContent,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.TeacherTestSubmissions.routeWithArgs,
+            arguments = listOf(
+                navArgument("testId") { type = NavType.StringType },
+                navArgument("testTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val testId = backStackEntry.arguments?.getString("testId") ?: ""
+            val testTitle = backStackEntry.arguments?.getString("testTitle") ?: ""
+            TeacherTestSubmissionsScreen(
+                testId = testId,
+                testTitle = testTitle,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToGrade = { tId, resultId ->
+                    navController.navigate(
+                        Screen.TeacherGradeEssay.createRoute(tId, resultId)
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = Screen.TeacherGradeEssay.routeWithArgs,
+            arguments = listOf(
+                navArgument("testId") { type = NavType.StringType },
+                navArgument("resultId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val testId = backStackEntry.arguments?.getString("testId") ?: ""
+            val resultId = backStackEntry.arguments?.getString("resultId") ?: ""
+            TeacherGradeEssayScreen(
+                testId = testId,
+                resultId = resultId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

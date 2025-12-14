@@ -17,10 +17,14 @@ data class StudentTestResultState(
     override val isLoading: Boolean = false,
     override val error: String? = null
 ) : BaseState {
+    val totalPossibleScore: Double
+        get() = questions.sumOf { it.question.score }
+
     val scorePercentage: Double
-        get() = if (test?.totalScore != null && test.totalScore > 0)
-                (result?.score ?: 0.0) / test.totalScore * 100
-                else 0.0
+        get() {
+            val total = if (totalPossibleScore > 0) totalPossibleScore else (test?.totalScore ?: 0.0)
+            return if (total > 0) (result?.score ?: 0.0) / total * 100 else 0.0
+        }
     
     val gradeText: String
         get() = when {

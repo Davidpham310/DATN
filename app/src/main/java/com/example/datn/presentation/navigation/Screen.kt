@@ -105,6 +105,20 @@ sealed class Screen(val route: String) {
         val routeWithArgs = "teacher/test_option_manager/{questionId}/{questionContent}"
     }
 
+    object TeacherTestSubmissions : Screen("teacher/test_submissions/{testId}/{testTitle}") {
+        fun createRoute(testId: String, testTitle: String): String =
+            "teacher/test_submissions/$testId/$testTitle"
+
+        val routeWithArgs = "teacher/test_submissions/{testId}/{testTitle}"
+    }
+
+    object TeacherGradeEssay : Screen("teacher/grade_essay/{testId}/{resultId}") {
+        fun createRoute(testId: String, resultId: String): String =
+            "teacher/grade_essay/$testId/$resultId"
+
+        val routeWithArgs = "teacher/grade_essay/{testId}/{resultId}"
+    }
+
     // Messaging routes
     object TeacherMessages : Screen("teacher/messages")
     object TeacherChat : Screen("teacher/chat/{conversationId}/{recipientId}/{recipientName}") {
