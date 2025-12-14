@@ -8,9 +8,13 @@ import com.example.datn.data.mapper.toDomain
 import com.example.datn.data.mapper.toEntity
 import com.example.datn.domain.models.Notification
 import com.example.datn.domain.repository.INotificationRepository
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -31,48 +35,45 @@ class NotificationRepositoryImpl @Inject constructor(
      * Lấy danh sách notifications của user
      * Chiến lược: Lấy từ local cache trước, sau đó sync với remote
      */
-    override fun getNotificationsForUser(userId: String): Flow<Resource<List<Notification>>> = flow {
-        emit(Resource.Loading())
-        
+    override fun getNotificationsForUser(userId: String): Flow<Resource<List<Notification>>> = callbackFlow {
+        trySend(Resource.Loading())
+
+        // 1) Emit local cache first (fast UI)
         try {
-            // 1. Lấy từ local cache trước để hiển thị nhanh
             val localNotifications = notificationDao.getNotificationsByUserId(userId)
             if (localNotifications.isNotEmpty()) {
                 Log.d(TAG, "Loaded ${localNotifications.size} notifications from local cache")
-                emit(Resource.Success(localNotifications.map { it.toDomain() }))
+                trySend(Resource.Success(localNotifications.map { it.toDomain() }))
             }
-            
-            // 2. Fetch từ remote để có dữ liệu mới nhất
-            val remoteNotifications = firestoreService.getNotificationsByUserId(userId)
-            Log.d(TAG, "Fetched ${remoteNotifications.size} notifications from Firestore")
-            
-            // 3. Sync vào local database
-            remoteNotifications.forEach { notification ->
-                val entity = notification.toEntity()
-                if (notificationDao.exists(entity.id)) {
-                    notificationDao.update(entity)
-                } else {
-                    notificationDao.insert(entity)
-                }
-            }
-            
-            // 4. Emit dữ liệu từ remote
-            emit(Resource.Success(remoteNotifications))
-            
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching notifications for user: $userId", e)
-            
-            // Fallback về local nếu remote fail
-            try {
-                val localNotifications = notificationDao.getNotificationsByUserId(userId)
-                if (localNotifications.isNotEmpty()) {
-                    emit(Resource.Success(localNotifications.map { it.toDomain() }))
-                } else {
-                    emit(Resource.Error("Không thể tải thông báo: ${e.message}"))
+            Log.w(TAG, "Failed to load local notifications for user: $userId", e)
+        }
+
+        // 2) Listen realtime from Firestore (like messaging)
+        val job = launch {
+            firestoreService.listenNotificationsByUserId(userId).collectLatest { remoteNotifications ->
+                Log.d(TAG, "Realtime notifications update for userId=$userId size=${remoteNotifications.size}")
+
+                // Sync to local cache
+                try {
+                    remoteNotifications.forEach { notification ->
+                        val entity = notification.toEntity()
+                        if (notificationDao.exists(entity.id)) {
+                            notificationDao.update(entity)
+                        } else {
+                            notificationDao.insert(entity)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed syncing notifications to local for user: $userId", e)
                 }
-            } catch (localError: Exception) {
-                emit(Resource.Error("Lỗi khi tải thông báo: ${e.message}"))
+
+                trySend(Resource.Success(remoteNotifications))
             }
+        }
+
+        awaitClose {
+            job.cancel()
         }
     }.catch { e ->
         Log.e(TAG, "Flow error in getNotificationsForUser", e)
@@ -148,9 +149,8 @@ class NotificationRepositoryImpl @Inject constructor(
      * Gửi notification đến giáo viên qua FCM và lưu vào Firestore
      * 
      * Flow:
-     * 1. Gửi FCM notification đến device của giáo viên
-     * 2. Nếu gửi thành công -> lưu vào Firestore
-     * 3. Lưu vào local database để tracking
+     * 1. (FCM disabled on client) Lưu vào Firestore
+     * 2. Lưu vào local database để tracking
      */
     override fun sendNotificationToTeacher(
         teacherToken: String,
@@ -159,33 +159,13 @@ class NotificationRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         
         try {
-            Log.d(TAG, "Sending notification to teacher with token: $teacherToken")
-            
-            // 1. Gửi FCM notification
-            val fcmSuccess = firestoreService.sendNotificationToTeacher(
-                token = teacherToken,
-                title = notification.title,
-                body = notification.content,
-                data = mapOf(
-                    "notificationId" to notification.id,
-                    "type" to notification.type.name,
-                    "referenceObjectId" to (notification.referenceObjectId ?: ""),
-                    "referenceObjectType" to (notification.referenceObjectType ?: "")
-                )
-            )
-            
-            if (!fcmSuccess) {
-                Log.w(TAG, "FCM notification failed but continuing to save")
-                // Không throw exception, vẫn tiếp tục lưu notification
-            } else {
-                Log.d(TAG, "FCM notification sent successfully")
-            }
-            
-            // 2. Lưu vào Firestore (quan trọng để có lịch sử)
+            Log.d(TAG, "Sending notification to teacher (Firestore only). tokenIgnored=${teacherToken.isNotBlank()}")
+
+            // 1. Lưu vào Firestore (quan trọng để có lịch sử)
             firestoreService.saveNotification(notification)
             Log.d(TAG, "Notification saved to Firestore")
             
-            // 3. Lưu vào local database
+            // 2. Lưu vào local database
             notificationDao.insert(notification.toEntity())
             Log.d(TAG, "Notification saved to local database")
             
@@ -221,6 +201,7 @@ class NotificationRepositoryImpl @Inject constructor(
             
         } catch (e: Exception) {
             Log.e(TAG, "Error saving notification", e)
+            emit(Resource.Error("Không thể lưu thông báo: ${e.message}"))
         }
     }.catch { e ->
         Log.e(TAG, "Flow error in saveNotification", e)

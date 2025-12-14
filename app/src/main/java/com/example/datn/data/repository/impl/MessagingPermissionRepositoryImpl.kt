@@ -1,12 +1,14 @@
 package com.example.datn.data.repository.impl
 
 import android.util.Log
+import com.example.datn.core.network.datasource.FirebaseDataSource
 import com.example.datn.core.utils.Resource
 import com.example.datn.data.local.dao.ClassDao
 import com.example.datn.data.local.dao.ClassStudentDao
 import com.example.datn.data.local.dao.ParentStudentDao
 import com.example.datn.data.local.dao.UserDao
 import com.example.datn.data.mapper.toDomain
+import com.example.datn.data.mapper.toEntity
 import com.example.datn.domain.models.EnrollmentStatus
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.UserRole
@@ -19,6 +21,7 @@ import javax.inject.Singleton
 
 @Singleton
 class MessagingPermissionRepositoryImpl @Inject constructor(
+    private val firebaseDataSource: FirebaseDataSource,
     private val classDao: ClassDao,
     private val classStudentDao: ClassStudentDao,
     private val parentStudentDao: ParentStudentDao,
@@ -598,20 +601,63 @@ class MessagingPermissionRepositoryImpl @Inject constructor(
                 }
                 UserRole.PARENT -> {
                     // Children + Teachers + Other Parents
-                    getMyChildren(userId).collect { resource ->
-                        if (resource is Resource.Success) {
-                            resource.data?.let { allRecipients.addAll(it) }
+                    // NOTE: current implementation reads from Room cache. If cache is empty, fallback to Firebase.
+                    val cachedLinks = parentStudentDao.getStudentsByParentId(userId)
+
+                    if (cachedLinks.isEmpty()) {
+                        Log.w(TAG, "Parent cache is empty (parent_student) for userId=$userId. Falling back to Firebase...")
+
+                        // 1) Children
+                        val remoteChildrenResult = firebaseDataSource.getStudentsByParentId(userId)
+                        val remoteChildren = (remoteChildrenResult as? Resource.Success)?.data ?: emptyList()
+
+                        remoteChildren.forEach { student ->
+                            val childUserId = student.userId.ifBlank { student.id }
+                            val childUserResult = firebaseDataSource.getUserById(childUserId)
+                            val childUser = (childUserResult as? Resource.Success)?.data
+                            if (childUser != null) {
+                                allRecipients.add(childUser)
+                                userDao.insert(childUser.toEntity())
+                            }
                         }
-                    }
-                    getTeachersOfMyChildren(userId).collect { resource ->
-                        if (resource is Resource.Success) {
-                            resource.data?.let { allRecipients.addAll(it) }
+
+                        // 2) Teachers of my children (APPROVED classes)
+                        val remoteClassesResult = firebaseDataSource.getStudentClassesForParent(
+                            parentId = userId,
+                            studentId = null,
+                            enrollmentStatus = EnrollmentStatus.APPROVED
+                        )
+
+                        val enrollments = (remoteClassesResult as? Resource.Success)?.data ?: emptyList()
+                        val teacherIds = enrollments.mapNotNull { it.teacherId }.distinct()
+
+                        teacherIds.forEach { teacherId ->
+                            val teacherUserResult = firebaseDataSource.getUserById(teacherId)
+                            val teacherUser = (teacherUserResult as? Resource.Success)?.data
+                            if (teacherUser != null) {
+                                allRecipients.add(teacherUser)
+                                userDao.insert(teacherUser.toEntity())
+                            }
                         }
-                    }
-                    // Tùy chọn: bật/tắt other parents
-                    getParentsOfClassmates(userId).collect { resource ->
-                        if (resource is Resource.Success) {
-                            resource.data?.let { allRecipients.addAll(it) }
+
+                        // 3) Other parents: keep empty in fallback for now (requires additional remote graph traversal)
+                    } else {
+                        // Normal path: use Room cached graph
+                        getMyChildren(userId).collect { resource ->
+                            if (resource is Resource.Success) {
+                                resource.data?.let { allRecipients.addAll(it) }
+                            }
+                        }
+                        getTeachersOfMyChildren(userId).collect { resource ->
+                            if (resource is Resource.Success) {
+                                resource.data?.let { allRecipients.addAll(it) }
+                            }
+                        }
+                        // Tùy chọn: bật/tắt other parents
+                        getParentsOfClassmates(userId).collect { resource ->
+                            if (resource is Resource.Success) {
+                                resource.data?.let { allRecipients.addAll(it) }
+                            }
                         }
                     }
                 }

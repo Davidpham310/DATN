@@ -9,12 +9,15 @@ import com.example.datn.domain.usecase.user.UserUseCases
 import com.example.datn.domain.usecase.progress.GetStudentClassProgressUseCase
 import com.example.datn.domain.usecase.progress.GetStudentClassLessonProgressUseCase
 import com.example.datn.domain.usecase.progress.GetStudentAllLessonProgressUseCase
+import com.example.datn.domain.usecase.progress.GetStudentClassPerformanceDetailsUseCase
 import com.example.datn.domain.usecase.progress.GetStudentDashboardUseCase
 import com.example.datn.domain.usecase.progress.GetStudyTimeStatisticsUseCase
+import com.example.datn.core.utils.extensions.formatAsDateTime
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -35,6 +38,7 @@ class StudentDetailViewModel @Inject constructor(
     private val getStudentClassProgress: GetStudentClassProgressUseCase,
     private val getStudentClassLessonProgress: GetStudentClassLessonProgressUseCase,
     private val getStudentAllLessonProgress: GetStudentAllLessonProgressUseCase,
+    private val getStudentClassPerformanceDetails: GetStudentClassPerformanceDetailsUseCase,
     private val getStudentDashboard: GetStudentDashboardUseCase,
     private val getStudyTimeStatistics: GetStudyTimeStatisticsUseCase,
     notificationManager: NotificationManager
@@ -43,7 +47,12 @@ class StudentDetailViewModel @Inject constructor(
     notificationManager
 ) {
 
+    private companion object {
+        const val TAG = "TeacherStudentDetailVM"
+    }
+
     override fun onEvent(event: StudentDetailEvent) {
+        Log.d(TAG, "onEvent=$event")
         when (event) {
             is StudentDetailEvent.LoadStudentDetail -> loadStudentDetail(event.studentId, event.classId)
             is StudentDetailEvent.ChangeTab -> setState { copy(selectedTab = event.tabIndex) }
@@ -53,6 +62,7 @@ class StudentDetailViewModel @Inject constructor(
     }
 
     private fun loadStudentDetail(studentId: String, classId: String) {
+        Log.d(TAG, "loadStudentDetail: start studentId=$studentId classId=$classId")
         launch {
             setState { 
                 copy(
@@ -62,18 +72,23 @@ class StudentDetailViewModel @Inject constructor(
                 ) 
             }
 
+            Log.d(TAG, "loadStudentDetail: loadUserInfo(studentId=$studentId)")
+
             // Load user information
             loadUserInfo(studentId)
             
             // Load enrollment information
             if (classId.isNotEmpty()) {
+                Log.d(TAG, "loadStudentDetail: loadEnrollmentInfo(studentId=$studentId, classId=$classId)")
                 loadEnrollmentInfo(studentId, classId)
             }
             
             // Load academic progress
+            Log.d(TAG, "loadStudentDetail: loadAcademicProgress(studentId=$studentId, classId=$classId)")
             loadAcademicProgress(classId, studentId)
             
             setState { copy(isLoading = false) }
+            Log.d(TAG, "loadStudentDetail: done studentId=$studentId classId=$classId")
         }
     }
 
@@ -83,13 +98,17 @@ class StudentDetailViewModel @Inject constructor(
 
             userUseCases.getStudentUser(studentId).collect { result ->
                 when (result) {
-                    is Resource.Loading -> { /* Skip */ }
+                    is Resource.Loading -> { 
+                        Log.d(TAG, "UserInfo: Loading studentId=$studentId")
+                    }
                     is Resource.Success -> {
                         userResult = result
+                        Log.d(TAG, "UserInfo: Success studentId=$studentId user=${result.data}")
                         return@collect
                     }
                     is Resource.Error -> {
                         userResult = result
+                        Log.e(TAG, "UserInfo: Error studentId=$studentId msg=${result.message}")
                         return@collect
                     }
                     else -> { /* Skip */ }
@@ -117,9 +136,12 @@ class StudentDetailViewModel @Inject constructor(
         try {
             classUseCases.getApprovedStudentsInClass(classId).collectLatest { result ->
                 when (result) {
+                    is Resource.Loading -> {
+                        Log.d(TAG, "EnrollmentInfo: Loading studentId=$studentId classId=$classId")
+                    }
                     is Resource.Success -> {
                         val enrollment = result.data?.find { it.studentId == studentId }
-                        Log.d("StudentDetailVM", "Loaded enrollment info: $enrollment")
+                        Log.d(TAG, "EnrollmentInfo: Success studentId=$studentId classId=$classId enrollment=$enrollment")
                         if (enrollment != null) {
                             val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                             val enrolledDate = try {
@@ -139,6 +161,7 @@ class StudentDetailViewModel @Inject constructor(
                         }
                     }
                     is Resource.Error -> {
+                        Log.e(TAG, "EnrollmentInfo: Error studentId=$studentId classId=$classId msg=${result.message}")
                         setState { copy(error = result.message) }
                     }
                     else -> { /* Skip */ }
@@ -149,87 +172,202 @@ class StudentDetailViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadAcademicProgress(classId: String, studentId: String) {
-        try {
-            // Load dashboard data (works for both teacher and parent view)
-            getStudentDashboard(studentId).collectLatest { dashboardResult ->
-                when (dashboardResult) {
-                    is Resource.Loading -> {
-                        // Giữ nguyên state loading
+    private fun loadAcademicProgress(classId: String, studentId: String) {
+        launch {
+            try {
+                getStudentDashboard(studentId).collectLatest { dashboardResult ->
+                    when (dashboardResult) {
+                        is Resource.Loading -> {
+                            Log.d(TAG, "Dashboard: Loading studentId=$studentId")
+                            // Giữ nguyên state loading
+                        }
+                        is Resource.Success -> {
+                            val dashboard = dashboardResult.data
+                            Log.d(TAG, "Dashboard: Success studentId=$studentId overview=${dashboard?.overview}")
+                            if (dashboard != null) {
+                                val overview = dashboard.overview
+                                setState {
+                                    copy(
+                                        totalLessons = overview.totalLessons,
+                                        completedLessons = overview.completedLessons,
+                                        lessonProgress = if (overview.totalLessons > 0) {
+                                            overview.averageLessonProgressPercent / 100f
+                                        } else {
+                                            0f
+                                        },
+                                        totalTests = overview.totalTests,
+                                        completedTests = overview.completedTests,
+                                        averageScore = overview.averageTestScorePercent?.toFloat() ?: 0f,
+                                        totalStudyTimeSeconds = overview.totalStudyTimeSeconds,
+                                        totalMiniGamesPlayed = overview.totalMiniGamesPlayed,
+                                        averageMiniGameScorePercent = overview.averageMiniGameScorePercent?.toFloat()
+                                            ?: 0f
+                                    )
+                                }
+                            }
+                        }
+                        is Resource.Error -> {
+                            Log.e(TAG, "Dashboard: Error studentId=$studentId msg=${dashboardResult.message}")
+                            setState { copy(error = dashboardResult.message) }
+                        }
                     }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Dashboard: Exception studentId=$studentId", e)
+                setState { copy(error = e.message ?: "Lỗi tải tổng quan") }
+            }
+        }
+
+        launch {
+            try {
+                Log.d(TAG, "StudyTimeStatistics: start studentId=$studentId")
+                val timeResult = getStudyTimeStatistics(studentId)
+                    .first { it !is Resource.Loading }
+                when (timeResult) {
                     is Resource.Success -> {
-                        val dashboard = dashboardResult.data
-                        Log.d("StudentDetailVM", "Loaded dashboard: $dashboard")
-                        if (dashboard != null) {
-                            val overview = dashboard.overview
-                            setState {
-                                copy(
-                                    totalLessons = overview.totalLessons,
-                                    completedLessons = overview.completedLessons,
-                                    lessonProgress = if (overview.totalLessons > 0) {
-                                        overview.averageLessonProgressPercent / 100f
+                        Log.d(
+                            TAG,
+                            "StudyTimeStatistics: Success studentId=$studentId stats=${timeResult.data}"
+                        )
+                        setState { copy(studyTimeStatistics = timeResult.data) }
+                    }
+                    is Resource.Error -> {
+                        Log.w(TAG, "StudyTimeStatistics: Error studentId=$studentId msg=${timeResult.message}")
+                    }
+                    else -> {
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "StudyTimeStatistics: Exception studentId=$studentId msg=${e.message}")
+            }
+        }
+
+        if (classId.isNotEmpty()) {
+            launch {
+                try {
+                    Log.d(TAG, "LessonProgress(class): start studentId=$studentId classId=$classId")
+                    getStudentClassLessonProgress(studentId, classId).collectLatest { result ->
+                        when (result) {
+                            is Resource.Loading -> {
+                                Log.d(TAG, "LessonProgress(class): Loading studentId=$studentId classId=$classId")
+                            }
+                            is Resource.Success -> {
+                                val items = result.data ?: emptyList()
+                                Log.d(
+                                    TAG,
+                                    "LessonProgress(class): Success studentId=$studentId classId=$classId items=${items.size}"
+                                )
+                                setState { copy(lessonProgressItems = items) }
+                            }
+                            is Resource.Error -> {
+                                Log.e(
+                                    TAG,
+                                    "LessonProgress(class): Error studentId=$studentId classId=$classId msg=${result.message}"
+                                )
+                                setState { copy(error = result.message) }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "LessonProgress(class): Exception studentId=$studentId classId=$classId", e)
+                    setState { copy(error = e.message ?: "Lỗi tải tiến độ bài học") }
+                }
+            }
+
+            launch {
+                try {
+                    Log.d(TAG, "ClassPerformanceDetails: start studentId=$studentId classId=$classId")
+                    getStudentClassPerformanceDetails(studentId, classId).collectLatest { detailsRes ->
+                        when (detailsRes) {
+                            is Resource.Loading -> {
+                                Log.d(TAG, "ClassPerformanceDetails: Loading studentId=$studentId classId=$classId")
+                            }
+                            is Resource.Success -> {
+                                val details = detailsRes.data
+                                val mappedTests = details?.testResults.orEmpty().map { item ->
+                                    val scorePercent = if (item.maxScore > 0) {
+                                        (item.score * 100.0) / item.maxScore
                                     } else {
-                                        0f
-                                    },
-                                    totalTests = overview.totalTests,
-                                    completedTests = overview.completedTests,
-                                    averageScore = overview.averageTestScorePercent?.toFloat() ?: 0f,
-                                    totalStudyTimeSeconds = overview.totalStudyTimeSeconds,
-                                    totalMiniGamesPlayed = overview.totalMiniGamesPlayed,
-                                    averageMiniGameScorePercent = overview.averageMiniGameScorePercent?.toFloat()
-                                        ?: 0f
+                                        0.0
+                                    }
+                                    TestResult(
+                                        testId = item.testId,
+                                        testTitle = item.testTitle,
+                                        score = item.score.toFloat(),
+                                        maxScore = item.maxScore.toFloat(),
+                                        durationSeconds = item.durationSeconds,
+                                        completedDate = item.submissionTime.formatAsDateTime(),
+                                        passed = scorePercent >= 50.0
+                                    )
+                                }
+                                val mappedMiniGames = details?.miniGameResults.orEmpty().map { item ->
+                                    val scorePercent = if (item.maxScore > 0) {
+                                        (item.score * 100.0) / item.maxScore
+                                    } else {
+                                        0.0
+                                    }
+                                    MiniGameResult(
+                                        miniGameId = item.miniGameId,
+                                        miniGameTitle = item.miniGameTitle,
+                                        score = item.score.toFloat(),
+                                        maxScore = item.maxScore.toFloat(),
+                                        scorePercent = scorePercent.toFloat(),
+                                        completedDate = item.submissionTime.formatAsDateTime(),
+                                        durationSeconds = item.durationSeconds,
+                                        attemptNumber = item.attemptNumber
+                                    )
+                                }
+                                Log.d(
+                                    TAG,
+                                    "ClassPerformanceDetails: Success studentId=$studentId classId=$classId tests=${mappedTests.size} miniGames=${mappedMiniGames.size}"
+                                )
+                                setState {
+                                    copy(
+                                        testResults = mappedTests,
+                                        miniGameResults = mappedMiniGames
+                                    )
+                                }
+                            }
+                            is Resource.Error -> {
+                                Log.w(
+                                    TAG,
+                                    "ClassPerformanceDetails: Error studentId=$studentId classId=$classId msg=${detailsRes.message}"
                                 )
                             }
                         }
                     }
-                    is Resource.Error -> {
-                        setState { copy(error = dashboardResult.message) }
-                    }
+                } catch (e: Exception) {
+                    Log.w(
+                        TAG,
+                        "ClassPerformanceDetails: Exception studentId=$studentId classId=$classId msg=${e.message}"
+                    )
                 }
             }
-            
-            // Load study time statistics
-            getStudyTimeStatistics(studentId).collectLatest { timeResult ->
-                when (timeResult) {
-                    is Resource.Loading -> {}
-                    is Resource.Success -> {
-                        Log.d("StudentDetailVM", "Loaded study time statistics: $timeResult")
+        } else {
+            launch {
+                try {
+                    Log.d(TAG, "LessonProgress(all): start studentId=$studentId")
+                    getStudentAllLessonProgress(studentId).collectLatest { result ->
+                        when (result) {
+                            is Resource.Loading -> {
+                                Log.d(TAG, "LessonProgress(all): Loading studentId=$studentId")
+                            }
+                            is Resource.Success -> {
+                                val items = result.data ?: emptyList()
+                                Log.d(TAG, "LessonProgress(all): Success studentId=$studentId items=${items.size}")
+                                setState { copy(lessonProgressItems = items) }
+                            }
+                            is Resource.Error -> {
+                                Log.e(TAG, "LessonProgress(all): Error studentId=$studentId msg=${result.message}")
+                                setState { copy(error = result.message ?: "Lỗi tải tiến độ học tập") }
+                            }
+                        }
                     }
-                    is Resource.Error -> {}
+                } catch (e: Exception) {
+                    Log.e(TAG, "LessonProgress(all): Exception studentId=$studentId", e)
+                    setState { copy(error = e.message ?: "Lỗi tải tiến độ học tập") }
                 }
             }
-            
-            if (classId.isNotEmpty()) {
-                // Teacher view: Also load progress for specific class
-                getStudentClassLessonProgress(studentId, classId).collectLatest { result ->
-                    when (result) {
-                        is Resource.Loading -> {}
-                        is Resource.Success -> {
-                            val items = result.data ?: emptyList()
-                            setState { copy(lessonProgressItems = items) }
-                        }
-                        is Resource.Error -> {
-                            setState { copy(error = result.message) }
-                        }
-                    }
-                }
-            } else {
-                // Parent view: Load progress across all classes
-                getStudentAllLessonProgress(studentId).collectLatest { result ->
-                    when (result) {
-                        is Resource.Loading -> {}
-                        is Resource.Success -> {
-                            val items = result.data ?: emptyList()
-                            setState { copy(lessonProgressItems = items) }
-                        }
-                        is Resource.Error -> {
-                            setState { copy(error = result.message ?: "Lỗi tải tiến độ học tập") }
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            setState { copy(error = e.message ?: "Lỗi tải tiến độ học tập") }
         }
     }
 

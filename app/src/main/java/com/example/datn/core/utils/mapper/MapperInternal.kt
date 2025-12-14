@@ -7,8 +7,11 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.google.firebase.firestore.DocumentSnapshot
 import java.time.Instant
+import java.time.LocalDate
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
+import kotlin.math.floor
+import kotlin.math.roundToLong
 
 // ==========================================================
 // 1️⃣ JSON ENGINES (Kotlinx + Jackson)
@@ -37,10 +40,19 @@ internal val JacksonMapper: ObjectMapper = ObjectMapper().apply {
             override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Instant {
                 val node = p.codec.readTree<JsonNode>(p)
                 
-                // Nếu là number (milliseconds từ Firestore Timestamp)
+                // Nếu là number:
+                // - Một số màn hình/clients lưu epochSeconds (có thể có phần thập phân)
+                // - Một số lưu epochMillis
                 if (node.isNumber) {
-                    val milliseconds = node.asLong()
-                    return Instant.ofEpochMilli(milliseconds)
+                    val raw = node.asDouble()
+                    // Heuristic: < 1e12 => epochSeconds, >= 1e12 => epochMillis
+                    return if (raw < 1_000_000_000_000.0) {
+                        val seconds = floor(raw).toLong()
+                        val nanos = ((raw - seconds) * 1_000_000_000.0).roundToLong().coerceIn(0, 999_999_999)
+                        Instant.ofEpochSecond(seconds, nanos)
+                    } else {
+                        Instant.ofEpochMilli(raw.roundToLong())
+                    }
                 }
                 
                 // Nếu là object với {epochSecond, nano} (Firestore Instant format)
@@ -60,6 +72,26 @@ internal val JacksonMapper: ObjectMapper = ObjectMapper().apply {
                 }
                 
                 throw IllegalStateException("Invalid Firestore Instant format: $node")
+            }
+        })
+
+        addDeserializer(LocalDate::class.java, object : JsonDeserializer<LocalDate>() {
+            override fun deserialize(p: JsonParser, ctxt: DeserializationContext): LocalDate {
+                val node = p.codec.readTree<JsonNode>(p)
+
+                // Firestore có thể lưu LocalDate dạng array [year, month, day]
+                if (node.isArray && node.size() >= 3) {
+                    val year = node.get(0).asInt()
+                    val month = node.get(1).asInt()
+                    val day = node.get(2).asInt()
+                    return LocalDate.of(year, month, day)
+                }
+
+                if (node.isTextual) {
+                    return LocalDate.parse(node.asText())
+                }
+
+                throw IllegalStateException("Invalid Firestore LocalDate format: $node")
             }
         })
     }

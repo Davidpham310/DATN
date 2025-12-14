@@ -66,116 +66,133 @@ class GetLessonContentsUseCase @Inject constructor(
                                     flowOf(Resource.Error(message))
                                 }
                                 is Resource.Success -> {
-                                    if (enrollmentRes.data != true) {
-                                        flowOf(Resource.Error("Bạn chưa tham gia lớp học này"))
+                                    val canReadFlow: Flow<Resource<Boolean>> = if (enrollmentRes.data == true) {
+                                        flowOf(Resource.Success(true))
                                     } else {
-                                        combine(
-                                            getLessonList(
-                                                GetLessonListRequest(
-                                                    studentId = params.studentId,
-                                                    classId = lesson.classId
-                                                )
-                                            ),
-                                            contentRepository.getContentByLesson(params.lessonId),
-                                            progressRepository.getLessonProgress(
-                                                studentId = params.studentId,
-                                                lessonId = params.lessonId
-                                            )
-                                        ) { lessonListRes, contentsRes, progressRes ->
-                                            when (lessonListRes) {
-                                                is Resource.Loading -> Resource.Loading()
-                                                is Resource.Error -> Resource.Error(
-                                                    lessonListRes.message ?: "Lỗi lấy danh sách bài học"
-                                                )
-                                                is Resource.Success -> {
-                                                    val lessonWithStatus =
-                                                        lessonListRes.data?.find { it.lesson.id == params.lessonId }
+                                        classRepository.hasPendingEnrollment(
+                                            classId = lesson.classId,
+                                            studentId = params.studentId
+                                        )
+                                    }
 
-                                                    if (lessonWithStatus == null) {
-                                                        Resource.Error("Không tìm thấy bài học")
-                                                    } else if (!lessonWithStatus.canAccess || lessonWithStatus.status == LessonStatus.LOCKED) {
-                                                        Resource.Error(lessonWithStatus.lockReason ?: "Bài học đang bị khóa")
-                                                    } else {
-                                                        when (contentsRes) {
+                                    canReadFlow.flatMapLatest { canReadRes ->
+                                        when (canReadRes) {
+                                            is Resource.Loading -> flowOf(Resource.Loading())
+                                            is Resource.Error -> flowOf(Resource.Error(canReadRes.message ?: "Lỗi kiểm tra tham gia lớp học"))
+                                            is Resource.Success -> {
+                                                if (canReadRes.data != true) {
+                                                    flowOf(Resource.Error("Bạn chưa tham gia lớp học này"))
+                                                } else {
+                                                    combine(
+                                                        getLessonList(
+                                                            GetLessonListRequest(
+                                                                studentId = params.studentId,
+                                                                classId = lesson.classId
+                                                            )
+                                                        ),
+                                                        contentRepository.getContentByLesson(params.lessonId),
+                                                        progressRepository.getLessonProgress(
+                                                            studentId = params.studentId,
+                                                            lessonId = params.lessonId
+                                                        )
+                                                    ) { lessonListRes, contentsRes, progressRes ->
+                                                        when (lessonListRes) {
                                                             is Resource.Loading -> Resource.Loading()
                                                             is Resource.Error -> Resource.Error(
-                                                                contentsRes.message
-                                                                    ?: "Lỗi lấy nội dung bài học"
+                                                                lessonListRes.message ?: "Lỗi lấy danh sách bài học"
                                                             )
                                                             is Resource.Success -> {
-                                                                val contents =
-                                                                    contentsRes.data?.sortedBy { it.order }.orEmpty()
+                                                                val lessonWithStatus =
+                                                                    lessonListRes.data?.find { it.lesson.id == params.lessonId }
 
-                                                                val progress =
-                                                                    (progressRes as? Resource.Success)?.data
+                                                                if (lessonWithStatus == null) {
+                                                                    Resource.Error("Không tìm thấy bài học")
+                                                                } else if (!lessonWithStatus.canAccess || lessonWithStatus.status == LessonStatus.LOCKED) {
+                                                                    Resource.Error(lessonWithStatus.lockReason ?: "Bài học đang bị khóa")
+                                                                } else {
+                                                                    when (contentsRes) {
+                                                                        is Resource.Loading -> Resource.Loading()
+                                                                        is Resource.Error -> Resource.Error(
+                                                                            contentsRes.message
+                                                                                ?: "Lỗi lấy nội dung bài học"
+                                                                        )
+                                                                        is Resource.Success -> {
+                                                                            val contents =
+                                                                                contentsRes.data?.sortedBy { it.order }.orEmpty()
 
-                                                                val totalContents = contents.size
-                                                                val viewedIds = mutableSetOf<String>()
+                                                                            val progress =
+                                                                                (progressRes as? Resource.Success)?.data
 
-                                                                if (progress != null && totalContents > 0) {
-                                                                    val percentage =
-                                                                        progress.progressPercentage.coerceIn(0, 100)
-                                                                    val viewedCount =
-                                                                        (percentage * totalContents) / 100
+                                                                            val totalContents = contents.size
+                                                                            val viewedIds = mutableSetOf<String>()
 
-                                                                    contents.take(viewedCount)
-                                                                        .forEach { viewedIds.add(it.id) }
+                                                                            if (progress != null && totalContents > 0) {
+                                                                                val percentage =
+                                                                                    progress.progressPercentage.coerceIn(0, 100)
+                                                                                val viewedCount =
+                                                                                    (percentage * totalContents) / 100
 
-                                                                    val lastId = progress.lastAccessedContentId
-                                                                    if (!lastId.isNullOrBlank()) {
-                                                                        val lastIndex = contents.indexOfFirst {
-                                                                            it.id == lastId
+                                                                                contents.take(viewedCount)
+                                                                                    .forEach { viewedIds.add(it.id) }
+
+                                                                                val lastId = progress.lastAccessedContentId
+                                                                                if (!lastId.isNullOrBlank()) {
+                                                                                    val lastIndex = contents.indexOfFirst {
+                                                                                        it.id == lastId
+                                                                                    }
+                                                                                    if (lastIndex in contents.indices) {
+                                                                                        viewedIds.add(contents[lastIndex].id)
+                                                                                    }
+                                                                                }
+                                                                            }
+
+                                                                            val contentWithStatus = contents.mapIndexed { index, content ->
+                                                                                val isViewed = viewedIds.contains(content.id)
+
+                                                                                val canAccess = if (index == 0) {
+                                                                                    true
+                                                                                } else {
+                                                                                    val previousContent = contents[index - 1]
+                                                                                    viewedIds.contains(previousContent.id)
+                                                                                }
+
+                                                                                val lockReason = if (!canAccess) {
+                                                                                    "Hãy hoàn thành nội dung trước đó để mở khóa"
+                                                                                } else {
+                                                                                    null
+                                                                                }
+
+                                                                                LessonContentWithStatus(
+                                                                                    content = content,
+                                                                                    canAccess = canAccess,
+                                                                                    isViewed = isViewed,
+                                                                                    lockReason = lockReason
+                                                                                )
+                                                                            }
+
+                                                                            val computedViewedCount =
+                                                                                contentWithStatus.count { it.isViewed }
+                                                                            val firstUnviewedIndex =
+                                                                                contentWithStatus.indexOfFirst { !it.isViewed }
+                                                                            val currentContentIndex = when {
+                                                                                totalContents == 0 -> 0
+                                                                                firstUnviewedIndex >= 0 -> firstUnviewedIndex
+                                                                                else -> totalContents - 1
+                                                                            }
+
+                                                                            val response = GetLessonContentsResponse(
+                                                                                lesson = lesson,
+                                                                                contents = contentWithStatus,
+                                                                                progress = progress,
+                                                                                totalContents = totalContents,
+                                                                                viewedContents = computedViewedCount,
+                                                                                currentContentIndex = currentContentIndex
+                                                                            )
+
+                                                                            Resource.Success(response)
                                                                         }
-                                                                        if (lastIndex in contents.indices) {
-                                                                            viewedIds.add(contents[lastIndex].id)
-                                                                        }
                                                                     }
                                                                 }
-
-                                                                val contentWithStatus = contents.mapIndexed { index, content ->
-                                                                    val isViewed = viewedIds.contains(content.id)
-
-                                                                    val canAccess = if (index == 0) {
-                                                                        true
-                                                                    } else {
-                                                                        val previousContent = contents[index - 1]
-                                                                        viewedIds.contains(previousContent.id)
-                                                                    }
-
-                                                                    val lockReason = if (!canAccess) {
-                                                                        "Hãy hoàn thành nội dung trước đó để mở khóa"
-                                                                    } else {
-                                                                        null
-                                                                    }
-
-                                                                    LessonContentWithStatus(
-                                                                        content = content,
-                                                                        canAccess = canAccess,
-                                                                        isViewed = isViewed,
-                                                                        lockReason = lockReason
-                                                                    )
-                                                                }
-
-                                                                val computedViewedCount =
-                                                                    contentWithStatus.count { it.isViewed }
-                                                                val firstUnviewedIndex =
-                                                                    contentWithStatus.indexOfFirst { !it.isViewed }
-                                                                val currentContentIndex = when {
-                                                                    totalContents == 0 -> 0
-                                                                    firstUnviewedIndex >= 0 -> firstUnviewedIndex
-                                                                    else -> totalContents - 1
-                                                                }
-
-                                                                val response = GetLessonContentsResponse(
-                                                                    lesson = lesson,
-                                                                    contents = contentWithStatus,
-                                                                    progress = progress,
-                                                                    totalContents = totalContents,
-                                                                    viewedContents = computedViewedCount,
-                                                                    currentContentIndex = currentContentIndex
-                                                                )
-
-                                                                Resource.Success(response)
                                                             }
                                                         }
                                                     }

@@ -9,8 +9,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -28,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -58,9 +55,11 @@ fun StudentLessonViewScreen(
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(lessonId, contentId) {
-        StudentLessonViewEvent.LoadLesson(
-            lessonId = lessonId,
-            initialContentId = contentId
+        viewModel.onEvent(
+            StudentLessonViewEvent.LoadLesson(
+                lessonId = lessonId,
+                initialContentId = contentId
+            )
         )
     }
 

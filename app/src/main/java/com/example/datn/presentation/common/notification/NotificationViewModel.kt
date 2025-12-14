@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.datn.core.base.BaseViewModel
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.usecase.notification.GetNotificationsUseCase
+import com.example.datn.domain.usecase.notification.MarkNotificationAsReadUseCase
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,6 +14,7 @@ import javax.inject.Inject
 @HiltViewModel
 class NotificationViewModel @Inject constructor(
     private val getNotifications: GetNotificationsUseCase,
+    private val markNotificationAsRead: MarkNotificationAsReadUseCase,
     notificationManager: NotificationManager
 ) : BaseViewModel<NotificationState, NotificationEvent>(NotificationState(), notificationManager) {
 
@@ -60,6 +62,34 @@ class NotificationViewModel @Inject constructor(
 
     private fun markAsRead(notificationId: String) {
         Log.d("NotificationViewModel", "Marking notification as read: $notificationId")
-        // This would be implemented if mark as read use case is available
+
+        // Optimistic UI update
+        setState {
+            copy(
+                notifications = notifications.map { n ->
+                    if (n.id == notificationId) n.copy(isRead = true) else n
+                }
+            )
+        }
+
+        launch {
+            markNotificationAsRead(notificationId).collectLatest { result ->
+                when (result) {
+                    is Resource.Loading -> {
+                        // No UI change needed
+                    }
+                    is Resource.Success -> {
+                        // Already updated optimistically
+                    }
+                    is Resource.Error -> {
+                        Log.e("NotificationViewModel", "Error marking as read: ${result.message}")
+                        showNotification(
+                            result.message ?: "Không thể đánh dấu đã đọc",
+                            NotificationType.ERROR
+                        )
+                    }
+                }
+            }
+        }
     }
 }

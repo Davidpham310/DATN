@@ -28,17 +28,27 @@ class LessonContentRepositoryImpl @Inject constructor(
     override fun getContentByLesson(lessonId: String): Flow<Resource<List<LessonContent>>> = flow {
         emit(Resource.Loading())
         try {
+            Log.d(TAG, "getContentByLesson() lessonId=$lessonId")
             val cached = lessonContentDao.getContentsByLessonId(lessonId).map { it.toDomain() }
+            Log.d(TAG, "getContentByLesson() cachedSize=${cached.size}")
             if (cached.isNotEmpty()) emit(Resource.Success(cached))
 
             val result = firebaseDataSource.getLessonContent(lessonId)
             when (result) {
                 is Resource.Success -> {
                     val data = result.data ?: emptyList()
-                    lessonContentDao.insertAll(data.map { it.toEntity() })
-                    emit(Resource.Success(data))
+                    Log.d(TAG, "getContentByLesson() remoteSuccess size=${data.size}")
+                    if (data.isEmpty() && cached.isNotEmpty()) {
+                        Log.w(TAG, "getContentByLesson() remote empty; keeping cachedSize=${cached.size}")
+                    } else {
+                        lessonContentDao.insertAll(data.map { it.toEntity() })
+                        emit(Resource.Success(data))
+                    }
                 }
-                is Resource.Error -> if (cached.isEmpty()) emit(Resource.Error(result.message))
+                is Resource.Error -> {
+                    Log.e(TAG, "getContentByLesson() remoteError message=${result.message}")
+                    if (cached.isEmpty()) emit(Resource.Error(result.message))
+                }
                 else -> {}
             }
         } catch (e: Exception) {

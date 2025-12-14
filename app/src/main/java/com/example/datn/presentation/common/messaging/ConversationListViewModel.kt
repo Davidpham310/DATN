@@ -154,7 +154,7 @@ class ConversationListViewModel @Inject constructor(
             }
 
             // Thêm current user vào danh sách participants
-            val allParticipants = listOf(currentUserId) + participantIds
+            val allParticipants = (listOf(currentUserId) + participantIds).distinct()
 
             messagingUseCases.createGroupConversation(
                 CreateGroupParams(

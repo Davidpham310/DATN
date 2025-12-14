@@ -3,13 +3,11 @@ package com.example.datn.core.network.service.notification
 import android.util.Log
 import com.example.datn.core.network.service.firestore.BaseFirestoreService
 import com.example.datn.domain.models.Notification
-import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.tasks.await
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,12 +28,6 @@ class FirestoreNotificationService @Inject constructor() :
     BaseFirestoreService<Notification>("notifications", Notification::class.java) {
     
     private val TAG = "FirestoreNotificationService"
-    private val client = OkHttpClient()
-    
-    // FCM Server Key - Trong production, key này phải được bảo vệ ở backend
-    // TODO: Move this to backend server or use Cloud Functions
-    private val FCM_SERVER_KEY = "BJ_uSSsQbOCVIP46XSYvDJm_XZ2KlPBngHrwbFmsh_iWHt8WQbMAd_k03-ooaXh3iAT3OoTCeHYrwAX2YTxiDnQ"
-    private val FCM_API_URL = "https://fcm.googleapis.com/fcm/send"
     
     /**
      * Gửi notification đến bất kỳ user nào qua FCM
@@ -70,59 +62,11 @@ class FirestoreNotificationService @Inject constructor() :
         body: String,
         data: Map<String, String>? = null
     ): Boolean {
-        return try {
-            Log.d(TAG, "Sending FCM notification to token: $token")
-            
-            // Tạo FCM payload
-            val notification = JSONObject().apply {
-                put("title", title)
-                put("body", body)
-            }
-            
-            val payload = JSONObject().apply {
-                put("to", token)
-                put("notification", notification)
-                put("priority", "high")
-                
-                // Thêm data nếu có
-                data?.let {
-                    val dataJson = JSONObject()
-                    it.forEach { (key, value) ->
-                        dataJson.put(key, value)
-                    }
-                    put("data", dataJson)
-                }
-            }
-            
-            // Tạo HTTP request
-            val requestBody = payload.toString()
-                .toRequestBody("application/json; charset=utf-8".toMediaType())
-            
-            val request = Request.Builder()
-                .url(FCM_API_URL)
-                .addHeader("Authorization", "key=$FCM_SERVER_KEY")
-                .addHeader("Content-Type", "application/json")
-                .post(requestBody)
-                .build()
-            
-            // Gửi request
-            val response = client.newCall(request).execute()
-            val success = response.isSuccessful
-            
-            if (success) {
-                Log.d(TAG, "FCM notification sent successfully")
-            } else {
-                Log.e(TAG, "Failed to send FCM notification: ${response.code} - ${response.message}")
-                Log.e(TAG, "Response body: ${response.body?.string()}")
-            }
-            
-            response.close()
-            success
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error sending FCM notification", e)
-            false
-        }
+        Log.w(
+            TAG,
+            "FCM sending is disabled in client. Notification should be delivered via Firestore realtime like messaging. token=$token"
+        )
+        return false
     }
     
     /**
@@ -170,26 +114,55 @@ class FirestoreNotificationService @Inject constructor() :
      * @return List các notification của user
      */
     suspend fun getNotificationsByUserId(userId: String): List<Notification> {
-        return try {
-            Log.d(TAG, "Fetching notifications for user: $userId")
-            
-            val snapshot = collectionRef
+        Log.d(TAG, "Fetching notifications for user: $userId")
+
+        val snapshot = collectionRef
+            .whereEqualTo("userId", userId)
+            .get()
+            .await()
+
+        return snapshot.documents.mapNotNull { doc ->
+            try {
+                doc.toEntity()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error parsing notification document: ${doc.id}", e)
+                null
+            }
+        }.sortedByDescending { it.createdAt }
+    }
+
+    fun listenNotificationsByUserId(userId: String): Flow<List<Notification>> = callbackFlow {
+        var listener: ListenerRegistration? = null
+
+        try {
+            val query = collectionRef
                 .whereEqualTo("userId", userId)
-                .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .get()
-                .await()
-            
-            snapshot.documents.mapNotNull { doc ->
-                try {
-                    doc.toEntity()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing notification document: ${doc.id}", e)
-                    null
+
+            listener = query.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val notifications = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            doc.toEntity()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error parsing notification document: ${doc.id}", e)
+                            null
+                        }
+                    }
+                    trySend(notifications.sortedByDescending { it.createdAt })
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching notifications for user: $userId", e)
-            emptyList()
+            Log.e(TAG, "Error setting up notifications listener for user: $userId", e)
+            close(e)
+        }
+
+        awaitClose {
+            listener?.remove()
         }
     }
     
@@ -221,20 +194,14 @@ class FirestoreNotificationService @Inject constructor() :
      * @return Số lượng notification chưa đọc
      */
     suspend fun getUnreadCount(userId: String): Int {
-        return try {
-            Log.d(TAG, "Counting unread notifications for user: $userId")
-            
-            val snapshot = collectionRef
-                .whereEqualTo("userId", userId)
-                .whereEqualTo("isRead", false)
-                .get()
-                .await()
-            
-            snapshot.size()
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error counting unread notifications", e)
-            0
-        }
+        Log.d(TAG, "Counting unread notifications for user: $userId")
+
+        val snapshot = collectionRef
+            .whereEqualTo("userId", userId)
+            .whereEqualTo("isRead", false)
+            .get()
+            .await()
+
+        return snapshot.size()
     }
 }

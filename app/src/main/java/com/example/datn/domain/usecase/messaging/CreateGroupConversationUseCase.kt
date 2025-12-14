@@ -25,8 +25,10 @@ class CreateGroupConversationUseCase @Inject constructor(
     operator fun invoke(params: CreateGroupParams): Flow<Resource<String>> = flow {
         try {
             emit(Resource.Loading())
+
+            val participantIds = params.participantIds.distinct()
             
-            if (params.participantIds.size < 2) {
+            if (participantIds.size < 2) {
                 emit(Resource.Error("Group cần ít nhất 2 thành viên"))
                 return@flow
             }
@@ -43,7 +45,7 @@ class CreateGroupConversationUseCase @Inject constructor(
             firebaseMessaging.createConversation(
                 conversationId = conversationId,  // ✅ Truyền conversationId đã tạo
                 type = ConversationType.GROUP.name,
-                participantIds = params.participantIds,
+                participantIds = participantIds,
                 title = params.groupTitle
             )
             
@@ -63,7 +65,7 @@ class CreateGroupConversationUseCase @Inject constructor(
             )
             
             // Insert participants
-            params.participantIds.forEach { userId ->
+            participantIds.forEach { userId ->
                 participantDao.insert(
                     ConversationParticipantEntity(
                         conversationId = conversationId,

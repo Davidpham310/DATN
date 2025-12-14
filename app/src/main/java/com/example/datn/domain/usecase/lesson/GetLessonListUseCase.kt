@@ -50,28 +50,45 @@ class GetLessonListUseCase @Inject constructor(
                     flowOf(Resource.Error(message))
                 }
                 is Resource.Success -> {
-                    if (enrollmentRes.data != true) {
-                        flowOf(Resource.Error("Bạn chưa tham gia lớp học này"))
+                    val canReadFlow: Flow<Resource<Boolean>> = if (enrollmentRes.data == true) {
+                        flowOf(Resource.Success(true))
                     } else {
-                        combine(
-                            lessonRepository.getLessonsByClass(params.classId),
-                            progressRepository.getProgressOverview(params.studentId)
-                        ) { lessonsRes, progressRes ->
-                            when {
-                                lessonsRes is Resource.Loading -> Resource.Loading()
-                                lessonsRes is Resource.Error -> Resource.Error(
-                                    lessonsRes.message ?: "Lỗi lấy danh sách bài học"
-                                )
-                                lessonsRes is Resource.Success -> {
-                                    val lessons = (lessonsRes as Resource.Success<List<Lesson>>).data?.sortedBy { it.order }.orEmpty()
-                                    val progressList = when (progressRes) {
-                                        is Resource.Success -> (progressRes as Resource.Success<List<StudentLessonProgress>>).data.orEmpty()
-                                        else -> emptyList()
+                        classRepository.hasPendingEnrollment(
+                            classId = params.classId,
+                            studentId = params.studentId
+                        )
+                    }
+
+                    canReadFlow.flatMapLatest { canReadRes ->
+                        when (canReadRes) {
+                            is Resource.Loading -> flowOf(Resource.Loading())
+                            is Resource.Error -> flowOf(Resource.Error(canReadRes.message ?: "Lỗi kiểm tra tham gia lớp học"))
+                            is Resource.Success -> {
+                                if (canReadRes.data != true) {
+                                    flowOf(Resource.Error("Bạn chưa tham gia lớp học này"))
+                                } else {
+                                    combine(
+                                        lessonRepository.getLessonsByClass(params.classId),
+                                        progressRepository.getProgressOverview(params.studentId)
+                                    ) { lessonsRes, progressRes ->
+                                        when {
+                                            lessonsRes is Resource.Loading -> Resource.Loading()
+                                            lessonsRes is Resource.Error -> Resource.Error(
+                                                lessonsRes.message ?: "Lỗi lấy danh sách bài học"
+                                            )
+                                            lessonsRes is Resource.Success -> {
+                                                val lessons = (lessonsRes as Resource.Success<List<Lesson>>).data?.sortedBy { it.order }.orEmpty()
+                                                val progressList = when (progressRes) {
+                                                    is Resource.Success -> (progressRes as Resource.Success<List<StudentLessonProgress>>).data.orEmpty()
+                                                    else -> emptyList()
+                                                }
+                                                val result = buildLessonWithStatus(lessons, progressList)
+                                                Resource.Success(result)
+                                            }
+                                            else -> Resource.Error("Lỗi lấy danh sách bài học")
+                                        }
                                     }
-                                    val result = buildLessonWithStatus(lessons, progressList)
-                                    Resource.Success(result)
                                 }
-                                else -> Resource.Error("Lỗi lấy danh sách bài học")
                             }
                         }
                     }

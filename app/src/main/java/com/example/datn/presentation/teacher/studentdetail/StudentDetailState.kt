@@ -1,6 +1,7 @@
 package com.example.datn.presentation.teacher.studentdetail
 
 import com.example.datn.core.base.BaseState
+import com.example.datn.domain.models.StudyTimeStatistics
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.Student
 import com.example.datn.domain.models.ClassStudent
@@ -31,9 +32,11 @@ data class StudentDetailState(
     val completedTests: Int = 0,
     val averageScore: Float = 0f,
     val testResults: List<TestResult> = emptyList(),
+    val miniGameResults: List<MiniGameResult> = emptyList(),
     
     // Study / Mini-game overview
     val totalStudyTimeSeconds: Long = 0L,
+    val studyTimeStatistics: StudyTimeStatistics? = null,
     val totalMiniGamesPlayed: Int = 0,
     val averageMiniGameScorePercent: Float = 0f,
 
@@ -53,14 +56,23 @@ data class StudentDetailState(
     val selectedTab: Int = 0
 ) : BaseState
 
-/**
- * Data class for test result display
- */
 data class TestResult(
     val testId: String = "",
     val testTitle: String = "",
     val score: Float = 0f,
     val maxScore: Float = 100f,
+    val durationSeconds: Long = 0L,
     val completedDate: String = "",
     val passed: Boolean = false
+)
+
+data class MiniGameResult(
+    val miniGameId: String = "",
+    val miniGameTitle: String = "",
+    val score: Float = 0f,
+    val maxScore: Float = 0f,
+    val scorePercent: Float = 0f,
+    val completedDate: String = "",
+    val durationSeconds: Long = 0L,
+    val attemptNumber: Int = 1
 )

@@ -64,6 +64,7 @@ class EditProfileViewModel @Inject constructor(
 
     private fun loadProfile(userId: String, role: String) {
         viewModelScope.launch {
+            Log.d(TAG, "loadProfile() userId=$userId, role=$role")
             when (role.uppercase()) {
                 UserRole.STUDENT.name -> loadStudentProfile(userId)
                 UserRole.TEACHER.name -> loadTeacherProfile(userId)
@@ -95,6 +96,7 @@ class EditProfileViewModel @Inject constructor(
                     student?.userId?.let { loadUserAvatar(it) }
                 }
                 is Resource.Error -> {
+                    Log.e(TAG, "loadStudentProfile() studentId=$studentId -> Error: ${result.message}")
                     setState { copy(error = result.message, isLoading = false) }
                     showNotification(
                         result.message ?: "Lỗi tải hồ sơ",
@@ -106,13 +108,16 @@ class EditProfileViewModel @Inject constructor(
     }
 
     private suspend fun loadTeacherProfile(teacherId: String) {
+        Log.d(TAG, "loadTeacherProfile() teacherId=$teacherId")
         getTeacherProfile(teacherId).collect { result ->
             when (result) {
                 is Resource.Loading -> {
+                    Log.d(TAG, "loadTeacherProfile() -> Loading")
                     setState { copy(isLoading = true, error = null) }
                 }
                 is Resource.Success -> {
                     val teacher = result.data
+                    Log.d(TAG, "loadTeacherProfile() -> Success teacher=${teacher?.id}, userId=${teacher?.userId}")
                     setState {
                         copy(
                             teacher = teacher,
@@ -125,6 +130,7 @@ class EditProfileViewModel @Inject constructor(
                     teacher?.userId?.let { loadUserAvatar(it) }
                 }
                 is Resource.Error -> {
+                    Log.e(TAG, "loadTeacherProfile() teacherId=$teacherId -> Error: ${result.message}")
                     setState { copy(error = result.message, isLoading = false) }
                     showNotification(
                         result.message ?: "Lỗi tải hồ sơ",

@@ -1,5 +1,5 @@
 package com.example.datn.presentation.parent.relative.ui
-
+ 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,6 +18,8 @@ import com.example.datn.domain.usecase.progress.StudentLessonProgressItem
 import com.example.datn.domain.models.StudyTimeStatistics
 import com.example.datn.core.utils.extensions.formatAsDate
 import com.example.datn.core.utils.extensions.formatAsDateTime
+import com.example.datn.presentation.parent.relative.state.MiniGameResult
+import com.example.datn.presentation.parent.relative.state.TestResult
 import com.example.datn.presentation.parent.relative.viewmodel.StudentDetailViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,10 +91,14 @@ fun StudentDetailScreen(
                         dashboard = state.dashboard,
                         studyTime = state.studyTime,
                         lessonProgressItems = state.lessonProgressItems,
+                        testResults = state.testResults,
+                        miniGameResults = state.miniGameResults,
                         isResettingPassword = state.isResettingPassword,
                         resetPasswordSuccess = state.resetPasswordSuccess,
                         resetPasswordError = state.resetPasswordError,
                         onResetPasswordClick = { viewModel.resetStudentPassword() },
+                        selectedTab = state.selectedTab,
+                        onTabSelected = viewModel::onTabSelected,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -107,66 +113,340 @@ fun StudentDetailContent(
     dashboard: StudentDashboard?,
     studyTime: StudyTimeStatistics?,
     lessonProgressItems: List<StudentLessonProgressItem>,
+    testResults: List<TestResult>,
+    miniGameResults: List<MiniGameResult>,
     isResettingPassword: Boolean,
     resetPasswordSuccess: String?,
     resetPasswordError: String?,
     onResetPasswordClick: () -> Unit,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Basic Information Card
-        InfoSection(
-            title = "Thông tin cơ bản",
-            icon = Icons.Default.Person
+    Column(modifier = modifier) {
+        StudentDetailTabs(
+            selectedTab = selectedTab,
+            onTabSelected = onTabSelected
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            InfoRow("Họ và tên", studentInfo.user.name)
-            InfoRow("Email", studentInfo.user.email)
-            InfoRow(
-                "Ngày sinh",
-                studentInfo.student.dateOfBirth.formatAsDate("dd/MM/yyyy")
-            )
-            InfoRow("Lớp", studentInfo.student.gradeLevel)
-            InfoRow(
-                "Mối quan hệ",
-                when (studentInfo.parentStudent.relationship.name) {
-                    "FATHER" -> "Bố"
-                    "MOTHER" -> "Mẹ"
-                    "GRANDPARENT" -> "Ông/Bà"
-                    "GUARDIAN" -> "Người giám hộ"
-                    else -> studentInfo.parentStudent.relationship.name
+            when (selectedTab) {
+                0 -> {
+                    InfoSection(
+                        title = "Thông tin cơ bản",
+                        icon = Icons.Default.Person
+                    ) {
+                        InfoRow("Họ và tên", studentInfo.user.name)
+                        InfoRow("Email", studentInfo.user.email)
+                        InfoRow(
+                            "Ngày sinh",
+                            studentInfo.student.dateOfBirth.formatAsDate("dd/MM/yyyy")
+                        )
+                        InfoRow("Lớp", studentInfo.student.gradeLevel)
+                        InfoRow(
+                            "Mối quan hệ",
+                            when (studentInfo.parentStudent.relationship.name) {
+                                "FATHER" -> "Bố"
+                                "MOTHER" -> "Mẹ"
+                                "GRANDPARENT" -> "Ông/Bà"
+                                "GUARDIAN" -> "Người giám hộ"
+                                else -> studentInfo.parentStudent.relationship.name
+                            }
+                        )
+                        if (studentInfo.parentStudent.isPrimaryGuardian) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Người giám hộ chính",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+
+                    InfoSection(
+                        title = "Trạng thái tài khoản",
+                        icon = Icons.Default.AccountCircle
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Trạng thái",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = if (studentInfo.user.isActive)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else
+                                    MaterialTheme.colorScheme.errorContainer
+                            ) {
+                                Text(
+                                    text = if (studentInfo.user.isActive) "Đang hoạt động" else "Không hoạt động",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (studentInfo.user.isActive)
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                        InfoRow(
+                            "Ngày liên kết",
+                            studentInfo.parentStudent.linkedAt.formatAsDateTime()
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = onResetPasswordClick,
+                                enabled = !isResettingPassword,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                if (isResettingPassword) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .padding(end = 8.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                                Text("Gửi email đổi mật khẩu cho học sinh")
+                            }
+
+                            resetPasswordSuccess?.let { message ->
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            resetPasswordError?.let { message ->
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+
+                    if (dashboard != null) {
+                        InfoSection(
+                            title = "Tiến độ học tập",
+                            icon = Icons.Default.Timeline
+                        ) {
+                            val overview = dashboard.overview
+                            InfoRow(
+                                label = "Bài học đã hoàn thành",
+                                value = "${overview.completedLessons}/${overview.totalLessons}"
+                            )
+                            InfoRow(
+                                label = "Tiến độ trung bình",
+                                value = "${overview.averageLessonProgressPercent}%"
+                            )
+                            InfoRow(
+                                label = "Bài kiểm tra đã hoàn thành",
+                                value = "${overview.completedTests}/${overview.totalTests}"
+                            )
+                            overview.averageTestScorePercent?.let { avg ->
+                                InfoRow(
+                                    label = "Điểm kiểm tra trung bình",
+                                    value = String.format("%.1f/100", avg)
+                                )
+                            }
+                        }
+                    }
+
+                    if (studyTime != null) {
+                        InfoSection(
+                            title = "Thời gian học",
+                            icon = Icons.Default.AccessTime
+                        ) {
+                            InfoRow("Hôm nay", formatDuration(studyTime.todaySeconds))
+                            InfoRow("Tuần này", formatDuration(studyTime.weekSeconds))
+                            InfoRow("Tháng này", formatDuration(studyTime.monthSeconds))
+                            InfoRow("Tổng thời gian", formatDuration(studyTime.totalSeconds))
+                        }
+                    }
                 }
-            )
-            if (studentInfo.parentStudent.isPrimaryGuardian) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Người giám hộ chính",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+
+                1 -> {
+                    if (lessonProgressItems.isEmpty()) {
+                        EmptySection(text = "Chưa có dữ liệu tiến độ bài học")
+                    } else {
+                        InfoSection(
+                            title = "Tiến độ từng bài học",
+                            icon = Icons.Default.Book
+                        ) {
+                            lessonProgressItems
+                                .sortedWith(compareBy({ it.className ?: "" }, { it.order }))
+                                .forEach { item ->
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = item.lessonTitle,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        val classInfo = buildString {
+                                            item.className?.let { append(it) }
+                                            if (!item.subject.isNullOrBlank()) {
+                                                if (isNotEmpty()) append(" · ")
+                                                append(item.subject)
+                                            }
+                                        }
+                                        if (classInfo.isNotBlank()) {
+                                            Text(
+                                                text = classInfo,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Hoàn thành: ${item.progressPercentage}%",
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            if (item.isCompleted) {
+                                                Text(
+                                                    text = "Đã hoàn thành",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                        Divider(modifier = Modifier.padding(top = 4.dp))
+                                    }
+                                }
+                        }
+                    }
+                }
+
+                2 -> {
+                    if (testResults.isEmpty()) {
+                        EmptySection(text = "Chưa có dữ liệu bài test")
+                    } else {
+                        testResults.forEach { result ->
+                            TestResultCard(testResult = result)
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
+                }
+
+                3 -> {
+                    if (miniGameResults.isEmpty()) {
+                        EmptySection(text = "Chưa có dữ liệu mini game")
+                    } else {
+                        miniGameResults.forEach { result ->
+                            MiniGameResultCard(result = result)
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
+                }
+
+                else -> {
+                    if (studyTime == null) {
+                        EmptySection(text = "Chưa có dữ liệu thời lượng học")
+                    } else {
+                        InfoSection(
+                            title = "Thời gian học",
+                            icon = Icons.Default.AccessTime
+                        ) {
+                            InfoRow("Hôm nay", formatDuration(studyTime.todaySeconds))
+                            InfoRow("Tuần này", formatDuration(studyTime.weekSeconds))
+                            InfoRow("Tháng này", formatDuration(studyTime.monthSeconds))
+                            InfoRow("Tổng thời gian", formatDuration(studyTime.totalSeconds))
+                        }
+                    }
                 }
             }
         }
+    }
+}
 
-        // Account Status Card
-        InfoSection(
-            title = "Trạng thái tài khoản",
-            icon = Icons.Default.AccountCircle
+@Composable
+fun StudentDetailTabs(selectedTab: Int, onTabSelected: (Int) -> Unit) {
+    val tabs = listOf("Tổng quan", "Bài học", "Bài test", "Mini game", "Thời lượng")
+
+    TabRow(selectedTabIndex = selectedTab) {
+        tabs.forEachIndexed { index, title ->
+            Tab(
+                selected = selectedTab == index,
+                onClick = { onTabSelected(index) },
+                text = { Text(title) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptySection(text: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun TestResultCard(testResult: TestResult) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -174,178 +454,134 @@ fun StudentDetailContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Trạng thái",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = testResult.testTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
                 Surface(
                     shape = MaterialTheme.shapes.small,
-                    color = if (studentInfo.user.isActive) 
+                    color = if (testResult.passed) {
                         MaterialTheme.colorScheme.primaryContainer
-                    else 
+                    } else {
                         MaterialTheme.colorScheme.errorContainer
+                    }
                 ) {
                     Text(
-                        text = if (studentInfo.user.isActive) "Đang hoạt động" else "Không hoạt động",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (studentInfo.user.isActive)
+                        text = if (testResult.passed) "Đạt" else "Chưa đạt",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (testResult.passed) {
                             MaterialTheme.colorScheme.onPrimaryContainer
-                        else
+                        } else {
                             MaterialTheme.colorScheme.onErrorContainer
+                        }
                     )
                 }
             }
-            InfoRow(
-                "Ngày liên kết",
-                studentInfo.parentStudent.linkedAt.formatAsDateTime()
+
+            val scorePercent = if (testResult.maxScore > 0) {
+                (testResult.score * 100f) / testResult.maxScore
+            } else {
+                0f
+            }
+            Text(
+                text = "${testResult.score.toInt()}/${testResult.maxScore.toInt()} (${String.format("%.1f", scorePercent)}%)",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            if (testResult.completedDate.isNotBlank()) {
+                Text(
+                    text = "Ngày làm: ${testResult.completedDate}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-            Column(
+            if (testResult.durationSeconds > 0L) {
+                Text(
+                    text = "Thời gian làm: ${formatDuration(testResult.durationSeconds)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniGameResultCard(result: MiniGameResult) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(
-                    onClick = onResetPasswordClick,
-                    enabled = !isResettingPassword,
-                    modifier = Modifier.fillMaxWidth()
+                Text(
+                    text = result.miniGameTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.tertiaryContainer
                 ) {
-                    if (isResettingPassword) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(18.dp)
-                                .padding(end = 8.dp),
-                            strokeWidth = 2.dp
-                        )
-                    }
-                    Text("Gửi email đổi mật khẩu cho học sinh")
-                }
-
-                resetPasswordSuccess?.let { message ->
                     Text(
-                        text = message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                resetPasswordError?.let { message ->
-                    Text(
-                        text = message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                        text = "Lần ${result.attemptNumber}",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
                     )
                 }
             }
-        }
 
-        fun formatDuration(seconds: Long): String {
-            val totalMinutes = seconds / 60
-            val hours = totalMinutes / 60
-            val minutes = totalMinutes % 60
-            return when {
-                hours > 0 -> "${hours} giờ ${minutes} phút"
-                minutes > 0 -> "${minutes} phút"
-                else -> "${seconds} giây"
-            }
-        }
+            Text(
+                text = "${result.score.toInt()}/${result.maxScore.toInt()} (${String.format("%.1f", result.scorePercent)}%)",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.tertiary
+            )
 
-        if (dashboard != null) {
-            InfoSection(
-                title = "Tiến độ học tập",
-                icon = Icons.Default.Timeline
-            ) {
-                val overview = dashboard.overview
-                InfoRow(
-                    label = "Bài học đã hoàn thành",
-                    value = "${overview.completedLessons}/${overview.totalLessons}"
+            if (result.completedDate.isNotBlank()) {
+                Text(
+                    text = "Ngày chơi: ${result.completedDate}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                InfoRow(
-                    label = "Tiến độ trung bình",
-                    value = "${overview.averageLessonProgressPercent}%"
-                )
-                InfoRow(
-                    label = "Bài kiểm tra đã hoàn thành",
-                    value = "${overview.completedTests}/${overview.totalTests}"
-                )
-                overview.averageTestScorePercent?.let { avg ->
-                    InfoRow(
-                        label = "Điểm kiểm tra trung bình",
-                        value = String.format("%.1f/100", avg)
-                    )
-                }
             }
-        }
 
-        if (studyTime != null) {
-            InfoSection(
-                title = "Thời gian học",
-                icon = Icons.Default.AccessTime
-            ) {
-                InfoRow("Hôm nay", formatDuration(studyTime.todaySeconds))
-                InfoRow("Tuần này", formatDuration(studyTime.weekSeconds))
-                InfoRow("Tháng này", formatDuration(studyTime.monthSeconds))
-                InfoRow("Tổng thời gian", formatDuration(studyTime.totalSeconds))
+            if (result.durationSeconds > 0L) {
+                Text(
+                    text = "Thời gian chơi: ${formatDuration(result.durationSeconds)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
+    }
+}
 
-        if (lessonProgressItems.isNotEmpty()) {
-            InfoSection(
-                title = "Tiến độ từng bài học",
-                icon = Icons.Default.Book
-            ) {
-                lessonProgressItems
-                    .sortedWith(compareBy({ it.className ?: "" }, { it.order }))
-                    .forEach { item ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = item.lessonTitle,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium
-                            )
-                            val classInfo = buildString {
-                                item.className?.let { append(it) }
-                                if (!item.subject.isNullOrBlank()) {
-                                    if (isNotEmpty()) append(" · ")
-                                    append(item.subject)
-                                }
-                            }
-                            if (classInfo.isNotBlank()) {
-                                Text(
-                                    text = classInfo,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Hoàn thành: ${item.progressPercentage}%",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                if (item.isCompleted) {
-                                    Text(
-                                        text = "Đã hoàn thành",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                            Divider(modifier = Modifier.padding(top = 4.dp))
-                        }
-                    }
-            }
-        }
+private fun formatDuration(seconds: Long): String {
+    if (seconds <= 0L) return "0 phút 0 giây"
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val remainingSeconds = seconds % 60
+    return when {
+        hours > 0 -> "${hours} giờ ${minutes} phút ${remainingSeconds} giây"
+        minutes > 0 -> "${minutes} phút ${remainingSeconds} giây"
+        else -> "0 phút ${remainingSeconds} giây"
     }
 }
 

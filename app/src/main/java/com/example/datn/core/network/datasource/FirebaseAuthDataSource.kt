@@ -3,6 +3,7 @@ package com.example.datn.core.network.datasource
 import com.example.datn.core.base.BaseDataSource
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.UserRole
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -18,6 +19,16 @@ class FirebaseAuthDataSource @Inject constructor(
 
     private val usersCollection = firestore.collection("users")
 
+    private val secondaryAuth: FirebaseAuth by lazy {
+        val defaultApp = FirebaseApp.getInstance()
+        val secondaryApp = try {
+            FirebaseApp.getInstance("secondary")
+        } catch (_: IllegalStateException) {
+            FirebaseApp.initializeApp(defaultApp.applicationContext, defaultApp.options, "secondary")
+                ?: throw IllegalStateException("Failed to initialize secondary FirebaseApp")
+        }
+        FirebaseAuth.getInstance(secondaryApp)
+    }
 
     // Đăng nhập
     suspend fun login(email: String, password: String, expectedRole: String): String {
@@ -71,6 +82,38 @@ class FirebaseAuthDataSource @Inject constructor(
             usersCollection.document(userId).set(userData).await()
 
             return userId
+        }
+    }
+
+    suspend fun registerAsSecondary(email: String, password: String, name: String, role: String): String {
+        val existingUser = usersCollection
+            .whereEqualTo("email", email)
+            .get()
+            .await()
+
+        if (!existingUser.isEmpty) {
+            throw Exception("Email đã tồn tại trong hệ thống.")
+        }
+
+        try {
+            val result = secondaryAuth.createUserWithEmailAndPassword(email, password).await()
+            val userId = result.user?.uid ?: throw Exception("Không thể tạo tài khoản.")
+
+            val userData = hashMapOf(
+                "id" to userId,
+                "email" to email,
+                "name" to name,
+                "role" to role.uppercase(),
+                "avatarUrl" to "",
+                "createdAt" to System.currentTimeMillis(),
+                "updatedAt" to System.currentTimeMillis(),
+                "isActive" to true
+            )
+            usersCollection.document(userId).set(userData).await()
+
+            return userId
+        } finally {
+            secondaryAuth.signOut()
         }
     }
 

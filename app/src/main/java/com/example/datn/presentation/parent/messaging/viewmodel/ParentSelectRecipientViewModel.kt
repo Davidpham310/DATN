@@ -14,6 +14,8 @@ import com.example.datn.presentation.common.notifications.NotificationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.text.Normalizer
+import java.util.Locale
 import javax.inject.Inject
 
 /**
@@ -102,7 +104,7 @@ class ParentSelectRecipientViewModel @Inject constructor(
                             copy(
                                 isLoading = false,
                                 allRecipients = recipients,
-                                filteredRecipients = applyFilters(recipients, searchQuery, selectedRoleFilter),
+                                filteredRecipients = applyFilters(recipients, searchQuery, selectedRoleFilter, showOtherParents),
                                 childrenCount = children,
                                 teacherCount = teachers,
                                 otherParentCount = otherParents,
@@ -127,7 +129,7 @@ class ParentSelectRecipientViewModel @Inject constructor(
 
     fun search(query: String) {
         setState {
-            val filtered = applyFilters(allRecipients, query, selectedRoleFilter)
+            val filtered = applyFilters(allRecipients, query, selectedRoleFilter, showOtherParents)
             copy(
                 searchQuery = query,
                 filteredRecipients = filtered
@@ -137,7 +139,7 @@ class ParentSelectRecipientViewModel @Inject constructor(
 
     fun filterByRole(role: UserRole?) {
         setState {
-            val filtered = applyFilters(allRecipients, searchQuery, role)
+            val filtered = applyFilters(allRecipients, searchQuery, role, showOtherParents)
             copy(
                 selectedRoleFilter = role,
                 filteredRecipients = filtered
@@ -147,23 +149,23 @@ class ParentSelectRecipientViewModel @Inject constructor(
 
     fun toggleOtherParents(show: Boolean) {
         setState {
-            val filtered = if (show) {
-                allRecipients
-            } else {
-                allRecipients.filter { it.role != UserRole.PARENT }
-            }
             copy(
                 showOtherParents = show,
-                filteredRecipients = applyFilters(filtered, searchQuery, selectedRoleFilter)
+                filteredRecipients = applyFilters(allRecipients, searchQuery, selectedRoleFilter, show)
             )
         }
     }
 
-    private fun applyFilters(recipients: List<User>, query: String, roleFilter: UserRole?): List<User> {
+    private fun applyFilters(
+        recipients: List<User>,
+        query: String,
+        roleFilter: UserRole?,
+        showOtherParents: Boolean
+    ): List<User> {
         var filtered = recipients
 
         // Apply other parents visibility
-        if (!state.value.showOtherParents) {
+        if (!showOtherParents) {
             filtered = filtered.filter { it.role != UserRole.PARENT }
         }
 
@@ -174,13 +176,23 @@ class ParentSelectRecipientViewModel @Inject constructor(
 
         // Apply search
         if (query.isNotBlank()) {
+            val normalizedQuery = normalizeForSearch(query)
             filtered = filtered.filter { user ->
-                user.name.contains(query, ignoreCase = true) ||
-                user.email.contains(query, ignoreCase = true)
+                normalizeForSearch(user.name).contains(normalizedQuery) ||
+                normalizeForSearch(user.email).contains(normalizedQuery)
             }
         }
 
         return filtered
+    }
+
+    private fun normalizeForSearch(input: String): String {
+        val lower = input.trim().lowercase(Locale.ROOT)
+        val normalized = Normalizer.normalize(lower, Normalizer.Form.NFD)
+        return normalized
+            .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
+            .replace('đ', 'd')
+            .replace('Đ', 'D')
     }
 
     fun selectRecipient(user: User) {

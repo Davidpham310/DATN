@@ -1,6 +1,7 @@
 package com.example.datn.data.repository.impl
 
 import com.example.datn.core.utils.Resource
+import com.example.datn.core.utils.mapper.internalToDomain
 import com.example.datn.core.utils.mapper.internalToFirestoreMap
 import com.example.datn.data.local.dao.DailyStudyTimeDao
 import com.example.datn.data.local.dao.StudentLessonProgressDao
@@ -30,12 +31,44 @@ class ProgressRepositoryImpl @Inject constructor(
     ): Flow<Resource<StudentLessonProgress?>> = flow {
         emit(Resource.Loading())
         try {
-            val entity = studentLessonProgressDao.getProgressByStudentAndLesson(studentId, lessonId)
-            val progress = entity?.toDomain()
-            emit(Resource.Success(progress))
+            val localEntity = studentLessonProgressDao.getProgressByStudentAndLesson(studentId, lessonId)
+            val localProgress = localEntity?.toDomain()
+
+            val remoteSnapshot = firestore.collection("student_lesson_progress")
+                .whereEqualTo("studentId", studentId)
+                .whereEqualTo("lessonId", lessonId)
+                .limit(1)
+                .get()
+                .await()
+
+            val remoteProgress: StudentLessonProgress? = remoteSnapshot.documents.firstOrNull()?.let { doc ->
+                try {
+                    doc.internalToDomain(StudentLessonProgress::class.java)
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+            if (remoteProgress != null) {
+                studentLessonProgressDao.insert(remoteProgress.toEntity())
+                emit(Resource.Success(remoteProgress))
+            } else {
+                emit(Resource.Success(localProgress))
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error(e.message ?: "Lỗi lấy tiến độ bài học"))
+
+            val fallback = try {
+                studentLessonProgressDao.getProgressByStudentAndLesson(studentId, lessonId)?.toDomain()
+            } catch (_: Exception) {
+                null
+            }
+
+            if (fallback != null) {
+                emit(Resource.Success(fallback))
+            } else {
+                emit(Resource.Error(e.message ?: "Lỗi lấy tiến độ bài học"))
+            }
         }
     }
 
@@ -129,12 +162,44 @@ class ProgressRepositoryImpl @Inject constructor(
     ): Flow<Resource<DailyStudyTime?>> = flow {
         emit(Resource.Loading())
         try {
-            val entity = dailyStudyTimeDao.getDailyTimeByStudentAndDate(studentId, date)
-            val dailyTime = entity?.toDomain()
-            emit(Resource.Success(dailyTime))
+            val localEntity = dailyStudyTimeDao.getDailyTimeByStudentAndDate(studentId, date)
+            val localDailyTime = localEntity?.toDomain()
+
+            val remoteSnapshot = firestore.collection("student_daily_study_time")
+                .whereEqualTo("studentId", studentId)
+                .whereEqualTo("date", listOf(date.year, date.monthValue, date.dayOfMonth))
+                .limit(1)
+                .get()
+                .await()
+
+            val remoteDailyTime: DailyStudyTime? = remoteSnapshot.documents.firstOrNull()?.let { doc ->
+                try {
+                    doc.internalToDomain(DailyStudyTime::class.java)
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+            if (remoteDailyTime != null) {
+                dailyStudyTimeDao.insert(remoteDailyTime.toEntity())
+                emit(Resource.Success(remoteDailyTime))
+            } else {
+                emit(Resource.Success(localDailyTime))
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error(e.message ?: "Lỗi lấy thời gian học"))
+
+            val fallback = try {
+                dailyStudyTimeDao.getDailyTimeByStudentAndDate(studentId, date)?.toDomain()
+            } catch (_: Exception) {
+                null
+            }
+
+            if (fallback != null) {
+                emit(Resource.Success(fallback))
+            } else {
+                emit(Resource.Error(e.message ?: "Lỗi lấy thời gian học"))
+            }
         }
     }
 
@@ -143,24 +208,84 @@ class ProgressRepositoryImpl @Inject constructor(
     ): Flow<Resource<List<DailyStudyTime>>> = flow {
         emit(Resource.Loading())
         try {
-            val entities = dailyStudyTimeDao.getAllByStudent(studentId)
-            val dailyTimes = entities.map { it.toDomain() }
-            emit(Resource.Success(dailyTimes))
+            val localEntities = dailyStudyTimeDao.getAllByStudent(studentId)
+            val localDailyTimes = localEntities.map { it.toDomain() }
+
+            val remoteSnapshot = firestore.collection("student_daily_study_time")
+                .whereEqualTo("studentId", studentId)
+                .get()
+                .await()
+
+            val remoteDailyTimes: List<DailyStudyTime> = remoteSnapshot.documents.mapNotNull { doc ->
+                try {
+                    doc.internalToDomain(DailyStudyTime::class.java)
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+            if (remoteDailyTimes.isNotEmpty()) {
+                remoteDailyTimes.forEach { dailyStudyTimeDao.insert(it.toEntity()) }
+                emit(Resource.Success(remoteDailyTimes.sortedByDescending { it.date }))
+            } else {
+                emit(Resource.Success(localDailyTimes))
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error(e.message ?: "Lỗi lấy thống kê thời gian học"))
+
+            val fallback = try {
+                dailyStudyTimeDao.getAllByStudent(studentId).map { it.toDomain() }
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            if (fallback.isNotEmpty()) {
+                emit(Resource.Success(fallback))
+            } else {
+                emit(Resource.Error(e.message ?: "Lỗi lấy thống kê thời gian học"))
+            }
         }
     }
 
     override fun getProgressOverview(studentId: String): Flow<Resource<List<StudentLessonProgress>>> = flow {
         emit(Resource.Loading())
         try {
-            val entities = studentLessonProgressDao.getAllProgressByStudent(studentId)
-            val progressList = entities.map { it.toDomain() }
-            emit(Resource.Success(progressList))
+            val localEntities = studentLessonProgressDao.getAllProgressByStudent(studentId)
+            val localProgressList = localEntities.map { it.toDomain() }
+
+            val remoteSnapshot = firestore.collection("student_lesson_progress")
+                .whereEqualTo("studentId", studentId)
+                .get()
+                .await()
+
+            val remoteProgressList: List<StudentLessonProgress> = remoteSnapshot.documents.mapNotNull { doc ->
+                try {
+                    doc.internalToDomain(StudentLessonProgress::class.java)
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+            if (remoteProgressList.isNotEmpty()) {
+                remoteProgressList.forEach { studentLessonProgressDao.insert(it.toEntity()) }
+                emit(Resource.Success(remoteProgressList.sortedByDescending { it.lastAccessedAt }))
+            } else {
+                emit(Resource.Success(localProgressList))
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            emit(Resource.Error(e.message ?: "Lỗi lấy tổng quan tiến độ"))
+
+            val fallback = try {
+                studentLessonProgressDao.getAllProgressByStudent(studentId).map { it.toDomain() }
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            if (fallback.isNotEmpty()) {
+                emit(Resource.Success(fallback))
+            } else {
+                emit(Resource.Error(e.message ?: "Lỗi lấy tổng quan tiến độ"))
+            }
         }
     }
 }

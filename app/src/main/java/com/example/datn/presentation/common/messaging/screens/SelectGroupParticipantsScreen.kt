@@ -43,17 +43,24 @@ fun SelectGroupParticipantsScreen(
     // Tab titles with counts - use reflection
     val parentCountMethod = stateObj::class.java.getMethod("getParentCount")
     val studentCountMethod = stateObj::class.java.getMethod("getStudentCount")
-    val tabs = listOf(
-        "Phụ huynh (${parentCountMethod.invoke(stateObj)})",
-        "Học sinh (${studentCountMethod.invoke(stateObj)})"
-    )
+    val teacherCountMethod = runCatching { stateObj::class.java.getMethod("getTeacherCount") }.getOrNull()
+
+    val tabs = buildList {
+        add("Phụ huynh (${parentCountMethod.invoke(stateObj)})")
+        add("Học sinh (${studentCountMethod.invoke(stateObj)})")
+        if (teacherCountMethod != null) {
+            add("Giáo viên (${teacherCountMethod.invoke(stateObj)})")
+        }
+    }
 
     // Load data - use reflection
     LaunchedEffect(selectedTab) {
-        if (selectedTab == 0) {
-            viewModel::class.java.getMethod("loadParents").invoke(viewModel)
-        } else {
-            viewModel::class.java.getMethod("loadStudents").invoke(viewModel)
+        when (selectedTab) {
+            0 -> viewModel::class.java.getMethod("loadParents").invoke(viewModel)
+            1 -> viewModel::class.java.getMethod("loadStudents").invoke(viewModel)
+            2 -> runCatching { viewModel::class.java.getMethod("loadTeachers") }
+                .getOrNull()
+                ?.invoke(viewModel)
         }
     }
 
@@ -75,7 +82,8 @@ fun SelectGroupParticipantsScreen(
                     }
                 },
                 actions = {
-                    if (selectedUsers.size >= 2) {
+                    // Only need >= 1 selected user because current user will be auto-added
+                    if (selectedUsers.size >= 1) {
                         IconButton(onClick = { showCreateDialog = true }) {
                             Icon(Icons.Default.Check, "Tạo nhóm")
                         }
@@ -223,7 +231,7 @@ fun SelectGroupParticipantsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (groupName.isNotBlank() && selectedUsers.size >= 2) {
+                        if (groupName.isNotBlank() && selectedUsers.size >= 1) {
                             val participantIds = selectedUsers.map { it.id }
                             conversationViewModel.createGroupConversation(participantIds, groupName)
                             showCreateDialog = false

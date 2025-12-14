@@ -71,9 +71,28 @@ class MiniGameRepositoryImpl @Inject constructor(
     override fun getGameById(gameId: String): Flow<Resource<MiniGame?>> = flow {
         try {
             emit(Resource.Loading())
-            val game = miniGameDao.getMiniGameById(gameId)?.toDomain()
-            emit(Resource.Success(game))
+            val cached = miniGameDao.getMiniGameById(gameId)?.toDomain()
+            if (cached != null) {
+                emit(Resource.Success(cached))
+                return@flow
+            }
+
+            val remote = firebaseDataSource.getMiniGameById(gameId)
+            when (remote) {
+                is Resource.Success -> {
+                    val game = remote.data
+                    if (game != null) {
+                        miniGameDao.insert(game.toEntity())
+                    }
+                    emit(Resource.Success(game))
+                }
+                is Resource.Error -> emit(Resource.Error(remote.message))
+                is Resource.Loading -> emit(Resource.Loading())
+            }
         } catch (e: Exception) {
+            if (e is CancellationException) {
+                throw e
+            }
             emit(Resource.Error("Lỗi khi lấy mini game: ${e.message}"))
         }
     }
@@ -198,6 +217,9 @@ class MiniGameRepositoryImpl @Inject constructor(
                 is Resource.Loading -> emit(Resource.Loading())
             }
         } catch (e: Exception) {
+            if (e is CancellationException) {
+                throw e
+            }
             emit(Resource.Error("Lỗi khi lấy mini game của bài học: ${e.message}"))
         }
     }

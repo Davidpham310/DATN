@@ -56,7 +56,7 @@ class LessonContentService @Inject constructor(
             }.sortedBy { it.order }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching contents by lesson: $lessonId", e)
-            emptyList()
+            throw e
         }
     }
 

@@ -599,12 +599,12 @@ private fun RecentActivitiesSection(
 }
 
 private fun formatDurationShort(seconds: Long): String {
-    if (seconds <= 0L) return "0 phút"
+    if (seconds <= 0L) return "0p 0s"
     val hours = seconds / 3600
     val minutes = (seconds % 3600) / 60
+    val remainingSeconds = seconds % 60
     return when {
-        hours > 0 && minutes > 0 -> "${hours}g ${minutes}p"
-        hours > 0 -> "${hours}g"
-        else -> "${minutes}p"
+        hours > 0 -> "${hours}g ${minutes}p ${remainingSeconds}s"
+        else -> "${minutes}p ${remainingSeconds}s"
     }
 }

@@ -539,17 +539,29 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideGetNotificationsUseCase(
+        repository: INotificationRepository
+    ): com.example.datn.domain.usecase.notification.GetNotificationsUseCase =
+        com.example.datn.domain.usecase.notification.GetNotificationsUseCase(repository)
+
+    @Provides
+    @Singleton
+    fun provideMarkNotificationAsReadUseCase(
+        repository: INotificationRepository
+    ): com.example.datn.domain.usecase.notification.MarkNotificationAsReadUseCase =
+        com.example.datn.domain.usecase.notification.MarkNotificationAsReadUseCase(repository)
+
+    @Provides
+    @Singleton
     fun provideSendBulkNotificationUseCase(
         notificationRepository: INotificationRepository,
         userRepository: IUserRepository,
         classRepository: IClassRepository,
-        firestoreService: FirestoreNotificationService,
         firestore: FirebaseFirestore
     ): SendBulkNotificationUseCase = SendBulkNotificationUseCase(
         notificationRepository,
         userRepository,
         classRepository,
-        firestoreService,
         firestore
     )
 
@@ -612,12 +624,14 @@ object AppModule {
     @Provides
     @Singleton
     fun provideMessagingPermissionRepository(
+        firebaseDataSource: FirebaseDataSource,
         classDao: ClassDao,
         classStudentDao: ClassStudentDao,
         parentStudentDao: ParentStudentDao,
         userDao: UserDao
     ): IMessagingPermissionRepository =
         MessagingPermissionRepositoryImpl(
+            firebaseDataSource,
             classDao,
             classStudentDao,
             parentStudentDao,

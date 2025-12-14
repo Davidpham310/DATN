@@ -759,7 +759,8 @@ class FirebaseDataSource @Inject constructor(
     suspend fun linkParentToStudent(
         studentId: String,
         parentId: String,
-        relationship: String
+        relationship: String,
+        isPrimaryGuardian: Boolean = true
     ): Resource<Unit> = safeCallWithResult {
         val relationshipEnum = RelationshipType.fromString(relationship)
             ?: RelationshipType.fromDisplayName(relationship)
@@ -767,7 +768,8 @@ class FirebaseDataSource @Inject constructor(
         parentStudentService.linkParentStudent(
             parentId = parentId,
             studentId = studentId,
-            relationship = relationshipEnum
+            relationship = relationshipEnum,
+            isPrimaryGuardian = isPrimaryGuardian
         )
     }.toResource()
 }

@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.datn.core.utils.extensions.formatAsDate
 import com.example.datn.domain.usecase.progress.StudentLessonProgressItem
 
 /**
@@ -71,55 +72,152 @@ fun StudentDetailScreen(
                     StudentInfoHeader(state = state)
                 }
 
-                // Statistics cards
                 item {
-                    Text(
-                        text = "Tổng quan",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                    StudentDetailTabs(
+                        selectedTab = state.selectedTab,
+                        onTabSelected = { tabIndex ->
+                            viewModel.onEvent(StudentDetailEvent.ChangeTab(tabIndex))
+                        }
                     )
                 }
 
-                item {
-                    StatisticsCards(state = state)
-                }
+                when (state.selectedTab) {
+                    0 -> {
+                        item {
+                            Text(
+                                text = "Tổng quan",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
 
-                item {
-                    StudyAndGameSummary(state = state)
-                }
+                        item {
+                            StatisticsCards(state = state)
+                        }
 
-                // Per-lesson progress list
-                if (state.lessonProgressItems.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Tiến độ từng bài học",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
+                        item {
+                            StudyAndGameSummary(state = state)
+                        }
+
+                        item {
+                            StudyTimeStatisticsCard(state = state)
+                        }
                     }
 
-                    items(state.lessonProgressItems) { lessonItem ->
-                        LessonProgressRow(item = lessonItem)
-                    }
-                }
+                    1 -> {
+                        item {
+                            Text(
+                                text = "Tiến độ từng bài học",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
 
-                // Test results
-                if (state.testResults.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Kết quả kiểm tra",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
+                        if (state.lessonProgressItems.isEmpty()) {
+                            item {
+                                EmptySection(text = "Chưa có dữ liệu tiến độ bài học")
+                            }
+                        } else {
+                            items(state.lessonProgressItems) { lessonItem ->
+                                LessonProgressRow(item = lessonItem)
+                            }
+                        }
                     }
 
-                    items(state.testResults) { testResult ->
-                        TestResultCard(testResult = testResult)
+                    2 -> {
+                        item {
+                            Text(
+                                text = "Bảng điểm bài test",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (state.testResults.isEmpty()) {
+                            item {
+                                EmptySection(text = "Chưa có dữ liệu bài test")
+                            }
+                        } else {
+                            items(state.testResults) { testResult ->
+                                TestResultCard(testResult = testResult)
+                            }
+                        }
+                    }
+
+                    3 -> {
+                        item {
+                            Text(
+                                text = "Bảng điểm mini game",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (state.miniGameResults.isEmpty()) {
+                            item {
+                                EmptySection(text = "Chưa có dữ liệu mini game")
+                            }
+                        } else {
+                            items(state.miniGameResults) { result ->
+                                MiniGameResultCard(result = result)
+                            }
+                        }
+                    }
+
+                    else -> {
+                        item {
+                            Text(
+                                text = "Thời lượng học tập",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        item {
+                            StudyTimeStatisticsCard(state = state)
+                        }
+
+                        item {
+                            DailyStudyTimeList(state = state)
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StudentDetailTabs(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit
+) {
+    val tabs = listOf("Tổng quan", "Bài học", "Bài test", "Mini game", "Thời lượng")
+    ScrollableTabRow(selectedTabIndex = selectedTab) {
+        tabs.forEachIndexed { index, title ->
+            Tab(
+                selected = selectedTab == index,
+                onClick = { onTabSelected(index) },
+                text = { Text(title) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptySection(text: String) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -309,14 +407,7 @@ private fun StudyAndGameSummary(state: StudentDetailState) {
                 fontWeight = FontWeight.Bold
             )
 
-            val totalMinutes = state.totalStudyTimeSeconds / 60
-            val hours = totalMinutes / 60
-            val minutes = totalMinutes % 60
-            val timeText = if (hours > 0) {
-                "${hours} giờ ${minutes} phút"
-            } else {
-                "${minutes} phút"
-            }
+            val timeText = formatDuration(state.totalStudyTimeSeconds)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -377,6 +468,101 @@ private fun StudyAndGameSummary(state: StudentDetailState) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StudyTimeStatisticsCard(state: StudentDetailState) {
+    val stats = state.studyTimeStatistics ?: return
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Thống kê thời gian học",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Hôm nay", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = formatDuration(stats.todaySeconds), fontWeight = FontWeight.Medium)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Tuần này", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = formatDuration(stats.weekSeconds), fontWeight = FontWeight.Medium)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Tháng này", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = formatDuration(stats.monthSeconds), fontWeight = FontWeight.Medium)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Tổng", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = formatDuration(stats.totalSeconds), fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyStudyTimeList(state: StudentDetailState) {
+    val stats = state.studyTimeStatistics ?: return
+    if (stats.dailyRecords.isEmpty()) {
+        EmptySection(text = "Chưa có dữ liệu thời lượng theo ngày")
+        return
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Theo ngày",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            val items = stats.dailyRecords.takeLast(14).reversed()
+            items.forEach { record ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = record.date.formatAsDate(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = formatDuration(record.durationSeconds),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
@@ -471,6 +657,13 @@ private fun TestResultCard(testResult: TestResult) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (testResult.durationSeconds > 0L) {
+                    Text(
+                        text = "Thời lượng: ${formatDuration(testResult.durationSeconds)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Column(horizontalAlignment = Alignment.End) {
@@ -478,9 +671,9 @@ private fun TestResultCard(testResult: TestResult) {
                     text = "${testResult.score.toInt()}/${testResult.maxScore.toInt()}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = if (testResult.passed) 
-                        MaterialTheme.colorScheme.primary 
-                    else 
+                    color = if (testResult.passed)
+                        MaterialTheme.colorScheme.primary
+                    else
                         MaterialTheme.colorScheme.error
                 )
                 Text(
@@ -493,5 +686,74 @@ private fun TestResultCard(testResult: TestResult) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MiniGameResultCard(result: MiniGameResult) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = result.miniGameTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Hoàn thành: ${result.completedDate}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "Lần chơi: ${result.attemptNumber}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (result.durationSeconds > 0L) {
+                    Text(
+                        text = "Thời lượng: ${formatDuration(result.durationSeconds)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                val scoreText = if (result.maxScore > 0f) {
+                    "${result.score.toInt()}/${result.maxScore.toInt()}"
+                } else {
+                    result.score.toInt().toString()
+                }
+                Text(
+                    text = scoreText,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Text(
+                    text = "${"%.1f".format(result.scorePercent)}%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+private fun formatDuration(seconds: Long): String {
+    if (seconds <= 0L) return "0 phút 0 giây"
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val remainingSeconds = seconds % 60
+    return when {
+        hours > 0 -> "${hours} giờ ${minutes} phút ${remainingSeconds} giây"
+        minutes > 0 -> "${minutes} phút ${remainingSeconds} giây"
+        else -> "0 phút ${remainingSeconds} giây"
     }
 }

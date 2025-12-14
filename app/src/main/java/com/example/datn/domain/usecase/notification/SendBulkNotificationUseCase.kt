@@ -33,7 +33,6 @@ class SendBulkNotificationUseCase @Inject constructor(
     private val notificationRepository: INotificationRepository,
     private val userRepository: IUserRepository,
     private val classRepository: IClassRepository,
-    private val firestoreService: com.example.datn.core.network.service.notification.FirestoreNotificationService,
     private val firestore: FirebaseFirestore
 ) {
     private val TAG = "SendBulkNotificationUseCase"
@@ -81,40 +80,12 @@ class SendBulkNotificationUseCase @Inject constructor(
                         createdAt = Instant.now()
                     )
                     
-                    // Gửi notification (lưu vào Firestore và gửi FCM nếu có token)
-                    // 1. Lưu vào Firestore
+                    // Gửi notification (Firestore only - giống nhắn tin)
                     val saveResult = notificationRepository.saveNotification(notification)
                         .dropWhile { it is Resource.Loading }
                         .first()
                     
                     if (saveResult is Resource.Success) {
-                        // 2. Thử gửi FCM nếu có token (lấy từ Firestore)
-                        try {
-                            val fcmToken = getFcmTokenFromFirestore(user.id)
-                            if (!fcmToken.isNullOrBlank()) {
-                                val fcmSuccess = firestoreService.sendNotification(
-                                    token = fcmToken,
-                                    title = notification.title,
-                                    body = notification.content,
-                                    data = mapOf(
-                                        "notificationId" to notification.id,
-                                        "type" to notification.type.name,
-                                        "referenceObjectId" to (notification.referenceObjectId ?: ""),
-                                        "referenceObjectType" to (notification.referenceObjectType ?: "")
-                                    )
-                                )
-                                if (fcmSuccess) {
-                                    Log.d(TAG, "FCM notification sent to ${user.name}")
-                                } else {
-                                    Log.w(TAG, "FCM notification failed for ${user.name}, but notification saved")
-                                }
-                            } else {
-                                Log.d(TAG, "No FCM token found for ${user.name}, notification saved only")
-                            }
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Error sending FCM to ${user.name}: ${e.message}, but notification saved")
-                        }
-                        
                         successCount++
                         Log.d(TAG, "Sent to ${user.name} (${user.email}) successfully")
                     } else {
@@ -325,19 +296,6 @@ class SendBulkNotificationUseCase @Inject constructor(
                 // Sẽ không dùng bulk cho specific user
                 emptyList()
             }
-        }
-    }
-    
-    /**
-     * Lấy FCM token từ Firestore (users collection)
-     */
-    private suspend fun getFcmTokenFromFirestore(userId: String): String? {
-        return try {
-            val userDoc = firestore.collection("users").document(userId).get().await()
-            userDoc.getString("fcmToken") ?: userDoc.getString("deviceToken")
-        } catch (e: Exception) {
-            Log.w(TAG, "Error getting FCM token for user $userId: ${e.message}")
-            null
         }
     }
     

@@ -1,5 +1,6 @@
 package com.example.datn.presentation.student.lessons.ui
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,7 +34,7 @@ fun StudentLessonContentListScreen(
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(lessonId) {
-        StudentLessonContentListEvent.LoadLesson(lessonId)
+        viewModel.onEvent(StudentLessonContentListEvent.LoadLesson(lessonId))
     }
 
     Scaffold(
@@ -84,7 +85,9 @@ fun StudentLessonContentListScreen(
                         )
                     }
                 }
+
                 state.contents.isEmpty() -> {
+                    Log.d("StudentLessonContentListScreen", "Contents: ${state.contents}")
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
