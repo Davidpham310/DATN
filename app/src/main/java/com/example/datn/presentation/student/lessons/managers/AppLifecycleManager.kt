@@ -88,6 +88,8 @@ class AppLifecycleManager @Inject constructor(
 
     private val TAG = "AppLifecycleManager"
 
+    private var observedLifecycle: Lifecycle? = null
+
     /**
      * Trạng thái vòng đời của app
      */
@@ -138,6 +140,7 @@ class AppLifecycleManager @Inject constructor(
      * Bắt đầu theo dõi vòng đời ứng dụng
      */
     fun startMonitoring(lifecycle: Lifecycle) {
+        observedLifecycle = lifecycle
         lifecycle.addObserver(this)
         registerScreenStateReceivers()
         registerBatteryReceivers()
@@ -153,6 +156,8 @@ class AppLifecycleManager @Inject constructor(
      * Dừng theo dõi vòng đời ứng dụng
      */
     fun stopMonitoring() {
+        observedLifecycle?.removeObserver(this)
+        observedLifecycle = null
         unregisterScreenStateReceivers()
         unregisterBatteryReceivers()
         unregisterShutdownReceiver()

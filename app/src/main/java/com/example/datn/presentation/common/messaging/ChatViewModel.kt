@@ -13,11 +13,12 @@ import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -46,6 +47,24 @@ class ChatViewModel @Inject constructor(
             initialValue = ""
         )
 
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
+    private suspend fun <T> awaitFirstMatching(flow: Flow<T>, predicate: (T) -> Boolean): T? {
+        var result: T? = null
+        flow
+            .filter { predicate(it) }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
     override fun onEvent(event: ChatEvent) {
         when (event) {
             is ChatEvent.LoadConversation -> loadConversation(event.conversationId, event.recipientId, event.recipientName)
@@ -59,7 +78,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             // Lấy userId từ StateFlow cached
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.filter { it.isNotBlank() }.first()
+                awaitNonBlank(currentUserIdFlow)
             }
             
             // Xác định conversation type: nếu recipientId rỗng thì là GROUP, ngược lại là ONE_TO_ONE
@@ -99,7 +118,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             // Lấy userId từ StateFlow cached
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.filter { it.isNotBlank() }.first()
+                awaitNonBlank(currentUserIdFlow)
             }
 
             // Lấy recipientId từ state hiện tại
@@ -157,8 +176,9 @@ class ChatViewModel @Inject constructor(
             kotlinx.coroutines.delay(300)
             
             try {
-                val result = messagingUseCases.getConversations(userId)
-                    .first { it is Resource.Success }
+                val result = awaitFirstMatching(
+                    messagingUseCases.getConversations(userId)
+                ) { it is Resource.Success }
 
                 if (result is Resource.Success) {
                     val foundConversation = result.data?.find {

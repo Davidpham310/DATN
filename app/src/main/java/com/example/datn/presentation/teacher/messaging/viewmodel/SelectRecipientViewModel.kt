@@ -12,10 +12,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -51,7 +52,12 @@ class SelectRecipientViewModel @Inject constructor(
 
     private suspend fun resolveCurrentUserId(): String {
         return currentUserIdFlow.value.ifBlank {
-            currentUserIdFlow.filter { it.isNotBlank() }.first()
+            var result = ""
+            currentUserIdFlow
+                .filter { it.isNotBlank() }
+                .take(1)
+                .collect { value -> result = value }
+            result
         }
     }
 

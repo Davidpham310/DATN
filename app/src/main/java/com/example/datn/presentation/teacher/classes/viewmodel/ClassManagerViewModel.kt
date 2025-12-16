@@ -146,7 +146,7 @@ class ClassManagerViewModel @Inject constructor(
 
         if (hasError) {
             val message = listOf(nameResult, codeResult, gradeResult, subjectResult)
-                .firstOrNull { !it.successful }?.errorMessage
+                .find { !it.successful }?.errorMessage
             showNotification(message ?: "Dữ liệu không hợp lệ", NotificationType.ERROR)
             return
         }
@@ -205,7 +205,7 @@ class ClassManagerViewModel @Inject constructor(
         val hasError = listOf(nameResult, codeResult, gradeResult, subjectResult).any { !it.successful }
         if (hasError) {
             val message = listOf(nameResult, codeResult, gradeResult, subjectResult)
-                .firstOrNull { !it.successful }?.errorMessage
+                .find { !it.successful }?.errorMessage
             showNotification(message ?: "Dữ liệu không hợp lệ", NotificationType.ERROR)
             return
         }

@@ -35,6 +35,8 @@ class ClassRepositoryImpl @Inject constructor(
                 result.data.forEach { classDao.insertClass(it.toEntity()) }
             }
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             // Fallback: lấy từ local cache
             val local = classDao.getAllClasses().map { it.toDomain() }
@@ -56,6 +58,8 @@ class ClassRepositoryImpl @Inject constructor(
             }
 
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             // Fallback: lấy từ local cache
             val local = classDao.getClassById(classId)?.toDomain()
@@ -81,6 +85,8 @@ class ClassRepositoryImpl @Inject constructor(
             }
 
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -98,7 +104,10 @@ class ClassRepositoryImpl @Inject constructor(
                 result.data.forEach { classDao.insertClass(it.toEntity()) }
             }
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             // Fallback: lấy từ local cache
             val local = classDao.getClassesByTeacher(teacherId).map { it.toDomain() }
             emit(Resource.Success(local))
@@ -148,6 +157,8 @@ class ClassRepositoryImpl @Inject constructor(
                 }
                 is Resource.Loading -> { /* Skip */ }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -176,6 +187,8 @@ class ClassRepositoryImpl @Inject constructor(
                 }
                 is Resource.Loading -> { /* Skip */ }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -206,6 +219,8 @@ class ClassRepositoryImpl @Inject constructor(
                 }
                 is Resource.Loading -> { /* Skip */ }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -256,6 +271,8 @@ class ClassRepositoryImpl @Inject constructor(
                 }
                 is Resource.Loading -> { /* Skip */ }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -288,6 +305,8 @@ class ClassRepositoryImpl @Inject constructor(
                 }
                 is Resource.Loading -> { /* Skip */ }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -321,6 +340,8 @@ class ClassRepositoryImpl @Inject constructor(
                 }
                 is Resource.Loading -> { /* Skip */ }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -344,6 +365,8 @@ class ClassRepositoryImpl @Inject constructor(
                 rejectedBy
             )
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -384,6 +407,8 @@ class ClassRepositoryImpl @Inject constructor(
                 }
                 is Resource.Loading -> { /* Skip */ }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -400,6 +425,8 @@ class ClassRepositoryImpl @Inject constructor(
         try {
             val result = firebaseDataSource.getStudentsInClass(classId, status)
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -428,6 +455,8 @@ class ClassRepositoryImpl @Inject constructor(
         try {
             val result = firebaseDataSource.getEnrollment(classId, studentId)
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -444,6 +473,8 @@ class ClassRepositoryImpl @Inject constructor(
         try {
             val result = firebaseDataSource.isStudentInClass(classId, studentId)
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             // Fallback: kiểm tra từ local cache
             val localExists = classDao.isStudentInClass(classId, studentId)
@@ -466,6 +497,8 @@ class ClassRepositoryImpl @Inject constructor(
         try {
             val result = firebaseDataSource.hasPendingEnrollment(classId, studentId)
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -494,6 +527,8 @@ class ClassRepositoryImpl @Inject constructor(
             }
 
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -519,6 +554,8 @@ class ClassRepositoryImpl @Inject constructor(
             }
 
             emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }

@@ -70,6 +70,15 @@ class StudentSelectRecipientViewModel @Inject constructor(
             initialValue = ""
         )
 
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
     init {
         loadAllowedRecipients()
     }
@@ -77,7 +86,7 @@ class StudentSelectRecipientViewModel @Inject constructor(
     fun loadAllowedRecipients() {
         viewModelScope.launch {
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.filter { it.isNotBlank() }.first()
+                awaitNonBlank(currentUserIdFlow)
             }
 
             if (currentUserId.isBlank()) {

@@ -72,6 +72,15 @@ class StudentTestTakingViewModel @Inject constructor(
         }
     }
 
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
     private fun loadTest(testId: String) {
         Log.d(TAG, "[loadTest] START - testId: $testId")
         viewModelScope.launch {
@@ -305,7 +314,7 @@ class StudentTestTakingViewModel @Inject constructor(
 
             // Get student ID
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
 
             Log.d(TAG, "[submitTest] Current user ID: $currentUserId")
@@ -437,7 +446,7 @@ class StudentTestTakingViewModel @Inject constructor(
 
             QuestionType.FILL_BLANK -> {
                 val text = (answer as? Answer.FillBlank)?.text ?: ""
-                val correctAnswer = options.firstOrNull()?.content ?: ""
+                val correctAnswer = options.getOrNull(0)?.content ?: ""
                 if (text.trim().equals(correctAnswer.trim(), ignoreCase = true))
                     question.score
                 else 0.0

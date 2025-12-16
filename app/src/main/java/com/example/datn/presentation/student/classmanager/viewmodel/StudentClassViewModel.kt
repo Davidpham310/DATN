@@ -14,9 +14,12 @@ import com.example.datn.presentation.student.classmanager.state.StudentClassStat
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -56,11 +59,20 @@ class StudentClassViewModel @Inject constructor(
         }
     }
 
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
     private fun loadMyClasses() {
         launch {
             // Sử dụng cached StateFlow để tránh timing issues
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
             if (currentUserId.isBlank()) {
                 showNotification("Vui lòng đăng nhập", NotificationType.ERROR)
@@ -148,7 +160,7 @@ class StudentClassViewModel @Inject constructor(
         launch {
             // Sử dụng cached StateFlow
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
             if (currentUserId.isBlank()) {
                 showNotification("Vui lòng đăng nhập", NotificationType.ERROR)
@@ -211,7 +223,7 @@ class StudentClassViewModel @Inject constructor(
         launch {
             // Sử dụng cached StateFlow
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
             if (currentUserId.isBlank()) {
                 showNotification("Vui lòng đăng nhập", NotificationType.ERROR)
@@ -276,7 +288,7 @@ class StudentClassViewModel @Inject constructor(
         launch {
             // Sử dụng cached StateFlow
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
             if (currentUserId.isBlank()) return@launch
 

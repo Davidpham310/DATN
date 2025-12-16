@@ -8,6 +8,7 @@ import com.example.datn.data.mapper.toDomain
 import com.example.datn.data.mapper.toEntity
 import com.example.datn.domain.models.Notification
 import com.example.datn.domain.repository.INotificationRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -76,6 +77,7 @@ class NotificationRepositoryImpl @Inject constructor(
             job.cancel()
         }
     }.catch { e ->
+        if (e is CancellationException) throw e
         Log.e(TAG, "Flow error in getNotificationsForUser", e)
         emit(Resource.Error("Lỗi không xác định: ${e.message}"))
     }
@@ -99,10 +101,12 @@ class NotificationRepositoryImpl @Inject constructor(
             emit(Resource.Success(Unit))
             
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Error marking notification as read: $notificationId", e)
             emit(Resource.Error("Không thể đánh dấu đã đọc: ${e.message}"))
         }
     }.catch { e ->
+        if (e is CancellationException) throw e
         Log.e(TAG, "Flow error in markAsRead", e)
         emit(Resource.Error("Lỗi không xác định: ${e.message}"))
     }
@@ -130,6 +134,7 @@ class NotificationRepositoryImpl @Inject constructor(
             }
             
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Error getting unread count for user: $userId", e)
             
             // Fallback về local count
@@ -141,6 +146,7 @@ class NotificationRepositoryImpl @Inject constructor(
             }
         }
     }.catch { e ->
+        if (e is CancellationException) throw e
         Log.e(TAG, "Flow error in getUnreadCount", e)
         emit(Resource.Error("Lỗi không xác định: ${e.message}"))
     }
@@ -172,10 +178,12 @@ class NotificationRepositoryImpl @Inject constructor(
             emit(Resource.Success(Unit))
             
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Error sending notification to teacher", e)
             emit(Resource.Error("Không thể gửi thông báo: ${e.message}"))
         }
     }.catch { e ->
+        if (e is CancellationException) throw e
         Log.e(TAG, "Flow error in sendNotificationToTeacher", e)
         emit(Resource.Error("Lỗi không xác định: ${e.message}"))
     }
@@ -200,10 +208,12 @@ class NotificationRepositoryImpl @Inject constructor(
             emit(Resource.Success(notificationId))
             
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Error saving notification", e)
             emit(Resource.Error("Không thể lưu thông báo: ${e.message}"))
         }
     }.catch { e ->
+        if (e is CancellationException) throw e
         Log.e(TAG, "Flow error in saveNotification", e)
         emit(Resource.Error("Lỗi không xác định: ${e.message}"))
     }

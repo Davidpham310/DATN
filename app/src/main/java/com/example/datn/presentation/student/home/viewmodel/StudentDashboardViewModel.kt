@@ -16,8 +16,11 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.take
 
 @HiltViewModel
 class StudentDashboardViewModel @Inject constructor(
@@ -50,13 +53,22 @@ class StudentDashboardViewModel @Inject constructor(
         }
     }
 
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
     private fun loadDashboard(isRefresh: Boolean = false) {
         launch {
             val loadingFlag = !isRefresh
             setState { copy(isLoading = loadingFlag, isRefreshing = isRefresh, error = null) }
 
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
 
             if (currentUserId.isBlank()) {

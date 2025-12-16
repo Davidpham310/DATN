@@ -2,7 +2,9 @@ package com.example.datn.presentation.student.home.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -11,7 +13,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.DailyStudyTime
@@ -23,6 +27,8 @@ import com.example.datn.domain.usecase.progress.SubjectProgressStatistics
 import com.example.datn.domain.usecase.progress.SubjectTrend
 import com.example.datn.presentation.student.home.event.StudentDashboardEvent
 import com.example.datn.presentation.student.home.viewmodel.StudentDashboardViewModel
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,6 +63,7 @@ fun StudentHomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -403,6 +410,25 @@ private fun TimeStatChip(
 private fun StudyTimeChart(
     records: List<DailyStudyTime>
 ) {
+    val today = LocalDate.now()
+    val days = (6 downTo 0).map { today.minusDays(it.toLong()) }
+
+    // Map dữ liệu theo ngày
+    val minutesByDate = days.associateWith { 0 }.toMutableMap()
+    records.forEach { record ->
+        val minutes = (record.durationSeconds.coerceAtLeast(0) / 60).toInt()
+        if (record.date in minutesByDate) {
+            minutesByDate[record.date] = minutesByDate[record.date]!! + minutes
+        }
+    }
+
+    val data = days.map { it to (minutesByDate[it] ?: 0) }
+    val maxMinutes = data.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
+
+    val labelHeight = 28.dp
+    val barAreaHeight = 120.dp
+    val dateHeight = 28.dp
+
     if (records.isEmpty()) {
         Text(
             text = "Chưa có lịch sử thời gian học để hiển thị biểu đồ",
@@ -412,51 +438,71 @@ private fun StudyTimeChart(
         return
     }
 
-    val recent = records.takeLast(7)
-    val maxSeconds = recent.maxOf { it.durationSeconds }.coerceAtLeast(1L)
-    val maxBarHeight = 80.dp
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(maxBarHeight + 24.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.Bottom
+            .height(labelHeight + barAreaHeight + dateHeight),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        recent.forEach { record ->
-            val ratio = (record.durationSeconds.toFloat() / maxSeconds.toFloat()).coerceIn(0f, 1f)
+        data.forEach { (date, minutes) ->
+            val ratio = (minutes.toFloat() / maxMinutes).coerceIn(0f, 1f)
 
             Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Bottom
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+
+                // ===== LABEL PHÍA TRÊN =====
                 Box(
                     modifier = Modifier
-                        .height(maxBarHeight)
-                        .width(20.dp),
+                        .height(labelHeight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${minutes}p",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                // ===== BIỂU ĐỒ CỘT =====
+                Box(
+                    modifier = Modifier
+                        .height(barAreaHeight)
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Box(
                         modifier = Modifier
-                            .width(14.dp)
-                            .height(maxBarHeight * ratio)
-                            .background(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                shape = RoundedCornerShape(6.dp)
-                            )
+                            .fillMaxWidth()
+                            .fillMaxHeight(ratio)
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = record.date.dayOfMonth.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
+
+                // ===== NGÀY =====
+                Box(
+                    modifier = Modifier
+                        .height(dateHeight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = date.format(DateTimeFormatter.ofPattern("dd/MM")),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
     }
 }
+
 
 @Composable
 private fun SubjectStatisticsSection(

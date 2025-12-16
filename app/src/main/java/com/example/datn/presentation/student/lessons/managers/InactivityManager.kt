@@ -102,6 +102,7 @@ class InactivityManager @Inject constructor(private val coroutineScope: Coroutin
     fun startInactivityTracking() {
         Log.d(TAG, "🚀 startInactivityTracking() - Starting inactivity monitoring (${LearningProgressConfig.INACTIVITY_WARNING_TIMEOUT_SECONDS}s threshold)")
         _inactivityState.value = InactivityState.MONITORING
+        _isInactivityWarningVisible.value = false
         _lastInteractionTime.value = System.currentTimeMillis()
         resetInactivityTimer()
     }
@@ -125,9 +126,9 @@ class InactivityManager @Inject constructor(private val coroutineScope: Coroutin
         val timeSinceLastInteraction = currentTime - _lastInteractionTime.value
 
         // Kiểm tra khoảng cách tối thiểu giữa các tương tác (tránh spam)
-        if (timeSinceLastInteraction < LearningProgressConfig.MIN_INTERACTION_INTERVAL_MS) {
-            Log.d(TAG, "⏳ Interaction throttled - too fast (${timeSinceLastInteraction}ms < ${LearningProgressConfig.MIN_INTERACTION_INTERVAL_MS}ms)")
-            return false
+        val isThrottled = timeSinceLastInteraction < LearningProgressConfig.MIN_INTERACTION_INTERVAL_MS
+        if (isThrottled) {
+            Log.d(TAG, "⏳ Interaction throttled (log only) - too fast (${timeSinceLastInteraction}ms < ${LearningProgressConfig.MIN_INTERACTION_INTERVAL_MS}ms)")
         }
 
         Log.d(TAG, "════════════════════════════════════════════════════════════════")
@@ -141,6 +142,12 @@ class InactivityManager @Inject constructor(private val coroutineScope: Coroutin
         _inactivityDuration.value = 0L
         _inactivityState.value = InactivityState.MONITORING
         _isInactivityWarningVisible.value = false
+
+        if (_shouldExit.value) {
+            Log.w(TAG, "🟢 Clearing shouldExit flag due to user interaction: $interactionType")
+        }
+        _shouldExit.value = false
+        _exitReason.value = ""
 
         var warningWasReset = false
         if (shouldResetWarningOnInteraction(interactionType)) {
@@ -224,12 +231,36 @@ class InactivityManager @Inject constructor(private val coroutineScope: Coroutin
         _warningCount.value = 0
         _lastWarningResetTime.value = System.currentTimeMillis()
 
+        if (_isPausedForBackground.value) {
+            Log.w(TAG, "🟢 forceResetWarningCount() clearing pausedForBackground=true (reason: $reason)")
+        }
+        _isPausedForBackground.value = false
+
+        _shouldExit.value = false
+        _exitReason.value = ""
+        _isInactivityWarningVisible.value = false
+        _inactivityState.value = InactivityState.MONITORING
+        _lastInteractionTime.value = System.currentTimeMillis()
+        _inactivityDuration.value = 0L
+
         Log.d(TAG, "🔄 forceResetWarningCount() - Warning count force reset: $previousCount → 0 (reason: $reason)")
+        Log.d(TAG, "   - Cleared flags: shouldExit=false, warningVisible=false, state=MONITORING")
 
         // Reset timer để bắt đầu đếm 60 giây mới
         resetInactivityTimer()
 
         onWarningReset?.invoke(0, reason)
+    }
+
+    fun dismissWarning(reason: String = "UI") {
+        if (_isInactivityWarningVisible.value) {
+            Log.d(TAG, "✅ dismissWarning() - Hiding warning dialog (reason: $reason)")
+        }
+        _isInactivityWarningVisible.value = false
+
+        if (_inactivityState.value == InactivityState.WARNING) {
+            _inactivityState.value = InactivityState.MONITORING
+        }
     }
 
     /**
@@ -334,8 +365,8 @@ class InactivityManager @Inject constructor(private val coroutineScope: Coroutin
      * Trigger force exit
      */
     private fun triggerForceExit(reason: String) {
-        _shouldExit.value = true
         _exitReason.value = reason
+        _shouldExit.value = true
         _inactivityState.value = InactivityState.FORCE_EXIT
         onForceExit?.invoke(reason)
     }

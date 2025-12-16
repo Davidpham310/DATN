@@ -53,7 +53,7 @@ class TeacherGradeEssayViewModel @Inject constructor(
                 .filter { it.questionType == QuestionType.ESSAY }
                 .sortedBy { it.order }
                 .mapNotNull { q ->
-                    val a = answers.firstOrNull { it.questionId == q.id } ?: return@mapNotNull null
+                    val a = answers.find { it.questionId == q.id } ?: return@mapNotNull null
                     EssayAnswerUi(
                         question = q,
                         answer = a
@@ -96,7 +96,7 @@ class TeacherGradeEssayViewModel @Inject constructor(
             }
 
             val resultRes = awaitFinal(testUseCases.getResultsByTest(testId))
-            val result = (resultRes as? Resource.Success)?.data?.firstOrNull { it.id == resultId }
+            val result = (resultRes as? Resource.Success)?.data?.find { it.id == resultId }
             if (result == null) {
                 setState { copy(isSubmitting = false) }
                 showNotification("Không tìm thấy kết quả cần chấm", NotificationType.ERROR)

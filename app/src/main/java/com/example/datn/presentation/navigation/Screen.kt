@@ -59,7 +59,6 @@ sealed class Screen(val route: String) {
         val routeWithArgs = "teacher/lesson_content_detail/{contentId}?url={contentUrl}"
     }
     object TeacherNotification : Screen("teacher/notification")
-    object TeacherSendNotification : Screen("teacher/send_notification")
     object TeacherTestManager : Screen("teacher/test_manager")
     
     // MiniGame routes trong context của LessonContent

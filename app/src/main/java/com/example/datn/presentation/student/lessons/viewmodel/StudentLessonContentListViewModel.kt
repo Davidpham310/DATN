@@ -16,9 +16,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -52,7 +55,7 @@ class StudentLessonContentListViewModel @Inject constructor(
 
             try {
                 val currentUserId = currentUserIdFlow.value.ifBlank {
-                    currentUserIdFlow.first { it.isNotBlank() }
+                    awaitNonBlank(currentUserIdFlow)
                 }
                 if (currentUserId.isBlank()) {
                     setState { copy(isLoading = false, error = "Vui lòng đăng nhập") }
@@ -60,8 +63,7 @@ class StudentLessonContentListViewModel @Inject constructor(
                     return@launch
                 }
 
-                val profileResult = getStudentProfileByUserId(currentUserId)
-                    .first { it !is Resource.Loading }
+                val profileResult = awaitFirstNonLoading(getStudentProfileByUserId(currentUserId))
 
                 val studentId = when (profileResult) {
                     is Resource.Success -> profileResult.data?.id
@@ -118,8 +120,26 @@ class StudentLessonContentListViewModel @Inject constructor(
                         error = e.message
                     )
                 }
-                showNotification(e.message ?: "Đã xảy ra lỗi", NotificationType.ERROR)
+                showNotification(e.message ?: "Lỗi tải nội dung bài học", NotificationType.ERROR)
             }
         }
+    }
+
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
+    private suspend fun <T> awaitFirstNonLoading(flow: Flow<Resource<T>>): Resource<T> {
+        var result: Resource<T>? = null
+        flow
+            .filter { it !is Resource.Loading }
+            .take(1)
+            .collect { value -> result = value }
+        return result ?: Resource.Error("Không thể tải dữ liệu")
     }
 }

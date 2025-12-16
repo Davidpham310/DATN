@@ -39,7 +39,6 @@ import com.example.datn.presentation.teacher.home.ui.TeacherHomeScreen
 import com.example.datn.presentation.teacher.messaging.ui.SelectRecipientScreen
 import com.example.datn.presentation.teacher.messaging.viewmodel.SelectRecipientViewModel
 import com.example.datn.presentation.teacher.notification.ui.TeacherNotificationScreen
-import com.example.datn.presentation.teacher.notification.ui.TeacherSendNotificationScreen
 
 @Composable
 fun TeacherNavGraph(
@@ -52,7 +51,29 @@ fun TeacherNavGraph(
         startDestination = Screen.TeacherHome.route,
         modifier = modifier
     ) {
-        composable(Screen.TeacherHome.route) { TeacherHomeScreen() }
+        composable(Screen.TeacherHome.route) {
+            TeacherHomeScreen(
+                onNavigateToClassManager = {
+                    navController.navigate(Screen.TeacherClassManager.route)
+                },
+                onNavigateToNotifications = {
+                    navController.navigate(Screen.TeacherNotification.route)
+                },
+                onNavigateToSendNotification = {
+                    navController.navigate(Screen.TeacherNotification.route)
+                },
+                onNavigateToLessonManager = { classId, className ->
+                    navController.navigate(
+                        Screen.TeacherLessonManager.createRoute(classId, className)
+                    )
+                },
+                onNavigateToTestSubmissions = { testId, testTitle ->
+                    navController.navigate(
+                        Screen.TeacherTestSubmissions.createRoute(testId, testTitle)
+                    )
+                }
+            )
+        }
         composable(Screen.TeacherClassManager.route) {
             ClassManagerScreen(
                 onNavigateToLessonManager = { classId, className ->
@@ -535,12 +556,6 @@ fun TeacherNavGraph(
         // ==================== NOTIFICATION NAVIGATION ====================
         composable(Screen.TeacherNotification.route) {
             TeacherNotificationScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Screen.TeacherSendNotification.route) {
-            TeacherSendNotificationScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

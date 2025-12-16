@@ -8,6 +8,7 @@ import com.example.datn.data.mapper.toEntity
 import com.example.datn.domain.models.Teacher
 import com.example.datn.domain.models.Class
 import com.example.datn.domain.repository.ITeacherRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -24,6 +25,7 @@ class TeacherRepositoryImpl @Inject constructor(
             val teacher = entity?.toDomain()
             emit(Resource.Success(teacher))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi lấy hồ sơ giáo viên"))
         }
     }
@@ -35,6 +37,7 @@ class TeacherRepositoryImpl @Inject constructor(
             teacherDao.insert(teacher.toEntity())
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi cập nhật hồ sơ giáo viên"))
         }
     }
@@ -49,6 +52,7 @@ class TeacherRepositoryImpl @Inject constructor(
                 else -> emit(Resource.Loading())
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi lấy danh sách lớp"))
         }
     }
@@ -62,6 +66,7 @@ class TeacherRepositoryImpl @Inject constructor(
             }
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emit(Resource.Error(e.message ?: "Lỗi xóa hồ sơ giáo viên"))
         }
     }

@@ -127,7 +127,8 @@ fun StudentLessonViewScreen(
                 actions = {
                     if (state.lessonContents.isNotEmpty()) {
                         IconButton(onClick = {
-                            StudentLessonViewEvent.ShowProgressDialog
+                            Log.d("StudentLessonViewUI", "🧩 UI click: ShowProgressDialog")
+                            viewModel.onEvent(StudentLessonViewEvent.ShowProgressDialog)
                         }) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
@@ -154,10 +155,12 @@ fun StudentLessonViewScreen(
                 maxWarnings = 3,
                 isMaxWarning = state.inactivityWarningCount >= 3,
                 onContinue = {
-                    StudentLessonViewEvent.ContinueLesson
+                    Log.d("StudentLessonViewUI", "🧩 UI click: ContinueLesson (Tôi đang học)")
+                    viewModel.onEvent(StudentLessonViewEvent.ContinueLesson)
                 },
                 onExit = {
-                    StudentLessonViewEvent.ExitLessonWithoutSaving
+                    Log.d("StudentLessonViewUI", "🧩 UI click: ExitLessonWithoutSaving (Thoát)")
+                    viewModel.onEvent(StudentLessonViewEvent.ExitLessonWithoutSaving)
                 }
             )
         }
@@ -182,10 +185,10 @@ fun StudentLessonViewScreen(
                 studySeriousnessLevel = state.studySeriousnessLevel,
                 fastForwardCount = state.totalFastForwardCount,
                 onDismiss = {
-                    StudentLessonViewEvent.DismissProgressDialog
+                    viewModel.onEvent(StudentLessonViewEvent.DismissProgressDialog)
                 },
                 onContinue = {
-                    StudentLessonViewEvent.DismissProgressDialog
+                    viewModel.onEvent(StudentLessonViewEvent.DismissProgressDialog)
                 }
             )
         }
@@ -347,14 +350,16 @@ fun StudentLessonViewScreen(
                                 content = currentContent,
                                 resolvedContent = resolvedUrl,
                                 onOpenContent = {
-                                    StudentLessonViewEvent.RecordInteraction("CLICK")
-                                    StudentLessonViewEvent.MarkCurrentAsViewed
-                                    StudentLessonViewEvent.SaveProgress
+                                    Log.d("StudentLessonViewUI", "🧩 UI interaction: onOpenContent -> RecordInteraction(CLICK)")
+                                    viewModel.onEvent(StudentLessonViewEvent.RecordInteraction("CLICK"))
+                                    viewModel.onEvent(StudentLessonViewEvent.MarkCurrentAsViewed)
+                                    viewModel.onEvent(StudentLessonViewEvent.SaveProgress)
                                 },
                                 onPlayGame = if (isMiniGame) { gameId ->
-                                    StudentLessonViewEvent.RecordInteraction("CLICK")
-                                    StudentLessonViewEvent.MarkCurrentAsViewed
-                                    StudentLessonViewEvent.SaveProgress
+                                    Log.d("StudentLessonViewUI", "🧩 UI interaction: onPlayGame -> RecordInteraction(CLICK)")
+                                    viewModel.onEvent(StudentLessonViewEvent.RecordInteraction("CLICK"))
+                                    viewModel.onEvent(StudentLessonViewEvent.MarkCurrentAsViewed)
+                                    viewModel.onEvent(StudentLessonViewEvent.SaveProgress)
                                     navController.navigate(
                                         Screen.StudentMiniGamePlay.createRoute(gameId, lessonId)
                                     )
@@ -363,26 +368,31 @@ fun StudentLessonViewScreen(
                                     onNavigateBack()
                                 },
                                 onRecordInteraction = {
-                                    StudentLessonViewEvent.RecordInteraction("CLICK")
+                                    Log.d("StudentLessonViewUI", "🧩 UI interaction: onRecordInteraction -> RecordInteraction(CLICK)")
+                                    viewModel.onEvent(StudentLessonViewEvent.RecordInteraction("CLICK"))
                                 },
                                 shouldPauseMedia = state.showInactivityWarning,
                                 onMediaProgress = { duration, position ->
-                                    StudentLessonViewEvent.OnMediaProgress(duration, position)
+                                    viewModel.onEvent(StudentLessonViewEvent.OnMediaProgress(duration, position))
                                 },
                                 onPlaybackStateChanged = { isPlaying ->
-                                    StudentLessonViewEvent.OnMediaStateChanged(isPlaying, currentContent.contentType)
+                                    viewModel.onEvent(StudentLessonViewEvent.OnMediaStateChanged(isPlaying, currentContent.contentType))
                                 },
                                 onContentViewTimeUpdate = { elapsedSeconds ->
-                                    StudentLessonViewEvent.UpdateContentViewTime(
-                                        contentId = currentContent.id,
-                                        elapsedSeconds = elapsedSeconds,
-                                        contentType = currentContent.contentType.name
+                                    viewModel.onEvent(
+                                        StudentLessonViewEvent.UpdateContentViewTime(
+                                            contentId = currentContent.id,
+                                            elapsedSeconds = elapsedSeconds,
+                                            contentType = currentContent.contentType.name
+                                        )
                                     )
                                 },
                                 onPdfScrollProgress = { scrollPercentage ->
-                                    StudentLessonViewEvent.UpdatePdfScrollProgress(
-                                        contentId = currentContent.id,
-                                        scrollPercentage = scrollPercentage
+                                    viewModel.onEvent(
+                                        StudentLessonViewEvent.UpdatePdfScrollProgress(
+                                            contentId = currentContent.id,
+                                            scrollPercentage = scrollPercentage
+                                        )
                                     )
                                 },
                                 onVideoPlayerCreated = { player ->

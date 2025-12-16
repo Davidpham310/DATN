@@ -137,12 +137,12 @@ class MiniGamePlayViewModel @Inject constructor(
                             // Create a virtual minigame that represents the lesson
                             val virtualMiniGame = com.example.datn.domain.models.MiniGame(
                                 id = "lesson_$lessonId",
-                                teacherId = games.firstOrNull()?.teacherId ?: "",
+                                teacherId = games.getOrNull(0)?.teacherId ?: "",
                                 lessonId = lessonId,
                                 title = "Câu hỏi từ bài học",
                                 description = "Tổng hợp câu hỏi từ ${games.size} minigame trong bài học",
                                 gameType = com.example.datn.domain.models.GameType.QUIZ, // Default to QUIZ for mixed content
-                                level = games.firstOrNull()?.level ?: com.example.datn.domain.models.Level.EASY,
+                                level = games.getOrNull(0)?.level ?: com.example.datn.domain.models.Level.EASY,
                                 contentUrl = null,
                                 createdAt = games.minOfOrNull { it.createdAt } ?: java.time.Instant.now(),
                                 updatedAt = java.time.Instant.now()

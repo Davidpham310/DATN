@@ -17,7 +17,10 @@ import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -49,6 +52,15 @@ class StudentDetailViewModel @Inject constructor(
 
     private companion object {
         const val TAG = "TeacherStudentDetailVM"
+    }
+
+    private suspend fun <T> awaitFirstNonLoading(flow: Flow<Resource<T>>): Resource<T> {
+        var result: Resource<T>? = null
+        flow
+            .filter { it !is Resource.Loading }
+            .take(1)
+            .collect { value -> result = value }
+        return result ?: Resource.Error("Không thể tải dữ liệu")
     }
 
     override fun onEvent(event: StudentDetailEvent) {
@@ -221,8 +233,7 @@ class StudentDetailViewModel @Inject constructor(
         launch {
             try {
                 Log.d(TAG, "StudyTimeStatistics: start studentId=$studentId")
-                val timeResult = getStudyTimeStatistics(studentId)
-                    .first { it !is Resource.Loading }
+                val timeResult = awaitFirstNonLoading(getStudyTimeStatistics(studentId))
                 when (timeResult) {
                     is Resource.Success -> {
                         Log.d(

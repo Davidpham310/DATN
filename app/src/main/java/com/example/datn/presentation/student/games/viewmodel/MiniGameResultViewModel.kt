@@ -53,6 +53,15 @@ class MiniGameResultViewModel @Inject constructor(
         }
     }
 
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
     private fun loadResult(miniGameId: String, resultId: String) {
         Log.d(TAG, "[loadResult] START - miniGameId: $miniGameId, resultId: $resultId")
         viewModelScope.launch {
@@ -60,7 +69,7 @@ class MiniGameResultViewModel @Inject constructor(
 
             // Get student ID
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
 
             var tempStudentId: String? = null

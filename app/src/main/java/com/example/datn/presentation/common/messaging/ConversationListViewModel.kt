@@ -10,14 +10,16 @@ import com.example.datn.domain.usecase.messaging.MessagingUseCases
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -35,6 +37,15 @@ class ConversationListViewModel @Inject constructor(
             started = SharingStarted.Eagerly,
             initialValue = ""
         )
+
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
 
     init {
         loadConversations()
@@ -55,7 +66,7 @@ class ConversationListViewModel @Inject constructor(
     private fun loadConversations(userId: String? = null) {
         viewModelScope.launch {
             val currentUserId = userId ?: currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.filter { it.isNotBlank() }.first()
+                awaitNonBlank(currentUserIdFlow)
             }
             
             if (currentUserId.isBlank()) {
@@ -113,7 +124,7 @@ class ConversationListViewModel @Inject constructor(
     private fun createNewConversation(recipientId: String) {
         viewModelScope.launch {
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.filter { it.isNotBlank() }.first()
+                awaitNonBlank(currentUserIdFlow)
             }
             
             if (currentUserId.isBlank()) {
@@ -145,7 +156,7 @@ class ConversationListViewModel @Inject constructor(
     fun createGroupConversation(participantIds: List<String>, groupTitle: String) {
         viewModelScope.launch {
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.filter { it.isNotBlank() }.first()
+                awaitNonBlank(currentUserIdFlow)
             }
             
             if (currentUserId.isBlank()) {
@@ -191,7 +202,7 @@ class ConversationListViewModel @Inject constructor(
     private fun markConversationAsRead(conversationId: String) {
         viewModelScope.launch {
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.filter { it.isNotBlank() }.first()
+                awaitNonBlank(currentUserIdFlow)
             }
             
             messagingUseCases.markAsRead(conversationId, currentUserId)
@@ -220,7 +231,7 @@ class ConversationListViewModel @Inject constructor(
     private fun toggleMute(conversationId: String) {
         viewModelScope.launch {
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.filter { it.isNotBlank() }.first()
+                awaitNonBlank(currentUserIdFlow)
             }
             
             // TODO: Get current mute status from conversation
@@ -255,7 +266,7 @@ class ConversationListViewModel @Inject constructor(
     private fun loadUnreadCount() {
         viewModelScope.launch {
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.filter { it.isNotBlank() }.first()
+                awaitNonBlank(currentUserIdFlow)
             }
             
             try {

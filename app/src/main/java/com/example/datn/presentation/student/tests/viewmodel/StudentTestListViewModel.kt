@@ -60,6 +60,15 @@ class StudentTestListViewModel @Inject constructor(
         }
     }
 
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
     private fun loadTests() {
         Log.d(TAG, "[loadTests] START")
         viewModelScope.launch {
@@ -67,7 +76,7 @@ class StudentTestListViewModel @Inject constructor(
 
             // Get student ID
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
             Log.d(TAG, "[loadTests] Current user ID: $currentUserId")
 

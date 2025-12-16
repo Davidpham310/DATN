@@ -47,13 +47,33 @@ class StudentLessonViewViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "StudentLessonViewVM"
-        private const val AUTO_EXIT_DELAY = 5000L
+        private const val AUTO_EXIT_DELAY = 3000L
     }
 
     private val currentUserIdFlow: StateFlow<String> = authUseCases.getCurrentIdUser.invoke()
         .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
+    private suspend fun <T> awaitFirstNonLoading(flow: Flow<Resource<T>>): Resource<T> {
+        var result: Resource<T>? = null
+        flow
+            .filter { it !is Resource.Loading }
+            .take(1)
+            .collect { value -> result = value }
+        return result ?: Resource.Error("Không thể tải dữ liệu")
+    }
+
     private var autoExitJob: Job? = null
+    private var saveProgressJob: Job? = null
+    private var periodicSaveJob: Job? = null
 
     private var contentViewTimeJob: Job? = null
 
@@ -88,9 +108,26 @@ class StudentLessonViewViewModel @Inject constructor(
         // Lắng nghe cảnh báo không hoạt động từ InactivityManager
         viewModelScope.launch {
             inactivityManager.isInactivityWarningVisible.collect { isVisible ->
+                val currentShowWarning = state.value.showInactivityWarning
+
                 if (isVisible) {
                     Log.d(TAG, "⚠️ Inactivity warning triggered from manager")
                     showInactivityWarning()
+                } else {
+                    if (currentShowWarning) {
+                        Log.d(TAG, "✅ Inactivity warning cleared from manager - hiding dialog")
+                        setState { copy(showInactivityWarning = false) }
+                    }
+                }
+            }
+        }
+
+        // Đồng bộ warningCount từ manager về UI state
+        viewModelScope.launch {
+            inactivityManager.warningCount.collect { count ->
+                if (state.value.inactivityWarningCount != count) {
+                    Log.d(TAG, "⚠️ warningCount synced from manager: ${state.value.inactivityWarningCount} → $count")
+                    setState { copy(inactivityWarningCount = count) }
                 }
             }
         }
@@ -100,8 +137,15 @@ class StudentLessonViewViewModel @Inject constructor(
             inactivityManager.shouldExit.collect { shouldExit ->
                 if (shouldExit) {
                     val reason = inactivityManager.getExitReason()
-                    Log.d(TAG, "❌ Force exit triggered: $reason")
-                    exitLessonWithoutSaving()
+                    Log.e(TAG, "❌ Auto-exit requested by InactivityManager: $reason")
+                    Log.e(TAG, "   - Scheduling exit in ${AUTO_EXIT_DELAY}ms")
+
+                    autoExitJob?.cancel()
+                    autoExitJob = viewModelScope.launch {
+                        delay(AUTO_EXIT_DELAY)
+                        Log.e(TAG, "❌ Auto-exiting lesson due to max inactivity warnings (delay=${AUTO_EXIT_DELAY}ms)")
+                        exitLessonWithoutSaving()
+                    }
                 }
             }
         }
@@ -123,28 +167,7 @@ class StudentLessonViewViewModel @Inject constructor(
             }
         }
 
-        // Theo dõi trạng thái hiển thị Dialog cảnh báo không hoạt động
-        viewModelScope.launch {
-            inactivityManager.isInactivityWarningVisible.collect { isVisible ->
-                val currentShowWarning = state.value.showInactivityWarning
-                
-                // Chỉ cập nhật state nếu có thay đổi thực sự
-                if (currentShowWarning != isVisible) {
-                    Log.d(TAG, "⚠️ Inactivity warning visibility changed: $currentShowWarning → $isVisible")
-                    setState { copy(showInactivityWarning = isVisible) }
-                }
-            }
-        }
-
-        // Theo dõi yêu cầu tự động thoát (sau 3 lần cảnh báo)
-        viewModelScope.launch {
-            inactivityManager.shouldExit.collect { shouldExit ->
-                if (shouldExit) {
-                    Log.e(TAG, "❌ Auto-exit requested due to max inactivity warnings")
-                    exitLessonWithoutSaving()
-                }
-            }
-        }
+        // NOTE: shouldExit is handled in the collector above (scheduling auto-exit job)
     }
 
     private fun handleLifecycleStateChange(lifecycleState: AppLifecycleManager.LifecycleState) {
@@ -231,8 +254,8 @@ class StudentLessonViewViewModel @Inject constructor(
             startContentViewTimeTracking(currentContent.id, currentContent.contentType.name)
         }
 
-        // [MỚI] Khởi động lại Auto Save khi người dùng quay lại
-        autoSaveManager.startAutoSave()
+        // Khởi động lại Auto Save khi người dùng quay lại
+        startPeriodicAutoSave()
 
         // Cập nhật state
         setState { copy(isAppInBackground = false) }
@@ -246,11 +269,12 @@ class StudentLessonViewViewModel @Inject constructor(
             )
         }
     }
+
     private fun onScreenOff() {
         Log.d(TAG, "🔴 Screen off")
 
-        // [MỚI] Dừng ngay việc tự động lưu định kỳ
-        autoSaveManager.stopAutoSave()
+        // Dừng ngay việc tự động lưu định kỳ
+        stopPeriodicAutoSave()
 
         // Pause session
         sessionManager.pauseForScreenOff()
@@ -280,8 +304,8 @@ class StudentLessonViewViewModel @Inject constructor(
             studyTimeManager.resumeFromScreenOff()
             mediaProgressManager.resumeFromScreenOff()
 
-            // [MỚI] Khởi động lại Auto Save
-            autoSaveManager.startAutoSave()
+            // Khởi động lại Auto Save
+            startPeriodicAutoSave()
 
             // Resume content view time tracking
             val currentContent = state.value.currentContent
@@ -308,8 +332,8 @@ class StudentLessonViewViewModel @Inject constructor(
     private fun onDeviceShuttingDown() {
         Log.e(TAG, "⚡ Device shutting down")
 
-        // [MỚI] Dừng Auto Save để tránh xung đột khi tắt máy
-        autoSaveManager.stopAutoSave()
+        // Dừng Auto Save để tránh xung đột khi tắt máy
+        stopPeriodicAutoSave()
 
         // Lưu tiến độ khẩn cấp một lần duy nhất
         viewModelScope.launch {
@@ -402,10 +426,16 @@ class StudentLessonViewViewModel @Inject constructor(
             StudentLessonViewEvent.ShowProgressDialog -> setState { copy(showProgressDialog = true) }
             StudentLessonViewEvent.DismissProgressDialog -> setState { copy(showProgressDialog = false) }
             StudentLessonViewEvent.SaveProgress -> saveProgress()
-            is StudentLessonViewEvent.RecordInteraction -> recordInteraction(event.interactionType)
+            is StudentLessonViewEvent.RecordInteraction -> {
+                Log.d(TAG, "🧩 onEvent: RecordInteraction(type=${event.interactionType})")
+                recordInteraction(event.interactionType)
+            }
             StudentLessonViewEvent.ShowInactivityWarning -> showInactivityWarning()
             StudentLessonViewEvent.DismissInactivityWarning -> dismissInactivityWarning()
-            StudentLessonViewEvent.ContinueLesson -> continueLesson()
+            StudentLessonViewEvent.ContinueLesson -> {
+                Log.d(TAG, "🧩 onEvent: ContinueLesson")
+                continueLesson()
+            }
             StudentLessonViewEvent.ExitLessonWithoutSaving -> exitLessonWithoutSaving()
             is StudentLessonViewEvent.OnMediaStateChanged -> onMediaStateChanged(event.isPlaying, event.contentType)
             is StudentLessonViewEvent.OnMediaProgress -> onMediaProgress(event.duration, event.position)
@@ -620,9 +650,7 @@ class StudentLessonViewViewModel @Inject constructor(
                 )
             }
 
-            // Khởi động AutoSaveManager
-            autoSaveManager.startAutoSave()
-            Log.d(TAG, "   ✅ AutoSaveManager started (will save every 10 seconds)")
+            startPeriodicAutoSave()
 
             // Tích hợp AppLifecycleManager
             inactivityManager.setAppLifecycleManager(appLifecycleManager)
@@ -633,14 +661,13 @@ class StudentLessonViewViewModel @Inject constructor(
             var resolvedStudentId: String? = null
             try {
                 val currentUserId = currentUserIdFlow.value.ifBlank {
-                    currentUserIdFlow.first { it.isNotBlank() }
+                    awaitNonBlank(currentUserIdFlow)
                 }
                 if (currentUserId.isBlank()) {
                     Log.e(TAG, "loadLesson() aborted: currentUserId is blank")
                     showNotification("Vui lòng đăng nhập", NotificationType.ERROR)
                 } else {
-                    val profileResult = getStudentProfileByUserId(currentUserId)
-                        .first { it !is Resource.Loading }
+                    val profileResult = awaitFirstNonLoading(getStudentProfileByUserId(currentUserId))
                     when (profileResult) {
                         is Resource.Success -> {
                             resolvedStudentId = profileResult.data?.id
@@ -699,7 +726,7 @@ class StudentLessonViewViewModel @Inject constructor(
                             navigateToContentById(initialContentId)
                         }
 
-                        contents.firstOrNull()?.let { firstContent ->
+                        contents.getOrNull(0)?.let { firstContent ->
                             startContentView(firstContent.id, firstContent.contentType.name)
                         }
 
@@ -749,9 +776,7 @@ class StudentLessonViewViewModel @Inject constructor(
 
     private suspend fun loadExistingProgressForLesson(studentId: String, lessonId: String) {
         try {
-            val result = progressRepository
-                .getLessonProgress(studentId, lessonId)
-                .first { it !is Resource.Loading }
+            val result = awaitFirstNonLoading(progressRepository.getLessonProgress(studentId, lessonId))
 
             when (result) {
                 is Resource.Success -> {
@@ -983,7 +1008,12 @@ class StudentLessonViewViewModel @Inject constructor(
     }
 
     private fun saveProgress() {
-        viewModelScope.launch {
+        if (saveProgressJob?.isActive == true) {
+            Log.d(TAG, "⏭️ saveProgress() skipped - already saving")
+            return
+        }
+
+        saveProgressJob = viewModelScope.launch {
             Log.d(TAG, "💾 saveProgress() called")
             val currentState = state.value
             Log.d(TAG, "   - Current lesson: ${currentState.lesson?.id}")
@@ -997,7 +1027,7 @@ class StudentLessonViewViewModel @Inject constructor(
             Log.d(TAG, "   - Resolving currentUserId...")
             val currentUserId = currentUserIdFlow.value.ifBlank {
                 Log.d(TAG, "   - CurrentUserId is blank, waiting for first non-blank value...")
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
             Log.d(TAG, "   - CurrentUserId: $currentUserId")
 
@@ -1013,8 +1043,7 @@ class StudentLessonViewViewModel @Inject constructor(
             if (resolvedStudentId.isNullOrBlank()) {
                 Log.d(TAG, "   - StudentId is null/blank in state, fetching from profile...")
                 try {
-                    val profileResult = getStudentProfileByUserId(currentUserId)
-                        .first { it !is Resource.Loading }
+                    val profileResult = awaitFirstNonLoading(getStudentProfileByUserId(currentUserId))
                     when (profileResult) {
                         is Resource.Success -> {
                             resolvedStudentId = profileResult.data?.id
@@ -1074,11 +1103,6 @@ class StudentLessonViewViewModel @Inject constructor(
             Log.d(TAG, "   - Study seriousness score: ${currentState.studySeriousnessScore}")
             Log.d(TAG, "   - Fast forward detected: ${currentState.isFastForwardDetected}")
 
-            // Cập nhật dữ liệu chờ lưu cho autoSaveManager
-            Log.d(TAG, "   - Calling autoSaveManager.updatePendingProgress()...")
-            autoSaveManager.updatePendingProgress(params)
-            Log.d(TAG, "✅ Updated pending progress in autoSaveManager")
-
             // Lưu tiến độ
             lessonUseCases.updateLessonProgress(params).collectLatest { result ->
                 when (result) {
@@ -1117,6 +1141,41 @@ class StudentLessonViewViewModel @Inject constructor(
         }
     }
 
+    private fun startPeriodicAutoSave() {
+        if (periodicSaveJob?.isActive == true) return
+
+        Log.d(TAG, "🚀 startPeriodicAutoSave() - interval=${LearningProgressConfig.AUTO_SAVE_INTERVAL_SECONDS}s")
+        periodicSaveJob = viewModelScope.launch {
+            while (true) {
+                delay(LearningProgressConfig.AUTO_SAVE_INTERVAL_SECONDS * 1000L)
+                val currentState = state.value
+                val inBackground = appLifecycleManager.isAppInBackground()
+                val screenOn = appLifecycleManager.isScreenOn.value
+
+                Log.d(TAG, "⏰ [AUTO_SAVE_TICK] lessonLoaded=${currentState.lesson != null}, inBackground=$inBackground, screenOn=$screenOn")
+
+                if (currentState.lesson == null) {
+                    Log.d(TAG, "⏭️ [AUTO_SAVE_SKIP] lesson is null")
+                    continue
+                }
+
+                if (inBackground || !screenOn) {
+                    Log.d(TAG, "⏭️ [AUTO_SAVE_SKIP] app in background or screen off")
+                    continue
+                }
+
+                Log.d(TAG, "💾 [AUTO_SAVE_RUN] calling saveProgress()")
+                saveProgress()
+            }
+        }
+    }
+
+    private fun stopPeriodicAutoSave() {
+        Log.d(TAG, "⏹️ stopPeriodicAutoSave()")
+        periodicSaveJob?.cancel()
+        periodicSaveJob = null
+    }
+
     private fun recordInteraction(interactionType: String) {
         Log.d(TAG, "════════════════════════════════════════════════════════════════")
         Log.d(TAG, "👆 recordInteraction(type=$interactionType)")
@@ -1125,10 +1184,18 @@ class StudentLessonViewViewModel @Inject constructor(
         Log.d(TAG, "   - Current inactivity duration: ${inactivityManager.getInactivityDuration()}ms")
         Log.d(TAG, "════════════════════════════════════════════════════════════════")
 
+        if (autoExitJob?.isActive == true) {
+            Log.w(TAG, "🛑 Cancelling pending auto-exit job due to user interaction: $interactionType")
+            autoExitJob?.cancel()
+        }
+
         val currentTime = System.currentTimeMillis()
         val previousWarningCount = state.value.inactivityWarningCount
 
         val warningWasReset = inactivityManager.recordInteraction(interactionType)
+
+        val managerWarningCount = inactivityManager.getWarningCount()
+        Log.d(TAG, "   - After manager.recordInteraction(): managerWarningCount=$managerWarningCount, warningWasReset=$warningWasReset")
 
         if (warningWasReset) {
             val newWarningCount = inactivityManager.getWarningCount()
@@ -1151,7 +1218,12 @@ class StudentLessonViewViewModel @Inject constructor(
                 )
             }
         } else {
-            setState { copy(lastInteractionTime = currentTime) }
+            setState { copy(lastInteractionTime = currentTime, inactivityWarningCount = managerWarningCount) }
+        }
+
+        if (state.value.showInactivityWarning) {
+            Log.d(TAG, "✅ Hiding inactivity warning dialog due to user interaction: $interactionType")
+            setState { copy(showInactivityWarning = false) }
         }
 
         // Cập nhật study seriousness score
@@ -1212,17 +1284,21 @@ class StudentLessonViewViewModel @Inject constructor(
     private fun continueLesson() {
         Log.d(TAG, "▶️ continueLesson() - User confirmed to continue")
 
+        Log.d(TAG, "   - Before reset: showInactivityWarning=${state.value.showInactivityWarning}, uiWarningCount=${state.value.inactivityWarningCount}, managerWarningCount=${inactivityManager.getWarningCount()}, managerInactivityMs=${inactivityManager.getInactivityDuration()}")
+
         // Ẩn cảnh báo
         setState { copy(showInactivityWarning = false) }
 
-        // ⚠️ KHÔNG reset warning count ở đây
-        // Warning count chỉ reset khi user tương tác với nội dung bài học
-        // Không reset khi nhấn nút trong dialog cảnh báo
+        // Chỉ đóng dialog, KHÔNG reset timer / warningCount
+        inactivityManager.dismissWarning("CONTINUE")
 
-        // Khởi động lại timer để bắt đầu đếm 60 giây mới
-        inactivityManager.startInactivityTracking()
+        // Nếu đã đạt max warnings thì vẫn để job auto-exit chạy
+        if (!inactivityManager.shouldExitSession() && autoExitJob?.isActive == true) {
+            Log.w(TAG, "🛑 Cancelling pending auto-exit job (not max warnings)")
+            autoExitJob?.cancel()
+        }
 
-        Log.d(TAG, "   ✅ Dialog closed, inactivity tracking restarted (warning count NOT reset)")
+        Log.d(TAG, "   ✅ Dialog closed (no reset)")
     }
 
     private fun updateSeriousnessScore() {
@@ -1247,8 +1323,7 @@ class StudentLessonViewViewModel @Inject constructor(
         // Dừng tất cả managers
         Log.d(TAG, "   ⏹️ Stopping all managers...")
 
-        autoSaveManager.stopAutoSave()
-        Log.d(TAG, "      ✅ AutoSaveManager stopped")
+        stopPeriodicAutoSave()
 
         inactivityManager.stopInactivityTracking()
         Log.d(TAG, "      ✅ InactivityManager stopped")
@@ -1265,7 +1340,7 @@ class StudentLessonViewViewModel @Inject constructor(
         // Hiển thị notification
         Log.d(TAG, "   📢 Showing exit notification...")
         showNotification(
-            "Bạn đã thoát khỏi bài học. Tiến trình không được lưu.",
+            "Bạn đã thoát khỏi bài học. Tiến trình sẽ không được lưu.",
             NotificationType.ERROR
         )
 
@@ -1486,8 +1561,7 @@ class StudentLessonViewViewModel @Inject constructor(
         sessionManager.endSession()
         studyTimeManager.endSession()
 
-        // Dừng auto save
-        autoSaveManager.stopAutoSave()
+        stopPeriodicAutoSave()
 
         // Dừng inactivity tracking
         inactivityManager.stopInactivityTracking()

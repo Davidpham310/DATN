@@ -16,10 +16,12 @@ import com.example.datn.presentation.parent.classlist.state.SearchType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,6 +32,15 @@ class ParentJoinClassViewModel @Inject constructor(
     private val authUseCases: AuthUseCases,
     notificationManager: NotificationManager
 ) : BaseViewModel<ParentJoinClassState, ParentJoinClassEvent>(ParentJoinClassState(), notificationManager) {
+
+    private suspend fun <T> awaitFirstNonLoading(flow: Flow<Resource<T>>): Resource<T> {
+        var result: Resource<T>? = null
+        flow
+            .filter { it !is Resource.Loading }
+            .take(1)
+            .collect { value -> result = value }
+        return result ?: Resource.Error("Không thể tải dữ liệu")
+    }
 
     // Cache current parent ID to avoid repeated authentication checks
     private val currentParentIdFlow: StateFlow<String> = authUseCases.getCurrentIdUser.invoke()
@@ -95,7 +106,7 @@ class ParentJoinClassViewModel @Inject constructor(
                                         linkedStudents = students,
                                         // Auto select first student if available and no student selected
                                         selectedStudent = if (selectedStudent == null && students.isNotEmpty()) {
-                                            students.first()
+                                            students.getOrNull(0)
                                         } else {
                                             selectedStudent
                                         },
@@ -278,7 +289,7 @@ class ParentJoinClassViewModel @Inject constructor(
             val enrollmentMap = mutableMapOf<String, ClassStudent>()
             
             state.value.searchResults.forEach { classItem ->
-                classUseCases.getEnrollment(classItem.id, studentId).first().let { result ->
+                awaitFirstNonLoading(classUseCases.getEnrollment(classItem.id, studentId)).let { result ->
                     if (result is Resource.Success && result.data != null) {
                         enrollmentMap[classItem.id] = result.data
                     }

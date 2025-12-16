@@ -64,7 +64,7 @@ object LearningProgressConfig {
     const val AUDIO_MIN_COMPLETION_PERCENTAGE = 98  // Phải nghe 98% audio
 
     // ===== Giám sát không hoạt động =====
-    const val INACTIVITY_WARNING_TIMEOUT_SECONDS = 60  // Cảnh báo sau 60s không hoạt động
+    const val INACTIVITY_WARNING_TIMEOUT_SECONDS = 10  // Cảnh báo sau 60s không hoạt động
     const val MAX_INACTIVITY_WARNINGS = 3  // Tối đa 3 cảnh báo
 
     // ===== Reset Warning Count khi có tương tác =====

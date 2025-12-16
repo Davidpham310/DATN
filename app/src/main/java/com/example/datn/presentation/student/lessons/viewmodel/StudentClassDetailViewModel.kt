@@ -16,10 +16,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -62,6 +65,24 @@ class StudentClassDetailViewModel @Inject constructor(
         }
     }
 
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
+    private suspend fun <T> awaitFirstNonLoading(flow: Flow<Resource<T>>): Resource<T> {
+        var result: Resource<T>? = null
+        flow
+            .filter { it !is Resource.Loading }
+            .take(1)
+            .collect { value -> result = value }
+        return result ?: Resource.Error("Không thể tải dữ liệu")
+    }
+
     private fun loadClassDetail(classId: String) {
         currentClassIdFlow.value = classId
         
@@ -70,7 +91,7 @@ class StudentClassDetailViewModel @Inject constructor(
             
             // Get student ID first
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
             
             getStudentProfileByUserId(currentUserId).collect { profileResult ->
@@ -121,9 +142,9 @@ class StudentClassDetailViewModel @Inject constructor(
                                         for (wrapper in lessonsData) {
                                             val lesson = wrapper.lesson
                                             try {
-                                                val contentsRes = lessonUseCases
-                                                    .getLessonContentsByLesson(lesson.id)
-                                                    .first { it !is Resource.Loading }
+                                                val contentsRes = awaitFirstNonLoading(
+                                                    lessonUseCases.getLessonContentsByLesson(lesson.id)
+                                                )
 
                                                 val count = when (contentsRes) {
                                                     is Resource.Success -> contentsRes.data?.size ?: 0

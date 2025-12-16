@@ -13,7 +13,8 @@ import com.example.datn.presentation.common.notifications.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -37,7 +38,7 @@ class TeacherTestSubmissionsViewModel @Inject constructor(
         viewModelScope.launch {
             setState { copy(isLoading = true, testId = testId, testTitle = testTitle, error = null) }
 
-            val resultsRes = awaitFinal(testUseCases.getResultsByTest(testId))
+            val resultsRes = awaitFirstNonLoading(testUseCases.getResultsByTest(testId))
             val results = (resultsRes as? Resource.Success)?.data
             if (results == null) {
                 setState { copy(isLoading = false, error = (resultsRes as? Resource.Error)?.message) }
@@ -63,20 +64,20 @@ class TeacherTestSubmissionsViewModel @Inject constructor(
 
     private suspend fun loadStudentUser(studentId: String): User? {
         return try {
-            val res = userUseCases.getStudentUser(studentId)
-                .first { it !is Resource.Loading }
+            val res = awaitFirstNonLoading(userUseCases.getStudentUser(studentId))
             (res as? Resource.Success)?.data
         } catch (_: Exception) {
             null
         }
     }
 
-    private suspend fun <T> awaitFinal(flow: Flow<Resource<T>>): Resource<T> {
-        var last: Resource<T> = Resource.Loading()
-        flow.collect { value ->
-            last = value
-        }
-        return last
+    private suspend fun <T> awaitFirstNonLoading(flow: Flow<Resource<T>>): Resource<T> {
+        var result: Resource<T>? = null
+        flow
+            .filter { it !is Resource.Loading }
+            .take(1)
+            .collect { value -> result = value }
+        return result ?: Resource.Error("Không thể tải dữ liệu")
     }
 }
 

@@ -51,6 +51,15 @@ class StudentTestResultViewModel @Inject constructor(
         }
     }
 
+    private suspend fun awaitNonBlank(flow: Flow<String>): String {
+        var result = ""
+        flow
+            .filter { it.isNotBlank() }
+            .take(1)
+            .collect { value -> result = value }
+        return result
+    }
+
     private fun loadResult(testId: String, resultId: String) {
         Log.d(TAG, "[loadResult] START - testId: $testId, resultId: $resultId")
         viewModelScope.launch {
@@ -58,7 +67,7 @@ class StudentTestResultViewModel @Inject constructor(
 
             // Get student ID
             val currentUserId = currentUserIdFlow.value.ifBlank {
-                currentUserIdFlow.first { it.isNotBlank() }
+                awaitNonBlank(currentUserIdFlow)
             }
 
             var tempStudentId: String? = null
@@ -278,9 +287,9 @@ class StudentTestResultViewModel @Inject constructor(
     ): Answer {
         val correctOptions = options.filter { it.isCorrect }
         return when {
-            correctOptions.size == 1 -> Answer.SingleChoice(correctOptions.first().id)
+            correctOptions.size == 1 -> Answer.SingleChoice(correctOptions[0].id)
             correctOptions.size > 1 -> Answer.MultipleChoice(correctOptions.map { it.id }.toSet())
-            else -> Answer.FillBlank(correctOptions.firstOrNull()?.content ?: "")
+            else -> Answer.FillBlank(correctOptions.getOrNull(0)?.content ?: "")
         }
     }
 
@@ -304,7 +313,7 @@ class StudentTestResultViewModel @Inject constructor(
             }
             com.example.datn.domain.models.QuestionType.FILL_BLANK -> {
                 val text = (studentAnswer as? Answer.FillBlank)?.text ?: ""
-                val correctAnswer = options.firstOrNull { it.isCorrect }?.content ?: ""
+                val correctAnswer = options.find { it.isCorrect }?.content ?: ""
                 if (text.trim().equals(correctAnswer.trim(), ignoreCase = true))
                     question.score
                 else 0.0

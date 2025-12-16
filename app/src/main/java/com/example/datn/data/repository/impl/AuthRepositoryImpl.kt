@@ -17,6 +17,7 @@ import com.example.datn.domain.models.Teacher
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.UserRole
 import com.example.datn.domain.repository.IAuthRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -49,7 +50,10 @@ class AuthRepositoryImpl @Inject constructor(
         }
 
         emit(Resource.Success(remoteUser))
-    }.catch { e -> emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e))) }
+    }.catch { e ->
+        if (e is CancellationException) throw e
+        emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
+    }
 
     override fun register(
         user: User,
@@ -112,19 +116,28 @@ class AuthRepositoryImpl @Inject constructor(
         // Đăng xuất sau khi tạo tài khoản thành công
         firebaseAuthDataSource.signOut()
         emit(Resource.Success(userWithId))
-    }.catch { e -> emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))}
+    }.catch { e ->
+        if (e is CancellationException) throw e
+        emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
+    }
 
     override fun forgotPassword(email: String): Flow<Resource<String>> = flow {
         emit(Resource.Loading())
         firebaseAuthDataSource.sendPasswordReset(email)
         emit(Resource.Success("Password reset email sent"))
-    }.catch { e -> emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e))) }
+    }.catch { e ->
+        if (e is CancellationException) throw e
+        emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
+    }
 
     override fun changePassword(currentPassword: String, newPassword: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         firebaseAuthDataSource.changePassword(currentPassword, newPassword)
         emit(Resource.Success(Unit))
-    }.catch { e -> emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e))) }
+    }.catch { e ->
+        if (e is CancellationException) throw e
+        emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
+    }
 
     override fun signOut(): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
@@ -141,6 +154,8 @@ class AuthRepositoryImpl @Inject constructor(
                 }
             }
             emit(Resource.Success(Unit))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -169,6 +184,8 @@ class AuthRepositoryImpl @Inject constructor(
                 userDao.insert(remoteUser.toEntity())
                 emit(Resource.Success(remoteUser))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
@@ -177,6 +194,8 @@ class AuthRepositoryImpl @Inject constructor(
         try {
             val isLoggedIn = firebaseAuthDataSource.getCurrentUserId() != null
             emit(Resource.Success(isLoggedIn))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }

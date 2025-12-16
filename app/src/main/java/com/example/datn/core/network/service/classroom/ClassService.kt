@@ -7,6 +7,7 @@ import com.example.datn.domain.models.Class
 import com.example.datn.domain.models.ClassStudent
 import com.example.datn.domain.models.EnrollmentStatus
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.Timestamp
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 import javax.inject.Inject
@@ -400,22 +401,78 @@ class ClassService @Inject constructor() :
     ): List<ClassStudent> {
         Log.d(TAG, "Fetching students in class $classId")
         return try {
-            var query = classStudentRef.whereEqualTo("classId", classId)
+            val baseQuery = classStudentRef.whereEqualTo("classId", classId)
 
-            if (status != null) {
-                query = query.whereEqualTo("enrollmentStatus", status.name)
+            val filteredSnapshot = if (status != null) {
+                baseQuery.whereEqualTo("enrollmentStatus", status.name).get().await()
+            } else {
+                baseQuery.get().await()
             }
 
-            val snapshot = query.get().await()
+            val snapshot = if (filteredSnapshot.isEmpty && status != null) {
+                Log.w(TAG, "No students found with enrollmentStatus=${status.name}, retry without status filter")
+                baseQuery.get().await()
+            } else {
+                filteredSnapshot
+            }
 
-            snapshot.documents.mapNotNull {
+            val parsed = snapshot.documents.mapNotNull { doc ->
                 try {
-                    it.internalToDomain(ClassStudent::class.java)
+                    val enrollmentStatusRaw = doc.getString("enrollmentStatus")
+                    val enrollmentStatus = try {
+                        EnrollmentStatus.valueOf(enrollmentStatusRaw ?: EnrollmentStatus.NOT_ENROLLED.name)
+                    } catch (_: Exception) {
+                        EnrollmentStatus.NOT_ENROLLED
+                    }
+
+                    val enrolledDateInstant = doc.get("enrolledDate")?.let { raw ->
+                        when (raw) {
+                            is Timestamp -> raw.toDate().toInstant()
+                            is Number -> {
+                                val d = raw.toDouble()
+                                if (d < 1_000_000_000_000.0) {
+                                    val seconds = kotlin.math.floor(d).toLong()
+                                    val nanos = ((d - seconds) * 1_000_000_000.0).toLong().coerceIn(0, 999_999_999)
+                                    Instant.ofEpochSecond(seconds, nanos.toLong())
+                                } else {
+                                    Instant.ofEpochMilli(d.toLong())
+                                }
+                            }
+                            is Map<*, *> -> {
+                                val epochSecond = (raw["epochSecond"] as? Number)?.toLong()
+                                val nano = (raw["nano"] as? Number)?.toLong()
+                                if (epochSecond != null && nano != null) {
+                                    Instant.ofEpochSecond(epochSecond, nano)
+                                } else {
+                                    Instant.now()
+                                }
+                            }
+                            is String -> {
+                                try {
+                                    Instant.ofEpochMilli(raw.toLong())
+                                } catch (_: Exception) {
+                                    Instant.parse(raw)
+                                }
+                            }
+                            else -> Instant.now()
+                        }
+                    } ?: Instant.now()
+
+                    ClassStudent(
+                        classId = doc.getString("classId") ?: "",
+                        studentId = doc.getString("studentId") ?: "",
+                        enrollmentStatus = enrollmentStatus,
+                        enrolledDate = enrolledDateInstant,
+                        approvedBy = doc.getString("approvedBy") ?: "",
+                        rejectionReason = doc.getString("rejectionReason") ?: ""
+                    )
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to parse ClassStudent doc ${it.id}", e)
+                    Log.e(TAG, "Failed to parse ClassStudent doc ${doc.id}", e)
                     null
                 }
             }
+
+            if (status != null) parsed.filter { it.enrollmentStatus == status } else parsed
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching students in class", e)
             emptyList()
