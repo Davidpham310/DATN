@@ -125,10 +125,19 @@ object AppModule {
     @Provides
     @Singleton
     fun provideMinioClient(): MinioClient {
-        val endpoint = BuildConfig.MINIO_ENDPOINT.trim()
+        val rawEndpoint = BuildConfig.MINIO_ENDPOINT.trim()
+        val endpoint = if (rawEndpoint.startsWith("http://") || rawEndpoint.startsWith("https://")) {
+            rawEndpoint
+        } else {
+            "http://$rawEndpoint"
+        }
         val accessKey = BuildConfig.MINIO_ACCESS_KEY.trim()
         val secretKey = BuildConfig.MINIO_SECRET_KEY.trim()
         val okHttpClient = OkHttpClient.Builder()
+            .retryOnConnectionFailure(true)
+            .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .build()
 
         return MinioClient.builder()
