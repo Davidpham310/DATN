@@ -6,6 +6,10 @@ import com.example.datn.core.base.BaseViewModel
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
+import com.example.datn.core.utils.validation.rules.test.ValidateTestDisplayOrder
+import com.example.datn.core.utils.validation.rules.test.ValidateTestMediaUrl
+import com.example.datn.core.utils.validation.rules.test.ValidateTestQuestionContent
+import com.example.datn.core.utils.validation.rules.test.ValidateTestQuestionScore
 import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.models.TestQuestion
 import com.example.datn.domain.usecase.test.ImportTestQuestionsFromExcelUseCase
@@ -29,6 +33,11 @@ class TestQuestionManagerViewModel @Inject constructor(
     notificationManager: NotificationManager
 ) : BaseViewModel<TestQuestionState, TestQuestionEvent>(TestQuestionState(), notificationManager) {
 
+    private val questionContentValidator = ValidateTestQuestionContent()
+    private val questionScoreValidator = ValidateTestQuestionScore()
+    private val questionMediaUrlValidator = ValidateTestMediaUrl()
+    private val displayOrderValidator = ValidateTestDisplayOrder()
+
     override fun onEvent(event: TestQuestionEvent) {
         when (event) {
             is TestQuestionEvent.LoadQuestions -> load(event.testId)
@@ -38,10 +47,23 @@ class TestQuestionManagerViewModel @Inject constructor(
             is TestQuestionEvent.DeleteQuestion -> showConfirmDelete(event.question)
             TestQuestionEvent.DismissDialog -> dismissDialog()
             is TestQuestionEvent.ConfirmAddQuestion -> addQuestion(
-                event.testId, event.content, event.score, event.questionType, event.mediaUrl
+                event.testId,
+                event.content,
+                event.score,
+                event.timeLimit,
+                event.order,
+                event.questionType,
+                event.mediaUrl
             )
             is TestQuestionEvent.ConfirmEditQuestion -> updateQuestion(
-                event.id, event.testId, event.content, event.score, event.questionType, event.mediaUrl
+                event.id,
+                event.testId,
+                event.content,
+                event.score,
+                event.timeLimit,
+                event.order,
+                event.questionType,
+                event.mediaUrl
             )
             is TestQuestionEvent.SelectQuestion -> {}
         }
@@ -57,8 +79,11 @@ class TestQuestionManagerViewModel @Inject constructor(
             .onEach { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true, error = null) }
-                    is Resource.Success -> setState { 
-                        copy(isLoading = false, questions = result.data ?: emptyList(), error = null) 
+                    is Resource.Success -> {
+                        val questions = (result.data ?: emptyList()).sortedBy { it.order }
+                        setState {
+                            copy(isLoading = false, questions = questions, error = null)
+                        }
                     }
                     is Resource.Error -> {
                         setState { copy(isLoading = false, error = result.message) }
@@ -109,7 +134,7 @@ class TestQuestionManagerViewModel @Inject constructor(
                                     confirmDeleteState = confirmDeleteState.copy(isShowing = false, data = null)
                                 ) 
                             }
-                            showNotification("Xóa câu hỏi thành công", NotificationType.SUCCESS)
+                            showNotification("Xóa câu hỏi thành công", NotificationType.SUCCESS, 3000L)
                             refresh()
                         }
                         is Resource.Error -> {
@@ -126,23 +151,58 @@ class TestQuestionManagerViewModel @Inject constructor(
         testId: String,
         content: String,
         score: Double,
+        timeLimit: Int,
+        order: Int,
         questionType: QuestionType,
         mediaUrl: String?
     ) {
+        val trimmedContent = content.trim()
+        val trimmedMediaUrl = mediaUrl?.trim()?.ifBlank { null }
+
+        val contentResult = questionContentValidator.validate(trimmedContent)
+        if (!contentResult.successful) {
+            showNotification(contentResult.errorMessage ?: "Nội dung câu hỏi không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val scoreResult = questionScoreValidator.validate(score)
+        if (!scoreResult.successful) {
+            showNotification(scoreResult.errorMessage ?: "Điểm số không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val mediaUrlResult = questionMediaUrlValidator.validate(trimmedMediaUrl)
+        if (!mediaUrlResult.successful) {
+            showNotification(mediaUrlResult.errorMessage ?: "Media URL không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val timeLimitResult = displayOrderValidator.validate(timeLimit)
+        if (!timeLimitResult.successful) {
+            showNotification(timeLimitResult.errorMessage ?: "Thời gian trả lời không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val orderResult = displayOrderValidator.validate(order)
+        if (!orderResult.successful) {
+            showNotification(orderResult.errorMessage ?: "Thứ tự hiển thị không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
         viewModelScope.launch {
-            val maxOrder = state.value.questions.maxOfOrNull { it.order } ?: 0
             val newQuestion = TestQuestion(
                 id = "",
                 testId = testId,
-                content = content,
+                content = trimmedContent,
                 score = score,
                 questionType = questionType,
-                mediaUrl = mediaUrl,
-                order = maxOrder + 1,
+                mediaUrl = trimmedMediaUrl,
+                timeLimit = timeLimit,
+                order = order,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )
-            
+
             testQuestionUseCases.create(newQuestion)
                 .onEach { result ->
                     when (result) {
@@ -167,19 +227,61 @@ class TestQuestionManagerViewModel @Inject constructor(
         testId: String,
         content: String,
         score: Double,
+        timeLimit: Int,
+        order: Int,
         questionType: QuestionType,
         mediaUrl: String?
     ) {
+        val existing = state.value.editingQuestion
+        if (existing == null) {
+            showNotification("Không tìm thấy câu hỏi cần chỉnh sửa", NotificationType.ERROR)
+            return
+        }
+
+        val trimmedContent = content.trim()
+        val trimmedMediaUrl = mediaUrl?.trim()?.ifBlank { null }
+
+        val contentResult = questionContentValidator.validate(trimmedContent)
+        if (!contentResult.successful) {
+            showNotification(contentResult.errorMessage ?: "Nội dung câu hỏi không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val scoreResult = questionScoreValidator.validate(score)
+        if (!scoreResult.successful) {
+            showNotification(scoreResult.errorMessage ?: "Điểm số không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val mediaUrlResult = questionMediaUrlValidator.validate(trimmedMediaUrl)
+        if (!mediaUrlResult.successful) {
+            showNotification(mediaUrlResult.errorMessage ?: "Media URL không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val timeLimitResult = displayOrderValidator.validate(timeLimit)
+        if (!timeLimitResult.successful) {
+            showNotification(timeLimitResult.errorMessage ?: "Thời gian trả lời không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val orderResult = displayOrderValidator.validate(order)
+        if (!orderResult.successful) {
+            showNotification(orderResult.errorMessage ?: "Thứ tự hiển thị không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
         viewModelScope.launch {
-            val existing = state.value.editingQuestion ?: return@launch
             val updated = existing.copy(
-                content = content,
+                content = trimmedContent,
                 score = score,
                 questionType = questionType,
-                mediaUrl = mediaUrl,
+                mediaUrl = trimmedMediaUrl,
+                timeLimit = timeLimit,
+                order = order,
                 updatedAt = Instant.now()
             )
-            
+
             testQuestionUseCases.update(updated)
                 .onEach { result ->
                     when (result) {

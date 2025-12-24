@@ -3,6 +3,11 @@ package com.example.datn.presentation.parent.relative.viewmodel
 import android.util.Log
 import com.example.datn.core.base.BaseViewModel
 import com.example.datn.core.utils.Resource
+import com.example.datn.core.utils.validation.rules.parentstudent.StudentDateOfBirthValidator
+import com.example.datn.core.utils.validation.rules.parentstudent.StudentEmailValidator
+import com.example.datn.core.utils.validation.rules.parentstudent.StudentGradeLevelValidator
+import com.example.datn.core.utils.validation.rules.parentstudent.StudentNameValidator
+import com.example.datn.core.utils.validation.rules.parentstudent.StudentPasswordValidator
 import com.example.datn.domain.models.RelationshipType
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.parentstudent.CreateStudentAccountForParentUseCase
@@ -12,9 +17,6 @@ import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.presentation.parent.relative.event.ParentCreateStudentAccountEvent
 import com.example.datn.presentation.parent.relative.state.ParentCreateStudentAccountState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -31,6 +33,12 @@ class ParentCreateStudentAccountViewModel @Inject constructor(
         private const val TAG = "ParentCreateStudentVM"
     }
 
+    private val nameValidator = StudentNameValidator()
+    private val emailValidator = StudentEmailValidator()
+    private val passwordValidator = StudentPasswordValidator()
+    private val gradeLevelValidator = StudentGradeLevelValidator()
+    private val dateOfBirthValidator = StudentDateOfBirthValidator()
+
     override fun onEvent(event: ParentCreateStudentAccountEvent) {
         Log.d(TAG, "onEvent: $event")
         when (event) {
@@ -45,19 +53,43 @@ class ParentCreateStudentAccountViewModel @Inject constructor(
             TAG,
             "submit() called with name='${event.name}', email='${event.email}', gradeLevel='${event.gradeLevel}', dob='${event.dateOfBirthText}', relationship=${event.relationship}, isPrimary=${event.isPrimaryGuardian}"
         )
-        if (event.name.isBlank() || event.email.isBlank() || event.password.isBlank() || event.gradeLevel.isBlank() || event.dateOfBirthText.isBlank()) {
-            Log.w(TAG, "submit() -> missing required fields")
-            showNotification("Vui lòng điền đầy đủ thông tin", NotificationType.ERROR)
+
+        val name = event.name.trim()
+        val nameResult = nameValidator.validate(name)
+        if (!nameResult.successful) {
+            showNotification(nameResult.errorMessage ?: "Tên học sinh không hợp lệ", NotificationType.ERROR)
             return
         }
 
-        val formatter = DateTimeFormatter.ISO_LOCAL_DATE
-        val dateOfBirth: LocalDate = try {
-            Log.d(TAG, "submit() -> parsing dateOfBirth='${event.dateOfBirthText}'")
-            LocalDate.parse(event.dateOfBirthText, formatter)
-        } catch (e: DateTimeParseException) {
-            Log.e(TAG, "submit() -> invalid date format: ${e.message}")
-            showNotification("Ngày sinh không hợp lệ (định dạng yyyy-MM-dd)", NotificationType.ERROR)
+        val email = event.email.trim()
+        val emailResult = emailValidator.validate(email)
+        if (!emailResult.successful) {
+            showNotification(emailResult.errorMessage ?: "Email không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val password = event.password
+        val passwordResult = passwordValidator.validate(password)
+        if (!passwordResult.successful) {
+            showNotification(passwordResult.errorMessage ?: "Mật khẩu không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val gradeLevelRaw = event.gradeLevel.trim()
+        val gradeResult = gradeLevelValidator.validate(gradeLevelRaw)
+        if (!gradeResult.successful) {
+            showNotification(gradeResult.errorMessage ?: "Khối lớp không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val dobText = event.dateOfBirthText.trim()
+        val dobResult = dateOfBirthValidator.validate(dobText)
+        if (!dobResult.successful) {
+            showNotification(dobResult.errorMessage ?: "Ngày sinh không hợp lệ", NotificationType.ERROR)
+            return
+        }
+        val dateOfBirth = dateOfBirthValidator.parse(dobText) ?: run {
+            showNotification("Ngày sinh không hợp lệ", NotificationType.ERROR)
             return
         }
 
@@ -81,11 +113,11 @@ class ParentCreateStudentAccountViewModel @Inject constructor(
             createStudentAccountForParent(
                 CreateStudentAccountParams(
                     parentId = parentId,
-                    email = event.email,
-                    password = event.password,
-                    name = event.name,
+                    email = email,
+                    password = password,
+                    name = name,
                     dateOfBirth = dateOfBirth,
-                    gradeLevel = event.gradeLevel,
+                    gradeLevel = gradeLevelRaw,
                     relationship = event.relationship.name,
                     isPrimaryGuardian = event.isPrimaryGuardian
                 )
@@ -102,9 +134,15 @@ class ParentCreateStudentAccountViewModel @Inject constructor(
                     }
                     is Resource.Error -> {
                         Log.e(TAG, "submit() -> Error: ${resource.message}")
-                        setState { copy(isLoading = false, error = resource.message, isSuccess = false) }
+                        val message = when {
+                            resource.message?.contains("đã được sử dụng", ignoreCase = true) == true -> "Email đã được sử dụng"
+                            resource.message?.contains("already", ignoreCase = true) == true &&
+                                resource.message?.contains("use", ignoreCase = true) == true -> "Email đã được sử dụng"
+                            else -> resource.message ?: "Không thể tạo tài khoản học sinh"
+                        }
+                        setState { copy(isLoading = false, error = message, isSuccess = false) }
                         showNotification(
-                            resource.message ?: "Không thể tạo tài khoản học sinh",
+                            message,
                             NotificationType.ERROR
                         )
                     }

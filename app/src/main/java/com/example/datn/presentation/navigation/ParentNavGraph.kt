@@ -4,6 +4,7 @@ import androidx.navigation.NavType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -26,7 +27,9 @@ import com.example.datn.presentation.common.messaging.ChatViewModel
 import com.example.datn.presentation.parent.messaging.viewmodel.ParentSelectRecipientViewModel
 import com.example.datn.presentation.common.profile.EditProfileScreen
 import com.example.datn.presentation.parent.account.ui.ParentChangePasswordScreen
-import com.example.datn.presentation.parent.notification.ui.ParentNotificationScreen
+import com.example.datn.presentation.common.notification.NotificationViewModel
+import com.example.datn.presentation.common.notification.ui.NotificationDetailScreen
+import com.example.datn.presentation.common.notification.ui.NotificationInboxScreen
 import com.example.datn.presentation.teacher.messaging.viewmodel.SelectRecipientViewModel
 
 @Composable
@@ -292,10 +295,35 @@ fun ParentNavGraph(
         composable(Screen.ParentNotifications.route) {
             val userId = hiltViewModel<com.example.datn.presentation.common.account.AccountViewModel>()
                 .state.collectAsState().value.currentUser?.id ?: ""
-            
-            ParentNotificationScreen(
+
+            val viewModel: NotificationViewModel = hiltViewModel()
+
+            NotificationInboxScreen(
                 userId = userId,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onOpenDetail = { notificationId ->
+                    navController.navigate(Screen.ParentNotificationDetail.createRoute(notificationId))
+                },
+                viewModel = viewModel
+            )
+        }
+
+        composable(
+            route = Screen.ParentNotificationDetail.routeWithArgs,
+            arguments = listOf(
+                navArgument("notificationId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val notificationId = backStackEntry.arguments?.getString("notificationId") ?: ""
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry(Screen.ParentNotifications.route)
+            }
+            val viewModel: NotificationViewModel = hiltViewModel(parentEntry)
+
+            NotificationDetailScreen(
+                notificationId = notificationId,
+                onNavigateBack = { navController.popBackStack() },
+                viewModel = viewModel
             )
         }
     }

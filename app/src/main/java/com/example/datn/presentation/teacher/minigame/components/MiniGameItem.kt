@@ -27,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.core.utils.extensions.formatAsDateTime
@@ -52,7 +51,7 @@ fun MiniGameItem(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Header with game type and level
+            // Header with level
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -61,18 +60,6 @@ fun MiniGameItem(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Surface(
-                        color = getGameTypeColor(game.gameType),
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(
-                            text = game.gameType.displayName,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-
                     Surface(
                         color = getLevelColor(game.level),
                         shape = MaterialTheme.shapes.small
@@ -144,16 +131,6 @@ fun MiniGameItem(
             }
         }
     }
-}
-
-
-
-// ==================== HELPER FUNCTIONS ====================
-@Composable
-private fun getGameTypeColor(type: GameType) = when (type) {
-    GameType.QUIZ -> MaterialTheme.colorScheme.primary
-    GameType.PUZZLE -> MaterialTheme.colorScheme.secondary
-    GameType.MATCHING -> MaterialTheme.colorScheme.tertiary
 }
 
 @Composable

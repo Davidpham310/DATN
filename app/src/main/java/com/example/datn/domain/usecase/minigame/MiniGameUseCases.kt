@@ -34,8 +34,8 @@ class MiniGameUseCases @Inject constructor(
         return repository.getGamesByTeacher(teacherId)
     }
     
-    fun getFilteredMiniGames(type: String?, level: String?, teacherId: String? = null): Flow<Resource<List<MiniGame>>> {
-        return repository.getFilteredGames(type, level)
+    fun getFilteredMiniGames(level: String?): Flow<Resource<List<MiniGame>>> {
+        return repository.getFilteredGames(level)
     }
     
     fun searchMiniGames(query: String, teacherId: String? = null): Flow<Resource<List<MiniGame>>> {

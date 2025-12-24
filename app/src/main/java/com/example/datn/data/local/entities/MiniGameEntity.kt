@@ -2,7 +2,6 @@ package com.example.datn.data.local.entities
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import java.time.Instant
 
@@ -14,7 +13,6 @@ data class MiniGameEntity(
     val lessonId: String, // Liên kết với bài học
     val title: String,
     val description: String,
-    val gameType: GameType,
     val contentUrl: String? = null,
     val level: Level,
     val createdAt: Instant,

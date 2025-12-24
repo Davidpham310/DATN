@@ -192,6 +192,7 @@ class ImportTestQuestionsFromExcelUseCase @Inject constructor(
             score = score,
             questionType = type,
             mediaUrl = mediaUrl,
+            timeLimit = 0,
             order = order,
             createdAt = now,
             updatedAt = now

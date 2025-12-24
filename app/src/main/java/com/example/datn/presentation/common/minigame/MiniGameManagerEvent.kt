@@ -1,7 +1,6 @@
 package com.example.datn.presentation.common.minigame
 
 import com.example.datn.core.base.BaseEvent
-import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.models.MiniGame
 
@@ -21,9 +20,7 @@ sealed class MiniGameManagerEvent : BaseEvent {
         val lessonId: String,
         val title: String,
         val description: String,
-        val gameType: GameType,
-        val level: Level,
-        val contentUrl: String?
+        val level: Level
     ) : MiniGameManagerEvent()
 
     data class ConfirmEditGame(
@@ -31,8 +28,6 @@ sealed class MiniGameManagerEvent : BaseEvent {
         val lessonId: String,
         val title: String,
         val description: String,
-        val gameType: GameType,
-        val level: Level,
-        val contentUrl: String?
+        val level: Level
     ) : MiniGameManagerEvent()
 }

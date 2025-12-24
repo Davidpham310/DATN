@@ -13,6 +13,7 @@ data class TestQuestionEntity(
     val content: String,
     val score: Double,
     val questionType: QuestionType,
+    val timeLimit: Int,
     val order: Int,
     val createdAt: Instant,
     val updatedAt: Instant

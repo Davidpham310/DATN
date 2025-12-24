@@ -15,6 +15,7 @@ import com.example.datn.domain.usecase.parent.GetParentProfileUseCase
 import com.example.datn.domain.usecase.parent.UpdateParentProfileParams
 import com.example.datn.domain.usecase.parent.UpdateParentProfileUseCase
 import com.example.datn.domain.usecase.minio.MinIOUseCase
+import com.example.datn.domain.usecase.user.UpdateUserProfileUseCase
 import com.example.datn.domain.usecase.user.UpdateAvatarUseCase
 import com.example.datn.domain.usecase.user.GetUserByIdUseCase
 import com.example.datn.domain.usecase.avatar.CreateAvatarFolderUseCase
@@ -24,6 +25,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.time.Instant
+import java.time.LocalDate
 
 @HiltViewModel
 class EditProfileViewModel @Inject constructor(
@@ -34,6 +37,7 @@ class EditProfileViewModel @Inject constructor(
     private val getParentProfile: GetParentProfileUseCase,
     private val updateParentProfile: UpdateParentProfileUseCase,
     private val minIOUseCase: MinIOUseCase,
+    private val updateUserProfile: UpdateUserProfileUseCase,
     private val updateAvatarUseCase: UpdateAvatarUseCase,
     private val getUserById: GetUserByIdUseCase,
     private val createAvatarFolder: CreateAvatarFolderUseCase,
@@ -50,6 +54,7 @@ class EditProfileViewModel @Inject constructor(
     override fun onEvent(event: EditProfileEvent) {
         when (event) {
             is EditProfileEvent.LoadProfile -> loadProfile(event.userId, event.role)
+            is EditProfileEvent.UpdateName -> updateName(event.name)
             is EditProfileEvent.UpdateGradeLevel -> updateGradeLevel(event.gradeLevel)
             is EditProfileEvent.UpdateDateOfBirth -> updateDateOfBirth(event.dateOfBirth)
             is EditProfileEvent.UpdateSpecialization -> updateSpecialization(event.specialization)
@@ -65,6 +70,9 @@ class EditProfileViewModel @Inject constructor(
     private fun loadProfile(userId: String, role: String) {
         viewModelScope.launch {
             Log.d(TAG, "loadProfile() userId=$userId, role=$role")
+            viewModelScope.launch {
+                loadUserProfile(userId)
+            }
             when (role.uppercase()) {
                 UserRole.STUDENT.name -> loadStudentProfile(userId)
                 UserRole.TEACHER.name -> loadTeacherProfile(userId)
@@ -72,6 +80,29 @@ class EditProfileViewModel @Inject constructor(
                 else -> {
                     setState { copy(error = "Vai trò không hợp lệ") }
                     showNotification("Vai trò không hợp lệ", NotificationType.ERROR)
+                }
+            }
+        }
+    }
+
+    private suspend fun loadUserProfile(userId: String) {
+        getUserById(userId).collect { result ->
+            when (result) {
+                is Resource.Loading -> Unit
+                is Resource.Success -> {
+                    val user = result.data
+                    if (user != null) {
+                        setState {
+                            copy(
+                                user = user,
+                                name = user.name,
+                                avatarUrl = avatarUrl ?: user.avatarUrl
+                            )
+                        }
+                    }
+                }
+                is Resource.Error -> {
+                    Log.w(TAG, "loadUserProfile() userId=$userId -> Error: ${result.message}")
                 }
             }
         }
@@ -93,7 +124,7 @@ class EditProfileViewModel @Inject constructor(
                             isLoading = false
                         )
                     }
-                    student?.userId?.let { loadUserAvatar(it) }
+                    student?.userId?.let { loadUserProfile(it) }
                 }
                 is Resource.Error -> {
                     Log.e(TAG, "loadStudentProfile() studentId=$studentId -> Error: ${result.message}")
@@ -127,7 +158,7 @@ class EditProfileViewModel @Inject constructor(
                             isLoading = false
                         )
                     }
-                    teacher?.userId?.let { loadUserAvatar(it) }
+                    teacher?.userId?.let { loadUserProfile(it) }
                 }
                 is Resource.Error -> {
                     Log.e(TAG, "loadTeacherProfile() teacherId=$teacherId -> Error: ${result.message}")
@@ -149,7 +180,7 @@ class EditProfileViewModel @Inject constructor(
                 }
                 is Resource.Success -> {
                     setState { copy(parent = result.data, isLoading = false) }
-                    result.data?.userId?.let { loadUserAvatar(it) }
+                    result.data?.userId?.let { loadUserProfile(it) }
                 }
                 is Resource.Error -> {
                     setState { copy(error = result.message, isLoading = false) }
@@ -162,24 +193,8 @@ class EditProfileViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadUserAvatar(userId: String) {
-        getUserById(userId).collect { result ->
-            when (result) {
-                is Resource.Loading -> {
-                    Log.d(TAG, "Loading user avatar for userId: $userId")
-                }
-                is Resource.Success -> {
-                    val userAvatarUrl = result.data?.avatarUrl
-                    if (userAvatarUrl != null && state.value.avatarUrl == null) {
-                        setState { copy(avatarUrl = userAvatarUrl) }
-                        Log.d(TAG, "User avatar loaded: $userAvatarUrl")
-                    }
-                }
-                is Resource.Error -> {
-                    Log.w(TAG, "Failed to load user avatar: ${result.message}")
-                }
-            }
-        }
+    private fun updateName(name: String) {
+        setState { copy(name = name) }
     }
 
     private fun updateGradeLevel(gradeLevel: String) {
@@ -206,6 +221,73 @@ class EditProfileViewModel @Inject constructor(
         val currentState = state.value
 
         viewModelScope.launch {
+            val trimmedName = currentState.name.trim()
+            if (trimmedName.isBlank()) {
+                val message = "Tên không được để trống"
+                setState { copy(error = message, isLoading = false, isSuccess = false) }
+                showNotification(message, NotificationType.ERROR)
+                return@launch
+            }
+
+            if (currentState.teacher != null) {
+                val years = currentState.experienceYears.trim().toIntOrNull()
+                if (years == null) {
+                    val message = "Số năm kinh nghiệm không hợp lệ"
+                    setState { copy(error = message, isLoading = false, isSuccess = false) }
+                    showNotification(message, NotificationType.ERROR)
+                    return@launch
+                }
+                if (years <= 0) {
+                    val message = "Số năm kinh nghiệm không được âm"
+                    setState { copy(error = message, isLoading = false, isSuccess = false) }
+                    showNotification(message, NotificationType.ERROR)
+                    return@launch
+                }
+            }
+
+            if (currentState.student != null) {
+                val dob = currentState.dateOfBirth
+                if (dob == null || dob.isAfter(LocalDate.now())) {
+                    val message = "Ngày sinh không hợp lệ"
+                    setState { copy(error = message, isLoading = false, isSuccess = false) }
+                    showNotification(message, NotificationType.ERROR)
+                    return@launch
+                }
+            }
+
+            val userId = extractUserId(currentState)
+            val existingUser = currentState.user
+
+            if (userId == null || existingUser == null) {
+                val message = "Không tìm thấy thông tin người dùng"
+                setState { copy(error = message, isLoading = false, isSuccess = false) }
+                showNotification(message, NotificationType.ERROR)
+                return@launch
+            }
+
+            setState { copy(isLoading = true, error = null, isSuccess = false) }
+
+            val updatedUser = existingUser.copy(
+                name = trimmedName,
+                avatarUrl = currentState.avatarUrl ?: existingUser.avatarUrl,
+                updatedAt = Instant.now()
+            )
+
+            var userUpdateFailed = false
+            updateUserProfile(userId, updatedUser).collect { result ->
+                when (result) {
+                    is Resource.Loading -> setState { copy(isLoading = true, error = null) }
+                    is Resource.Success -> setState { copy(user = updatedUser) }
+                    is Resource.Error -> {
+                        userUpdateFailed = true
+                        setState { copy(error = result.message, isLoading = false) }
+                        showNotification(result.message ?: "Lỗi cập nhật hồ sơ", NotificationType.ERROR)
+                    }
+                }
+            }
+
+            if (userUpdateFailed) return@launch
+
             when {
                 currentState.student != null -> saveStudentProfile()
                 currentState.teacher != null -> saveTeacherProfile()
@@ -215,6 +297,13 @@ class EditProfileViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun extractUserId(currentState: EditProfileState): String? {
+        return currentState.user?.id
+            ?: currentState.student?.userId
+            ?: currentState.teacher?.userId
+            ?: currentState.parent?.userId
     }
 
     private suspend fun saveStudentProfile() {
@@ -271,7 +360,7 @@ class EditProfileViewModel @Inject constructor(
                 teacherId = teacherId,
                 specialization = currentState.specialization.ifBlank { null },
                 level = currentState.level.ifBlank { null },
-                experienceYears = if (experienceYears > 0) experienceYears else null
+                experienceYears = experienceYears
             )
         ).collect { result ->
             when (result) {
@@ -446,7 +535,7 @@ class EditProfileViewModel @Inject constructor(
                         }
                         is Resource.Success -> {
                             Log.d(TAG, "✅ updateAvatarUseCase - Success")
-                            setState { copy(isLoading = false, isSuccess = true, error = null) }
+                            setState { copy(isLoading = false, error = null) }
                             showNotification("Cập nhật avatar thành công", NotificationType.SUCCESS)
                             Log.d(TAG, "✅ SUCCESS saveAvatarToProfile completed")
                         }

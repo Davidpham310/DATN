@@ -6,6 +6,7 @@ import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.Test
+import com.example.datn.core.utils.validation.rules.test.ValidateTestDescription
 import com.example.datn.core.utils.validation.rules.test.ValidateTestTitle
 import com.example.datn.core.utils.validation.rules.test.ValidateTotalScore
 import com.example.datn.domain.usecase.test.TestUseCases
@@ -24,6 +25,7 @@ class TestManagerViewModel @Inject constructor(
 ) : BaseViewModel<TestState, TestEvent>(TestState(), notificationManager) {
 
     private val testTitleValidator = ValidateTestTitle()
+    private val testDescriptionValidator = ValidateTestDescription()
     private val totalScoreValidator = ValidateTotalScore()
 
     override fun onEvent(event: TestEvent) {
@@ -99,9 +101,18 @@ class TestManagerViewModel @Inject constructor(
         startTime: Instant,
         endTime: Instant
     ) {
-        val titleResult = testTitleValidator.validate(title)
+        val trimmedTitle = title.trim()
+        val trimmedDescription = description?.trim()?.ifBlank { null }
+
+        val titleResult = testTitleValidator.validate(trimmedTitle)
         if (!titleResult.successful) {
             showNotification(titleResult.errorMessage ?: "Tiêu đề bài kiểm tra không được để trống", NotificationType.ERROR)
+            return
+        }
+
+        val descriptionResult = testDescriptionValidator.validate(trimmedDescription)
+        if (!descriptionResult.successful) {
+            showNotification(descriptionResult.errorMessage ?: "Mô tả không hợp lệ", NotificationType.ERROR)
             return
         }
 
@@ -111,8 +122,8 @@ class TestManagerViewModel @Inject constructor(
             return
         }
 
-        if (startTime.isAfter(endTime)) {
-            showNotification("Thời gian bắt đầu phải trước thời gian kết thúc", NotificationType.ERROR)
+        if (!startTime.isBefore(endTime)) {
+            showNotification("Thời gian kết thúc phải lớn hơn thời gian bắt đầu", NotificationType.ERROR)
             return
         }
 
@@ -121,8 +132,8 @@ class TestManagerViewModel @Inject constructor(
             id = "",
             classId = classId,
             lessonId = lessonId,
-            title = title,
-            description = description,
+            title = trimmedTitle,
+            description = trimmedDescription,
             totalScore = totalScore,
             startTime = startTime,
             endTime = endTime,
@@ -158,32 +169,43 @@ class TestManagerViewModel @Inject constructor(
         startTime: Instant,
         endTime: Instant
     ) {
-        if (title.isBlank()) {
-            showNotification("Tiêu đề bài kiểm tra không được để trống", NotificationType.ERROR)
-            return
-        }
-
-        if (totalScore <= 0) {
-            showNotification("Tổng điểm phải lớn hơn 0", NotificationType.ERROR)
-            return
-        }
-
-        if (startTime.isAfter(endTime)) {
-            showNotification("Thời gian bắt đầu phải trước thời gian kết thúc", NotificationType.ERROR)
-            return
-        }
-
         val editingTest = state.value.editingTest
         if (editingTest == null) {
             showNotification("Không tìm thấy bài kiểm tra cần chỉnh sửa", NotificationType.ERROR)
             return
         }
 
+        val trimmedTitle = title.trim()
+        val trimmedDescription = description?.trim()?.ifBlank { null }
+
+        val titleResult = testTitleValidator.validate(trimmedTitle)
+        if (!titleResult.successful) {
+            showNotification(titleResult.errorMessage ?: "Tiêu đề bài kiểm tra không được để trống", NotificationType.ERROR)
+            return
+        }
+
+        val descriptionResult = testDescriptionValidator.validate(trimmedDescription)
+        if (!descriptionResult.successful) {
+            showNotification(descriptionResult.errorMessage ?: "Mô tả không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val scoreResult = totalScoreValidator.validate(totalScore.toString())
+        if (!scoreResult.successful) {
+            showNotification(scoreResult.errorMessage ?: "Tổng điểm phải lớn hơn 0", NotificationType.ERROR)
+            return
+        }
+
+        if (!startTime.isBefore(endTime)) {
+            showNotification("Thời gian kết thúc phải lớn hơn thời gian bắt đầu", NotificationType.ERROR)
+            return
+        }
+
         val test = editingTest.copy(
             classId = classId,
             lessonId = lessonId,
-            title = title,
-            description = description,
+            title = trimmedTitle,
+            description = trimmedDescription,
             totalScore = totalScore,
             startTime = startTime,
             endTime = endTime,

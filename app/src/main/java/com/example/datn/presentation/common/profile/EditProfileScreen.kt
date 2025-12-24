@@ -194,6 +194,14 @@ fun EditProfileScreen(
                     }
                 }
 
+                OutlinedTextField(
+                    value = state.name,
+                    onValueChange = { viewModel.onEvent(EditProfileEvent.UpdateName(it)) },
+                    label = { Text("Tên") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
                 // Render role-specific fields
                 when (role.uppercase()) {
                     UserRole.STUDENT.name -> StudentProfileFields(state, viewModel, { showDatePicker = true })

@@ -16,7 +16,6 @@ import com.example.datn.domain.models.MiniGameQuestion
 import com.example.datn.domain.models.MiniGameOption
 import com.example.datn.domain.models.StudentMiniGameResult
 import com.example.datn.domain.models.StudentMiniGameAnswer
-import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.repository.IMiniGameRepository
 import kotlinx.coroutines.CancellationException
@@ -118,28 +117,12 @@ class MiniGameRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getFilteredGames(type: String?, level: String?): Flow<Resource<List<MiniGame>>> = flow {
+    override fun getFilteredGames(level: String?): Flow<Resource<List<MiniGame>>> = flow {
         try {
             emit(Resource.Loading())
-            
+
+            // Filtering is now supported by level only.
             val games = when {
-                type != null && level != null -> {
-                    val gameType = GameType.fromString(type)
-                    val gameLevel = Level.fromString(level)
-                    if (gameType != null && gameLevel != null) {
-                        miniGameDao.getMiniGamesByFilter(gameType, gameLevel)
-                    } else {
-                        emptyList()
-                    }
-                }
-                type != null -> {
-                    val gameType = GameType.fromString(type)
-                    if (gameType != null) {
-                        miniGameDao.getMiniGamesByType(gameType)
-                    } else {
-                        emptyList()
-                    }
-                }
                 level != null -> {
                     val gameLevel = Level.fromString(level)
                     if (gameLevel != null) {
@@ -148,50 +131,7 @@ class MiniGameRepositoryImpl @Inject constructor(
                         emptyList()
                     }
                 }
-                else -> {
-                    miniGameDao.getAllMiniGames()
-                }
-            }.map { it.toDomain() }
-            
-            emit(Resource.Success(games))
-        } catch (e: Exception) {
-            emit(Resource.Error("Lỗi khi lấy danh sách mini game: ${e.message}"))
-        }
-    }
-
-    fun getFilteredGamesByTeacher(type: String?, level: String?, teacherId: String): Flow<Resource<List<MiniGame>>> = flow {
-        try {
-            emit(Resource.Loading())
-            
-            val games = when {
-                type != null && level != null -> {
-                    val gameType = GameType.fromString(type)
-                    val gameLevel = Level.fromString(level)
-                    if (gameType != null && gameLevel != null) {
-                        miniGameDao.getMiniGamesByFilterAndTeacher(gameType, gameLevel, teacherId)
-                    } else {
-                        emptyList()
-                    }
-                }
-                type != null -> {
-                    val gameType = GameType.fromString(type)
-                    if (gameType != null) {
-                        miniGameDao.getMiniGamesByTypeAndTeacher(gameType, teacherId)
-                    } else {
-                        emptyList()
-                    }
-                }
-                level != null -> {
-                    val gameLevel = Level.fromString(level)
-                    if (gameLevel != null) {
-                        miniGameDao.getMiniGamesByLevelAndTeacher(gameLevel, teacherId)
-                    } else {
-                        emptyList()
-                    }
-                }
-                else -> {
-                    miniGameDao.getMiniGamesByTeacher(teacherId)
-                }
+                else -> miniGameDao.getAllMiniGames()
             }.map { it.toDomain() }
             
             emit(Resource.Success(games))
@@ -250,17 +190,29 @@ class MiniGameRepositoryImpl @Inject constructor(
     override fun deleteGame(gameId: String): Flow<Resource<Unit>> = flow {
         try {
             emit(Resource.Loading())
-            
-            // Delete related questions and options first
-            val questions = miniGameQuestionDao.getQuestionsByMiniGame(gameId)
-            questions.forEach { question ->
-                miniGameOptionDao.deleteOptionsByQuestion(question.id)
+
+            // Delete remote first; otherwise refresh will re-fetch the game from Firestore
+            when (val remote = firebaseDataSource.deleteMiniGame(gameId)) {
+                is Resource.Success -> {
+                    if (remote.data != true) {
+                        emit(Resource.Error("Xóa mini game thất bại"))
+                        return@flow
+                    }
+
+                    // Delete related questions and options in local database
+                    val questions = miniGameQuestionDao.getQuestionsByMiniGame(gameId)
+                    questions.forEach { question ->
+                        miniGameOptionDao.deleteOptionsByQuestion(question.id)
+                    }
+                    miniGameQuestionDao.deleteQuestionsByMiniGame(gameId)
+
+                    // Delete the game in local database
+                    miniGameDao.deleteById(gameId)
+                    emit(Resource.Success(Unit))
+                }
+                is Resource.Error -> emit(Resource.Error(remote.message))
+                is Resource.Loading -> emit(Resource.Loading())
             }
-            miniGameQuestionDao.deleteQuestionsByMiniGame(gameId)
-            
-            // Delete the game
-            miniGameDao.deleteById(gameId)
-            emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Lỗi khi xóa mini game: ${e.message}"))
         }
@@ -281,26 +233,16 @@ class MiniGameRepositoryImpl @Inject constructor(
     override fun createQuestion(question: MiniGameQuestion): Flow<Resource<MiniGameQuestion>> = flow {
         try {
             emit(Resource.Loading())
-            // Compute order based on existing questions
-            val existing = miniGameQuestionDao.getQuestionsByMiniGame(question.miniGameId)
-            val nextOrder = if (existing.isEmpty()) 0 else existing.maxOf { it.order } + 1
-
-            val questionWithId = if (question.id.isBlank()) {
-                question.copy(
-                    id = UUID.randomUUID().toString(),
-                    order = nextOrder,
-                    createdAt = Instant.now(),
-                    updatedAt = Instant.now()
-                )
-            } else {
-                question.copy(order = if (question.order < 0) nextOrder else question.order, updatedAt = Instant.now())
-            }
+            val questionWithTimestamps = question.copy(
+                updatedAt = Instant.now(),
+                createdAt = if (question.createdAt.toEpochMilli() == 0L) Instant.now() else question.createdAt
+            )
 
             // Save to Firebase
-            val result = firebaseDataSource.addMiniGameQuestion(questionWithId)
+            val result = firebaseDataSource.addMiniGameQuestion(questionWithTimestamps)
             when (result) {
                 is Resource.Success -> {
-                    val savedQuestion = result.data ?: questionWithId
+                    val savedQuestion = result.data ?: questionWithTimestamps
                     // Also save to local database
                     miniGameQuestionDao.insert(savedQuestion.toEntity())
                     emit(Resource.Success(savedQuestion))

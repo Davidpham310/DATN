@@ -46,13 +46,6 @@ class EnumConverter {
         value?.let { ContentType.valueOf(it) }
 
     @TypeConverter
-    fun fromGameType(value: GameType?): String? = value?.name
-
-    @TypeConverter
-    fun toGameType(value: String?): GameType? =
-        value?.let { GameType.valueOf(it) }
-
-    @TypeConverter
     fun fromLevel(value: Level?): String? = value?.name
 
     @TypeConverter

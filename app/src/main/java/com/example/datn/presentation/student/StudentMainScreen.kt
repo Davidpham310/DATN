@@ -21,6 +21,7 @@ fun StudentMainScreen(
         Screen.StudentMyClasses,
         Screen.StudentTestList,
         Screen.StudentConversations,
+        Screen.StudentNotifications,
         Screen.StudentAccount
     )
     
@@ -44,6 +45,7 @@ fun StudentMainScreen(
                                 Screen.StudentMyClasses -> Icon(Icons.Default.School, null)
                                 Screen.StudentTestList -> Icon(Icons.Default.Assignment, null)
                                 Screen.StudentConversations -> Icon(Icons.Default.Chat, null)
+                                Screen.StudentNotifications -> Icon(Icons.Default.Notifications, null)
                                 Screen.StudentAccount -> Icon(Icons.Default.Person, null)
                                 else -> Icon(Icons.Default.Home, null)
                             }
@@ -55,6 +57,7 @@ fun StudentMainScreen(
                                     Screen.StudentMyClasses -> "Lớp học"
                                     Screen.StudentTestList -> "Kiểm tra"
                                     Screen.StudentConversations -> "Tin nhắn"
+                                    Screen.StudentNotifications -> "Thông báo"
                                     Screen.StudentAccount -> "Tài khoản"
                                     else -> ""
                                 }

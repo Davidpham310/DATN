@@ -18,9 +18,11 @@ import com.example.datn.domain.models.User
 import com.example.datn.domain.models.UserRole
 import com.example.datn.domain.repository.IAuthRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import java.time.Instant
 import javax.inject.Inject
 
@@ -189,7 +191,7 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             emit(Resource.Error(FirebaseErrorMapper.getErrorMessage(e)))
         }
-    }
+    }.flowOn(Dispatchers.IO)
     override fun isUserLoggedIn(): Flow<Resource<Boolean>> = flow {
         try {
             val isLoggedIn = firebaseAuthDataSource.getCurrentUserId() != null

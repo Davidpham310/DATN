@@ -12,6 +12,10 @@ import com.example.datn.domain.usecase.minigame.MiniGameUseCases
 import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
 import com.example.datn.presentation.common.minigame.MiniGameQuestionEvent
 import com.example.datn.presentation.common.minigame.MiniGameQuestionState
+import com.example.datn.core.utils.validation.rules.minigame.ValidateQuestionContent
+import com.example.datn.core.utils.validation.rules.minigame.ValidateQuestionOrder
+import com.example.datn.core.utils.validation.rules.minigame.ValidateQuestionScore
+import com.example.datn.core.utils.validation.rules.minigame.ValidateQuestionTimeLimit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -25,6 +29,11 @@ class LessonMiniGameQuestionViewModel @Inject constructor(
 ) : BaseViewModel<MiniGameQuestionState, MiniGameQuestionEvent>(
     MiniGameQuestionState(), notificationManager
 ) {
+
+    private val questionContentValidator = ValidateQuestionContent()
+    private val questionScoreValidator = ValidateQuestionScore()
+    private val questionTimeLimitValidator = ValidateQuestionTimeLimit()
+    private val questionOrderValidator = ValidateQuestionOrder()
 
     private var currentGameId: String = ""
 
@@ -107,8 +116,27 @@ class LessonMiniGameQuestionViewModel @Inject constructor(
     }
 
     private fun addQuestion(event: MiniGameQuestionEvent.ConfirmAddQuestion) {
-        if (event.content.isBlank()) {
-            showNotification("Nội dung câu hỏi không được để trống", NotificationType.ERROR)
+        val contentResult = questionContentValidator.validate(event.content)
+        if (!contentResult.successful) {
+            showNotification(contentResult.errorMessage ?: "Nội dung câu hỏi không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val scoreResult = questionScoreValidator.validate(event.score)
+        if (!scoreResult.successful) {
+            showNotification(scoreResult.errorMessage ?: "Điểm số không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val timeResult = questionTimeLimitValidator.validate(event.timeLimit)
+        if (!timeResult.successful) {
+            showNotification(timeResult.errorMessage ?: "Thời gian không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val orderResult = questionOrderValidator.validate(event.order)
+        if (!orderResult.successful) {
+            showNotification(orderResult.errorMessage ?: "Thứ tự (order) không hợp lệ", NotificationType.ERROR)
             return
         }
 
@@ -120,7 +148,7 @@ class LessonMiniGameQuestionViewModel @Inject constructor(
                 questionType = event.questionType,
                 score = event.score,
                 timeLimit = event.timeLimit,
-                order = 0, // Will be set by repository
+                order = event.order,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )
@@ -143,8 +171,27 @@ class LessonMiniGameQuestionViewModel @Inject constructor(
     }
 
     private fun updateQuestion(event: MiniGameQuestionEvent.ConfirmEditQuestion) {
-        if (event.content.isBlank()) {
-            showNotification("Nội dung câu hỏi không được để trống", NotificationType.ERROR)
+        val contentResult = questionContentValidator.validate(event.content)
+        if (!contentResult.successful) {
+            showNotification(contentResult.errorMessage ?: "Nội dung câu hỏi không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val scoreResult = questionScoreValidator.validate(event.score)
+        if (!scoreResult.successful) {
+            showNotification(scoreResult.errorMessage ?: "Điểm số không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val timeResult = questionTimeLimitValidator.validate(event.timeLimit)
+        if (!timeResult.successful) {
+            showNotification(timeResult.errorMessage ?: "Thời gian không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val orderResult = questionOrderValidator.validate(event.order)
+        if (!orderResult.successful) {
+            showNotification(orderResult.errorMessage ?: "Thứ tự (order) không hợp lệ", NotificationType.ERROR)
             return
         }
 
@@ -159,7 +206,7 @@ class LessonMiniGameQuestionViewModel @Inject constructor(
                 questionType = event.questionType,
                 score = event.score,
                 timeLimit = event.timeLimit,
-                order = originalQuestion?.order ?: 0,
+                order = event.order,
                 createdAt = originalQuestion?.createdAt ?: Instant.now(),
                 updatedAt = Instant.now()
             )
@@ -209,7 +256,7 @@ class LessonMiniGameQuestionViewModel @Inject constructor(
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
                         setState { copy(isLoading = false) }
-                        showNotification("Xóa câu hỏi thành công!", NotificationType.SUCCESS)
+                        showNotification("Xóa câu hỏi thành công!", NotificationType.SUCCESS, 3000L)
                         refreshQuestions()
                     }
                     is Resource.Error -> {

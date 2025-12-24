@@ -7,11 +7,13 @@ import com.example.datn.presentation.common.notifications.NotificationEvent
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
+import com.example.datn.core.utils.validation.rules.classmanager.ValidateClassCodeUnique
 import com.example.datn.core.utils.validation.rules.classmanager.ValidateClassCode
 import com.example.datn.core.utils.validation.rules.classmanager.ValidateClassName
 import com.example.datn.core.utils.validation.rules.classmanager.ValidateGradeLevel
 import com.example.datn.core.utils.validation.rules.classmanager.ValidateSubject
 import com.example.datn.domain.models.Class
+
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.classmanager.AddClassParams
 import com.example.datn.domain.usecase.classmanager.ClassUseCases
@@ -36,6 +38,7 @@ class ClassManagerViewModel @Inject constructor(
     private val validateCode = ValidateClassCode()
     private val validateGrade = ValidateGradeLevel()
     private val validateSubject = ValidateSubject()
+    private val validateCodeUnique = ValidateClassCodeUnique(classUseCases.getClassByCode)
 
     private val currentTeacherIdFlow: StateFlow<String> = authUseCase.getCurrentIdUser.invoke()
         .distinctUntilChanged()
@@ -76,10 +79,10 @@ class ClassManagerViewModel @Inject constructor(
     override fun onEvent(event: ClassManagerEvent) {
         when (event) {
             is ClassManagerEvent.ShowAddClassDialog -> setState {
-                copy(showAddEditDialog = true, editingClass = null)
+                copy(showAddEditDialog = true, editingClass = null, classCodeError = null)
             }
             ClassManagerEvent.DismissDialog -> setState {
-                copy(showAddEditDialog = false, editingClass = null)
+                copy(showAddEditDialog = false, editingClass = null, classCodeError = null)
             }
             is ClassManagerEvent.ConfirmAddClass -> addClass(
                 event.name, event.classCode, event.gradeLevel, event.subject
@@ -87,24 +90,27 @@ class ClassManagerViewModel @Inject constructor(
             is ClassManagerEvent.ConfirmEditClass -> updateClass(
                 event.id, event.name, event.classCode, event.gradeLevel, event.subject
             )
+            ClassManagerEvent.ClearClassCodeError -> setState { copy(classCodeError = null) }
             is ClassManagerEvent.DeleteClass -> {
                 showConfirmDeleteClass(event.classModel)
             }
             is ClassManagerEvent.EditClass -> setState {
-                copy(showAddEditDialog = true, editingClass = event.classModel)
+                copy(showAddEditDialog = true, editingClass = event.classModel, classCodeError = null)
             }
             is ClassManagerEvent.SelectClass -> setState {
                 copy(selectedClass = event.classModel)
             }
             is ClassManagerEvent.ShowError -> showNotification(event.message, NotificationType.ERROR)
             ClassManagerEvent.RefreshClasses -> observeClasses()
+            else -> {
+
+            }
         }
     }
 
     private fun showConfirmDeleteClass(classModel: Class) {
         setState {
             copy(
-                // Dùng constructor mới
                 confirmDeleteState = ConfirmationDialogState(
                     isShowing = true,
                     title = "Xác nhận xóa lớp",
@@ -114,19 +120,16 @@ class ClassManagerViewModel @Inject constructor(
             )
         }
     }
+
     fun dismissConfirmDeleteDialog() {
         setState {
-            // Reset bằng phương thức empty() static
             copy(confirmDeleteState = ConfirmationDialogState.empty())
         }
     }
 
-    // PHƯƠNG THỨC MỚI: Xác nhận và thực hiện xóa
-    fun confirmDeleteClass(classModel: Class) { // NHẬN đối tượng Class đã được xác nhận
-        // 1. Đóng dialog trước khi thực hiện xóa
+    fun confirmDeleteClass(classModel: Class) {
         dismissConfirmDeleteDialog()
 
-        // 2. Tiến hành xóa
         deleteClass(classModel)
     }
 
@@ -136,6 +139,8 @@ class ClassManagerViewModel @Inject constructor(
             showNotification("Không xác định được giáo viên", NotificationType.ERROR)
             return
         }
+
+        setState { copy(classCodeError = null) }
 
         val nameResult = validateName.validate(name)
         val codeResult = validateCode.validate(classCode)
@@ -152,12 +157,25 @@ class ClassManagerViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val uniqueResult = validateCodeUnique.validate(classCode)
+            if (!uniqueResult.successful) {
+                setState { copy(classCodeError = uniqueResult.errorMessage) }
+                return@launch
+            }
+
             classUseCases.addClass(AddClassParams(name, classCode, teacherId, gradeLevel, subject))
                 .collect { resource ->
                     when (resource) {
                         is Resource.Loading -> setState { copy(isLoading = true) }
                         is Resource.Success -> {
-                            setState { copy(isLoading = false, showAddEditDialog = false, editingClass = null) }
+                            setState {
+                                copy(
+                                    isLoading = false,
+                                    showAddEditDialog = false,
+                                    editingClass = null,
+                                    classCodeError = null
+                                )
+                            }
                             showNotification("Thêm lớp học thành công!", NotificationType.SUCCESS)
                         }
                         is Resource.Error -> {
@@ -197,6 +215,8 @@ class ClassManagerViewModel @Inject constructor(
             return
         }
 
+        setState { copy(classCodeError = null) }
+
         val nameResult = validateName.validate(name)
         val codeResult = validateCode.validate(classCode)
         val gradeResult = validateGrade.validate(gradeLevel)
@@ -211,6 +231,12 @@ class ClassManagerViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val uniqueResult = validateCodeUnique.validate(classCode, currentClassId = id)
+            if (!uniqueResult.successful) {
+                setState { copy(classCodeError = uniqueResult.errorMessage) }
+                return@launch
+            }
+
             classUseCases.updateClass(
                 UpdateClassParams(
                     id = id,
@@ -224,7 +250,14 @@ class ClassManagerViewModel @Inject constructor(
                 when (resource) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
-                        setState { copy(isLoading = false, showAddEditDialog = false, editingClass = null) }
+                        setState {
+                            copy(
+                                isLoading = false,
+                                showAddEditDialog = false,
+                                editingClass = null,
+                                classCodeError = null
+                            )
+                        }
                         showNotification("Cập nhật lớp học thành công!", NotificationType.SUCCESS)
                     }
                     is Resource.Error -> {

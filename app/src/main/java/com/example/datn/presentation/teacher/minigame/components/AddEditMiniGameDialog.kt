@@ -17,7 +17,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButtonDefaults.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,36 +26,39 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.models.MiniGame
 import com.example.datn.core.utils.validation.rules.minigame.ValidateMiniGameTitle
+import com.example.datn.core.utils.validation.rules.minigame.ValidateMiniGameDescription
 
 @Composable
 fun AddEditMiniGameDialog(
     game: MiniGame?,
     onDismiss: () -> Unit,
-    onConfirmAdd: (title: String, description: String, gameType: GameType, level: Level, contentUrl: String?) -> Unit,
-    onConfirmEdit: (id: String, title: String, description: String, gameType: GameType, level: Level, contentUrl: String?) -> Unit
+    onConfirmAdd: (title: String, description: String, level: Level) -> Unit,
+    onConfirmEdit: (id: String, title: String, description: String, level: Level) -> Unit
 ) {
     val isEditing = game != null
 
     var title by remember { mutableStateOf(game?.title ?: "") }
     var description by remember { mutableStateOf(game?.description ?: "") }
-    var selectedGameType by remember { mutableStateOf(game?.gameType ?: GameType.QUIZ) }
     var selectedLevel by remember { mutableStateOf(game?.level ?: Level.EASY) }
-    var contentUrl by remember { mutableStateOf(game?.contentUrl ?: "") }
 
     val titleValidator = remember { ValidateMiniGameTitle() }
+    val descriptionValidator = remember { ValidateMiniGameDescription() }
 
     var titleError by remember { mutableStateOf<String?>(null) }
-    var isGameTypeExpanded by remember { mutableStateOf(false) }
+    var descriptionError by remember { mutableStateOf<String?>(null) }
     var isLevelExpanded by remember { mutableStateOf(false) }
 
     fun validateFields(): Boolean {
         val titleResult = titleValidator.validate(title)
         titleError = if (!titleResult.successful) titleResult.errorMessage else null
-        return titleError == null
+
+        val descriptionResult = descriptionValidator.validate(description)
+        descriptionError = if (!descriptionResult.successful) descriptionResult.errorMessage else null
+
+        return titleError == null && descriptionError == null
     }
 
     AlertDialog(
@@ -95,46 +97,21 @@ fun AddEditMiniGameDialog(
                 // Description
                 OutlinedTextField(
                     value = description,
-                    onValueChange = { description = it },
+                    onValueChange = {
+                        description = it
+                        if (descriptionError != null) descriptionError = null
+                    },
                     label = { Text("Mô tả") },
                     modifier = Modifier.fillMaxWidth(),
+                    isError = descriptionError != null,
+                    supportingText = {
+                        descriptionError?.let {
+                            Text(it, color = MaterialTheme.colorScheme.error)
+                        }
+                    },
                     minLines = 3,
                     maxLines = 5
                 )
-
-                // Game Type Dropdown
-                Box {
-                    OutlinedTextField(
-                        value = selectedGameType.displayName,
-                        onValueChange = {},
-                        label = { Text("Loại game *") },
-                        readOnly = true,
-                        trailingIcon = {
-                            Icon(
-                                Icons.Default.ArrowDropDown,
-                                null,
-                                Modifier.clickable { isGameTypeExpanded = !isGameTypeExpanded }
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isGameTypeExpanded = true }
-                    )
-                    DropdownMenu(
-                        expanded = isGameTypeExpanded,
-                        onDismissRequest = { isGameTypeExpanded = false }
-                    ) {
-                        GameType.entries.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type.displayName) },
-                                onClick = {
-                                    selectedGameType = type
-                                    isGameTypeExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
 
                 // Level Dropdown
                 Box {
@@ -170,20 +147,6 @@ fun AddEditMiniGameDialog(
                     }
                 }
 
-                // Content URL (optional)
-                OutlinedTextField(
-                    value = contentUrl,
-                    onValueChange = { contentUrl = it },
-                    label = { Text("Link nội dung (tùy chọn)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    supportingText = {
-                        Text(
-                            "URL đến tài nguyên bổ sung",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                )
             }
         },
         confirmButton = {
@@ -195,17 +158,13 @@ fun AddEditMiniGameDialog(
                                 game!!.id,
                                 title,
                                 description,
-                                selectedGameType,
-                                selectedLevel,
-                                contentUrl.ifBlank { null }
+                                selectedLevel
                             )
                         } else {
                             onConfirmAdd(
                                 title,
                                 description,
-                                selectedGameType,
-                                selectedLevel,
-                                contentUrl.ifBlank { null }
+                                selectedLevel
                             )
                         }
                     }

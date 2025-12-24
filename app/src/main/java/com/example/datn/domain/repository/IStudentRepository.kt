@@ -10,5 +10,10 @@ interface IStudentRepository {
     fun getStudentProfileByUserId(userId: String): Flow<Resource<Student?>>
     fun getStudentUser(studentId: String): Flow<Resource<User?>>
     fun updateStudentProfile(student: Student): Flow<Resource<Unit>>
-    fun linkParentToStudent(studentId: String, parentId: String, relationship: String): Flow<Resource<Unit>>
+    fun linkParentToStudent(
+        studentId: String,
+        parentId: String,
+        relationship: String,
+        isPrimaryGuardian: Boolean = true
+    ): Flow<Resource<Unit>>
 }

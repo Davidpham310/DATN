@@ -13,14 +13,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 
 @Composable
 fun MiniGameFilters(
-    selectedType: GameType?,
     selectedLevel: Level?,
-    onTypeSelected: (GameType?) -> Unit,
     onLevelSelected: (Level?) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -29,32 +26,6 @@ fun MiniGameFilters(
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        Text(
-            text = "Loại game",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
-                selected = selectedType == null,
-                onClick = { onTypeSelected(null) },
-                label = { Text("Tất cả") }
-            )
-            GameType.entries.forEach { type ->
-                FilterChip(
-                    selected = selectedType == type,
-                    onClick = { onTypeSelected(type) },
-                    label = { Text(type.displayName) }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         Text(
             text = "Độ khó",
             style = MaterialTheme.typography.labelMedium,

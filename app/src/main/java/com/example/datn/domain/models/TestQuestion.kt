@@ -9,6 +9,7 @@ data class TestQuestion(
     val score: Double,
     val questionType: QuestionType,
     val mediaUrl: String? = null,
+    val timeLimit: Int = 0,
     val order: Int,
     val createdAt: Instant,
     val updatedAt: Instant

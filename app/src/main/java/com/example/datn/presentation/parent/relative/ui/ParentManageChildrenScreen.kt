@@ -119,7 +119,7 @@ fun ParentManageChildrenScreen(
 
                                         OutlinedButton(onClick = {
                                             viewModel.onEvent(
-                                                ParentManageChildrenEvent.UnlinkStudent(item)
+                                                ParentManageChildrenEvent.OpenUnlinkDialog(item)
                                             )
                                         }) {
                                             Text("Hủy liên kết")
@@ -191,11 +191,7 @@ fun ParentManageChildrenScreen(
                                     ) {
                                         TextButton(onClick = {
                                             viewModel.onEvent(
-                                                ParentManageChildrenEvent.LinkExistingStudent(
-                                                    result = result,
-                                                    relationship = RelationshipType.GUARDIAN,
-                                                    isPrimaryGuardian = true
-                                                )
+                                                ParentManageChildrenEvent.OpenLinkDialog(result)
                                             )
                                         }) {
                                             Text("Liên kết")
@@ -205,6 +201,8 @@ fun ParentManageChildrenScreen(
                             }
                         }
                     }
+                } else if (state.hasSearched && !state.isSearching) {
+                    Text("Không tìm thấy học sinh phù hợp")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -233,6 +231,31 @@ fun ParentManageChildrenScreen(
                 onConfirm = {
                     viewModel.onEvent(ParentManageChildrenEvent.SaveRelationship)
                 }
+            )
+        }
+
+        if (state.showLinkDialog && state.selectedSearchResult != null) {
+            LinkStudentDialog(
+                state = state,
+                onDismiss = { viewModel.onEvent(ParentManageChildrenEvent.DismissLinkDialog) },
+                onRelationshipSelected = { rel ->
+                    viewModel.onEvent(ParentManageChildrenEvent.ChangeLinkRelationship(rel))
+                },
+                onPrimaryGuardianChanged = { isPrimary ->
+                    viewModel.onEvent(ParentManageChildrenEvent.ChangeLinkPrimaryGuardian(isPrimary))
+                },
+                onConfirm = {
+                    viewModel.onEvent(ParentManageChildrenEvent.ConfirmLinkStudent)
+                }
+            )
+        }
+
+        val selectedStudentForUnlink = state.selectedStudentForUnlink
+        if (state.showUnlinkDialog && selectedStudentForUnlink != null) {
+            UnlinkConfirmationDialog(
+                studentName = selectedStudentForUnlink.user.name,
+                onConfirm = { viewModel.onEvent(ParentManageChildrenEvent.ConfirmUnlinkStudent) },
+                onDismiss = { viewModel.onEvent(ParentManageChildrenEvent.DismissUnlinkDialog) }
             )
         }
     }
@@ -279,6 +302,88 @@ private fun RelationshipDialog(
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text("Lưu")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy")
+            }
+        }
+    )
+}
+
+@Composable
+private fun UnlinkConfirmationDialog(
+    studentName: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Xác nhận hủy liên kết") },
+        text = { Text("Bạn có chắc chắn muốn hủy liên kết với học sinh $studentName?") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Xác nhận")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy")
+            }
+        }
+    )
+}
+
+@Composable
+private fun LinkStudentDialog(
+    state: ParentManageChildrenState,
+    onDismiss: () -> Unit,
+    onRelationshipSelected: (RelationshipType) -> Unit,
+    onPrimaryGuardianChanged: (Boolean) -> Unit,
+    onConfirm: () -> Unit
+) {
+    val selected = state.selectedSearchResult
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Liên kết học sinh") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (selected != null) {
+                    Text(text = selected.user.name, style = MaterialTheme.typography.titleMedium)
+                    Text(text = selected.user.email, style = MaterialTheme.typography.bodySmall)
+                }
+
+                Text(text = "Chọn mối quan hệ", style = MaterialTheme.typography.titleSmall)
+                RelationshipType.values().forEach { type ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        RadioButton(
+                            selected = state.relationshipForLink == type,
+                            onClick = { onRelationshipSelected(type) }
+                        )
+                        Text(text = type.displayName)
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Checkbox(
+                        checked = state.isPrimaryGuardianForLink,
+                        onCheckedChange = onPrimaryGuardianChanged
+                    )
+                    Text("Là người giám hộ chính")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Xác nhận")
             }
         },
         dismissButton = {

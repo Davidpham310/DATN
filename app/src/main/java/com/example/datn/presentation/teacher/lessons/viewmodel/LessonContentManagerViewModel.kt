@@ -8,7 +8,10 @@ import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
-import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonContentTitle
+import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonContentFile
+import com.example.datn.core.utils.validation.rules.lesson.LessonContentFileValidationInput
+import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonContentText
+import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonTitle
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.lesson.CreateLessonContentParams
 import com.example.datn.domain.usecase.lesson.LessonUseCases
@@ -33,7 +36,9 @@ class LessonContentManagerViewModel @Inject constructor(
 
     private var currentTeacherId: String = ""
 
-    private val contentTitleValidator = ValidateLessonContentTitle()
+    private val contentTitleValidator = ValidateLessonTitle()
+    private val contentTextValidator = ValidateLessonContentText()
+    private val contentFileValidator = ValidateLessonContentFile()
 
     init {
         viewModelScope.launch {
@@ -159,13 +164,36 @@ class LessonContentManagerViewModel @Inject constructor(
             return
         }
 
+        when (type) {
+            ContentType.TEXT -> {
+                val contentResult = contentTextValidator.validate(event.contentLink)
+                if (!contentResult.successful) {
+                    showNotification(contentResult.errorMessage ?: "Nội dung văn bản không hợp lệ", NotificationType.ERROR)
+                    return
+                }
+            }
+            else -> {
+                val fileResult = contentFileValidator.validate(
+                    LessonContentFileValidationInput(
+                        contentType = type,
+                        stream = event.fileStream,
+                        size = event.fileSize
+                    )
+                )
+                if (!fileResult.successful) {
+                    showNotification(fileResult.errorMessage ?: "Tệp tin không hợp lệ", NotificationType.ERROR)
+                    return
+                }
+            }
+        }
+
         viewModelScope.launch {
             lessonUseCases.createLessonContent(
                 CreateLessonContentParams(
                     lessonId = event.lessonId,
-                    title = event.title,
+                    title = event.title.trim(),
                     contentType = type,
-                    contentText = if (type == ContentType.TEXT) event.contentLink else null,
+                    contentText = if (type == ContentType.TEXT) event.contentLink?.trim() else null,
                     fileStream = event.fileStream,
                     fileSize = event.fileSize
                 )
@@ -202,9 +230,39 @@ class LessonContentManagerViewModel @Inject constructor(
             return
         }
 
-        if (event.title.isBlank()) {
-            showNotification("Tiêu đề không được để trống", NotificationType.ERROR)
+        val titleResult = contentTitleValidator.validate(event.title)
+        if (!titleResult.successful) {
+            showNotification(titleResult.errorMessage ?: "Tiêu đề không được để trống", NotificationType.ERROR)
             return
+        }
+
+        val originalContent = state.value.lessonContents.find { it.id == event.id }
+        when (type) {
+            ContentType.TEXT -> {
+                val contentResult = contentTextValidator.validate(event.contentLink)
+                if (!contentResult.successful) {
+                    showNotification(contentResult.errorMessage ?: "Nội dung văn bản không hợp lệ", NotificationType.ERROR)
+                    return
+                }
+            }
+            else -> {
+                if (event.fileStream != null) {
+                    val fileResult = contentFileValidator.validate(
+                        LessonContentFileValidationInput(
+                            contentType = type,
+                            stream = event.fileStream,
+                            size = event.fileSize
+                        )
+                    )
+                    if (!fileResult.successful) {
+                        showNotification(fileResult.errorMessage ?: "Tệp tin không hợp lệ", NotificationType.ERROR)
+                        return
+                    }
+                } else if (originalContent?.content.isNullOrBlank()) {
+                    showNotification("Nội dung cần có tệp tin. Vui lòng chọn tệp mới.", NotificationType.ERROR)
+                    return
+                }
+            }
         }
 
         val order = state.value.lessonContents.find { it.id == event.id }?.order ?: 0
@@ -214,9 +272,9 @@ class LessonContentManagerViewModel @Inject constructor(
                 UpdateLessonContentParams(
                     contentId = event.id,
                     lessonId = event.lessonId,
-                    title = event.title,
+                    title = event.title.trim(),
                     contentType = type,
-                    contentText = if (type == ContentType.TEXT) event.contentLink else null,
+                    contentText = if (type == ContentType.TEXT) event.contentLink?.trim() else null,
                     order = order,
                     newFileStream = event.fileStream,
                     newFileSize = event.fileSize

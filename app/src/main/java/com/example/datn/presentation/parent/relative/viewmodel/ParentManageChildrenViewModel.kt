@@ -5,6 +5,8 @@ import com.example.datn.core.base.BaseViewModel
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.RelationshipType
 import com.example.datn.domain.usecase.auth.AuthUseCases
+import com.example.datn.domain.usecase.parentstudent.CheckStudentLinkedToParentParams
+import com.example.datn.domain.usecase.parentstudent.CheckStudentHasOtherPrimaryGuardianParams
 import com.example.datn.domain.usecase.parentstudent.LinkParentToStudentParams
 import com.example.datn.domain.usecase.parentstudent.ParentStudentUseCases
 import com.example.datn.domain.usecase.parentstudent.UnlinkStudentParams
@@ -64,17 +66,144 @@ class ParentManageChildrenViewModel @Inject constructor(
                 copy(isPrimaryGuardianForEdit = event.isPrimary)
             }
             is ParentManageChildrenEvent.SaveRelationship -> saveRelationship()
-            is ParentManageChildrenEvent.UnlinkStudent -> unlinkStudent(event.student)
+            is ParentManageChildrenEvent.UnlinkStudent -> openUnlinkDialog(event.student)
+
+            is ParentManageChildrenEvent.OpenUnlinkDialog -> openUnlinkDialog(event.student)
+            ParentManageChildrenEvent.DismissUnlinkDialog -> dismissUnlinkDialog()
+            ParentManageChildrenEvent.ConfirmUnlinkStudent -> confirmUnlinkStudent()
             is ParentManageChildrenEvent.UpdateSearchQuery -> setState {
-                copy(searchQuery = event.query)
+                copy(
+                    searchQuery = event.query,
+                    hasSearched = false,
+                    searchResults = emptyList(),
+                    selectedSearchResult = null,
+                    showLinkDialog = false
+                )
             }
             is ParentManageChildrenEvent.SearchStudents -> searchStudents()
-            is ParentManageChildrenEvent.LinkExistingStudent -> linkExistingStudent(
-                event.result,
-                event.relationship,
-                event.isPrimaryGuardian
-            )
+            is ParentManageChildrenEvent.OpenLinkDialog -> openLinkDialog(event.result)
+            is ParentManageChildrenEvent.DismissLinkDialog -> dismissLinkDialog()
+            is ParentManageChildrenEvent.ChangeLinkRelationship -> setState { copy(relationshipForLink = event.relationship) }
+            is ParentManageChildrenEvent.ChangeLinkPrimaryGuardian -> setState { copy(isPrimaryGuardianForLink = event.isPrimary) }
+            is ParentManageChildrenEvent.ConfirmLinkStudent -> confirmLinkStudent()
             is ParentManageChildrenEvent.ClearMessages -> setState { copy(successMessage = null, error = null) }
+        }
+    }
+
+    private fun openUnlinkDialog(student: com.example.datn.domain.usecase.parentstudent.LinkedStudentInfo) {
+        setState { copy(selectedStudentForUnlink = student, showUnlinkDialog = true) }
+    }
+
+    private fun dismissUnlinkDialog() {
+        setState { copy(selectedStudentForUnlink = null, showUnlinkDialog = false) }
+    }
+
+    private fun confirmUnlinkStudent() {
+        val student = state.value.selectedStudentForUnlink ?: return
+        dismissUnlinkDialog()
+        unlinkStudent(student)
+    }
+
+    private fun openLinkDialog(result: com.example.datn.domain.usecase.parentstudent.StudentSearchResult) {
+        Log.d(TAG, "openLinkDialog() studentId=${result.student.id}")
+        setState {
+            copy(
+                selectedSearchResult = result,
+                showLinkDialog = true,
+                relationshipForLink = RelationshipType.GUARDIAN,
+                isPrimaryGuardianForLink = true
+            )
+        }
+    }
+
+    private fun dismissLinkDialog() {
+        Log.d(TAG, "dismissLinkDialog()")
+        setState { copy(selectedSearchResult = null, showLinkDialog = false) }
+    }
+
+    private fun confirmLinkStudent() {
+        val current = state.value
+        val selected = current.selectedSearchResult ?: return
+
+        launch {
+            val parentId = resolveParentId()
+            if (parentId.isNullOrBlank()) {
+                showNotification("Không tìm thấy tài khoản phụ huynh", NotificationType.ERROR)
+                return@launch
+            }
+
+            // E1: already linked
+            var alreadyLinked = false
+            parentStudentUseCases.checkStudentLinkedToParent(
+                CheckStudentLinkedToParentParams(parentId = parentId, studentId = selected.student.id)
+            ).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> setState { copy(isProcessingAction = true, error = null) }
+                    is Resource.Success -> alreadyLinked = resource.data == true
+                    is Resource.Error -> {
+                        setState { copy(isProcessingAction = false, error = resource.message) }
+                        showNotification(resource.message ?: "Không thể kiểm tra liên kết", NotificationType.ERROR)
+                    }
+                }
+            }
+
+            if (alreadyLinked) {
+                val message = "Học sinh đã được liên kết với phụ huynh này"
+                setState { copy(isProcessingAction = false, error = message) }
+                showNotification(message, NotificationType.ERROR)
+                return@launch
+            }
+
+            // E2: only one primary guardian
+            if (current.isPrimaryGuardianForLink) {
+                var hasPrimaryGuardian = false
+                parentStudentUseCases.checkStudentHasPrimaryGuardian(selected.student.id).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> setState { copy(isProcessingAction = true, error = null) }
+                        is Resource.Success -> hasPrimaryGuardian = resource.data == true
+                        is Resource.Error -> {
+                            setState { copy(isProcessingAction = false, error = resource.message) }
+                            showNotification(resource.message ?: "Không thể kiểm tra người giám hộ", NotificationType.ERROR)
+                        }
+                    }
+                }
+
+                if (hasPrimaryGuardian) {
+                    val message = "Học sinh chỉ có một người giám hộ chính"
+                    setState { copy(isProcessingAction = false, error = message) }
+                    showNotification(message, NotificationType.ERROR)
+                    return@launch
+                }
+            }
+
+            // Link
+            parentStudentUseCases.linkParentToStudent(
+                LinkParentToStudentParams(
+                    studentId = selected.student.id,
+                    parentId = parentId,
+                    relationship = current.relationshipForLink.name,
+                    isPrimaryGuardian = current.isPrimaryGuardianForLink
+                )
+            ).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> setState { copy(isProcessingAction = true, error = null) }
+                    is Resource.Success -> {
+                        setState {
+                            copy(
+                                isProcessingAction = false,
+                                showLinkDialog = false,
+                                selectedSearchResult = null,
+                                successMessage = "Liên kết học sinh thành công"
+                            )
+                        }
+                        loadLinkedStudents()
+                    }
+                    is Resource.Error -> {
+                        setState { copy(isProcessingAction = false, error = resource.message) }
+                        showNotification(resource.message ?: "Không thể liên kết học sinh", NotificationType.ERROR)
+                    }
+                }
+            }
         }
     }
 
@@ -152,6 +281,55 @@ class ParentManageChildrenViewModel @Inject constructor(
                 return@launch
             }
 
+            // UC08.3 - E1: ensure this student is linked to this parent
+            var isLinked = false
+            parentStudentUseCases.checkStudentLinkedToParent(
+                CheckStudentLinkedToParentParams(parentId = parentId, studentId = student.student.id)
+            ).collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> setState { copy(isProcessingAction = true, error = null) }
+                    is Resource.Success -> isLinked = resource.data == true
+                    is Resource.Error -> {
+                        setState { copy(isProcessingAction = false, error = resource.message) }
+                        showNotification(resource.message ?: "Không thể kiểm tra liên kết", NotificationType.ERROR)
+                    }
+                }
+            }
+
+            if (!isLinked) {
+                val message = "Học sinh đã được liên kết với phụ huynh này"
+                setState { copy(isProcessingAction = false, error = message) }
+                showNotification(message, NotificationType.ERROR)
+                return@launch
+            }
+
+            // UC08.3 - E2: only one primary guardian (excluding current parent)
+            if (current.isPrimaryGuardianForEdit) {
+                var hasOtherPrimaryGuardian = false
+                parentStudentUseCases.checkStudentHasOtherPrimaryGuardian(
+                    CheckStudentHasOtherPrimaryGuardianParams(
+                        studentId = student.student.id,
+                        parentId = parentId
+                    )
+                ).collect { resource ->
+                    when (resource) {
+                        is Resource.Loading -> setState { copy(isProcessingAction = true, error = null) }
+                        is Resource.Success -> hasOtherPrimaryGuardian = resource.data == true
+                        is Resource.Error -> {
+                            setState { copy(isProcessingAction = false, error = resource.message) }
+                            showNotification(resource.message ?: "Không thể kiểm tra người giám hộ", NotificationType.ERROR)
+                        }
+                    }
+                }
+
+                if (hasOtherPrimaryGuardian) {
+                    val message = "Học sinh chỉ có một người giám hộ chính"
+                    setState { copy(isProcessingAction = false, error = message) }
+                    showNotification(message, NotificationType.ERROR)
+                    return@launch
+                }
+            }
+
             Log.d(
                 TAG,
                 "saveRelationship() parentId=$parentId, studentId=${student.student.id}, relationship=${current.relationshipForEdit}, isPrimary=${current.isPrimaryGuardianForEdit}"
@@ -226,6 +404,7 @@ class ParentManageChildrenViewModel @Inject constructor(
                                 successMessage = "Hủy liên kết thành công"
                             )
                         }
+                        showNotification("Hủy liên kết thành công", NotificationType.SUCCESS)
                         loadLinkedStudents()
                     }
                     is Resource.Error -> {
@@ -250,7 +429,7 @@ class ParentManageChildrenViewModel @Inject constructor(
         val query = state.value.searchQuery.trim()
         if (query.isBlank()) {
             Log.d(TAG, "searchStudents() -> empty query, clear results")
-            setState { copy(searchResults = emptyList()) }
+            setState { copy(searchResults = emptyList(), isSearching = false, hasSearched = false, error = null) }
             return
         }
 
@@ -260,7 +439,7 @@ class ParentManageChildrenViewModel @Inject constructor(
                 when (resource) {
                     is Resource.Loading -> {
                         Log.d(TAG, "searchStudents() -> Loading")
-                        setState { copy(isSearching = true) }
+                        setState { copy(isSearching = true, hasSearched = true, error = null) }
                     }
                     is Resource.Success -> {
                         val count = resource.data?.size ?: 0
@@ -268,6 +447,7 @@ class ParentManageChildrenViewModel @Inject constructor(
                         setState {
                             copy(
                                 isSearching = false,
+                                hasSearched = true,
                                 searchResults = resource.data ?: emptyList(),
                                 error = null
                             )
@@ -278,81 +458,13 @@ class ParentManageChildrenViewModel @Inject constructor(
                         setState {
                             copy(
                                 isSearching = false,
+                                hasSearched = true,
+                                searchResults = emptyList(),
                                 error = resource.message
                             )
                         }
                         showNotification(
                             resource.message ?: "Không thể tìm kiếm học sinh",
-                            NotificationType.ERROR
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private fun linkExistingStudent(
-        result: com.example.datn.domain.usecase.parentstudent.StudentSearchResult,
-        relationship: RelationshipType,
-        isPrimaryGuardian: Boolean
-    ) {
-        Log.d(
-            TAG,
-            "linkExistingStudent() studentId=${result.student.id}, relationship=$relationship, isPrimary=$isPrimaryGuardian"
-        )
-        launch {
-            val parentId = resolveParentId()
-            if (parentId.isNullOrBlank()) {
-                Log.e(TAG, "linkExistingStudent() -> parentId is blank")
-                showNotification("Không tìm thấy tài khoản phụ huynh", NotificationType.ERROR)
-                return@launch
-            }
-
-            Log.d(TAG, "linkExistingStudent() parentId=$parentId")
-            parentStudentUseCases.linkParentToStudent(
-                LinkParentToStudentParams(
-                    studentId = result.student.id,
-                    parentId = parentId,
-                    relationship = relationship.name
-                )
-            ).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        Log.d(TAG, "linkExistingStudent() -> Loading")
-                        setState { copy(isProcessingAction = true) }
-                    }
-                    is Resource.Success -> {
-                        Log.d(TAG, "linkExistingStudent() -> Success, updating primary=$isPrimaryGuardian if needed")
-                        // Nếu cần set isPrimaryGuardian khác, gọi UpdateRelationshipUseCase
-                        if (!isPrimaryGuardian) {
-                            parentStudentUseCases.updateRelationship(
-                                UpdateRelationshipParams(
-                                    parentId = parentId,
-                                    studentId = result.student.id,
-                                    relationship = relationship,
-                                    isPrimaryGuardian = isPrimaryGuardian
-                                )
-                            ).collect()
-                        }
-
-                        setState {
-                            copy(
-                                isProcessingAction = false,
-                                successMessage = "Liên kết học sinh thành công"
-                            )
-                        }
-                        loadLinkedStudents()
-                    }
-                    is Resource.Error -> {
-                        Log.e(TAG, "linkExistingStudent() -> Error: ${resource.message}")
-                        setState {
-                            copy(
-                                isProcessingAction = false,
-                                error = resource.message
-                            )
-                        }
-                        showNotification(
-                            resource.message ?: "Không thể liên kết học sinh",
                             NotificationType.ERROR
                         )
                     }

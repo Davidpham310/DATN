@@ -1,0 +1,334 @@
+// Generated from Room Entities in data/local/entities
+
+Project DATN {
+  database_type: 'SQLite'
+  Note: 'Schema generated for dbdiagram.io import. Enum/Instant/LocalDate are mapped to varchar/timestamp/date.'
+}
+
+Table user {
+  id varchar [pk]
+  name varchar
+  email varchar
+  role varchar
+  avatarUrl varchar [null]
+  isActive boolean
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table teacher {
+  id varchar [pk]
+  userId varchar
+  specialization varchar
+  level varchar
+  experienceYears int
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table student {
+  id varchar [pk]
+  userId varchar
+  dateOfBirth date
+  gradeLevel varchar
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table parent {
+  id varchar [pk]
+  userId varchar
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table parent_student {
+  parentId varchar [pk]
+  studentId varchar [pk]
+  relationship varchar
+  linkedAt timestamp
+  isPrimaryGuardian boolean
+}
+
+Table class {
+  id varchar [pk]
+  teacherId varchar
+  name varchar
+  classCode varchar
+  gradeLevel int [null]
+  subject varchar [null]
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table class_student {
+  classId varchar [pk]
+  studentId varchar [pk]
+  enrollmentStatus varchar
+  enrolledDate timestamp
+  approvedBy varchar
+  rejectionReason varchar
+  isLocked boolean
+}
+
+Table lesson {
+  id varchar [pk]
+  teacherId varchar
+  classId varchar
+  title varchar
+  description varchar [null]
+  contentLink varchar [null]
+  "order" int
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table lesson_content {
+  id varchar [pk]
+  lessonId varchar
+  title varchar
+  contentType varchar
+  content varchar
+  "order" int
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table test {
+  id varchar [pk]
+  classId varchar
+  lessonId varchar
+  title varchar
+  description varchar [null]
+  totalScore double
+  startTime timestamp
+  endTime timestamp
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table test_question {
+  id varchar [pk]
+  testId varchar
+  content varchar
+  score double
+  questionType varchar
+  timeLimit int
+  "order" int
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table test_option {
+  id varchar [pk]
+  testQuestionId varchar
+  content varchar
+  isCorrect boolean
+  "order" int
+  mediaUrl varchar [null]
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table student_test_result {
+  id varchar [pk]
+  studentId varchar
+  testId varchar
+  score double
+  completionStatus varchar
+  submissionTime timestamp
+  durationSeconds bigint
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table student_test_answers {
+  id varchar [pk]
+  resultId varchar
+  questionId varchar
+  answer varchar
+  isCorrect boolean
+  earnedScore double
+  createdAt bigint
+  updatedAt bigint
+}
+
+Table minigame {
+  id varchar [pk]
+  teacherId varchar
+  lessonId varchar
+  title varchar
+  description varchar
+  contentUrl varchar [null]
+  level varchar
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table minigame_question {
+  id varchar [pk]
+  miniGameId varchar
+  content varchar
+  questionType varchar
+  score double
+  timeLimit bigint
+  "order" int
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table minigame_option {
+  id varchar [pk]
+  miniGameQuestionId varchar
+  content varchar
+  isCorrect boolean
+  "order" int
+  mediaUrl varchar [null]
+  hint varchar [null]
+  pairId varchar [null]
+  pairContent varchar [null]
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table student_minigame_result {
+  id varchar [pk]
+  studentId varchar
+  miniGameId varchar
+  score double
+  maxScore double
+  completionStatus varchar
+  submissionTime timestamp
+  durationSeconds bigint
+  attemptNumber int
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table student_minigame_answer {
+  id varchar [pk]
+  resultId varchar
+  questionId varchar
+  answer varchar
+  isCorrect boolean
+  earnedScore double
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table student_lesson_progress {
+  id varchar [pk]
+  studentId varchar
+  lessonId varchar
+  progressPercentage int
+  lastAccessedContentId varchar [null]
+  lastAccessedAt timestamp
+  isCompleted boolean
+  timeSpentSeconds bigint
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table conversation {
+  id varchar [pk]
+  type varchar
+  title varchar [null]
+  lastMessageAt timestamp
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table conversation_participant {
+  conversationId varchar [pk]
+  userId varchar [pk]
+  joinedAt timestamp
+  lastViewedAt timestamp
+  isMuted boolean
+}
+
+Table message {
+  id varchar [pk]
+  senderId varchar
+  recipientId varchar
+  content varchar
+  sentAt timestamp
+  isRead boolean
+  conversationId varchar
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Table notification {
+  id varchar [pk]
+  userId varchar
+  senderId varchar [null]
+  type varchar
+  title varchar
+  content varchar
+  referenceObjectId varchar [null]
+  referenceObjectType varchar [null]
+  isRead boolean
+  createdAt timestamp
+}
+
+Table daily_study_time {
+  id varchar [pk]
+  studentId varchar
+  date date
+  durationSeconds bigint
+  createdAt timestamp
+  updatedAt timestamp
+}
+
+Ref: teacher.userId > user.id
+Ref: student.userId > user.id
+Ref: parent.userId > user.id
+
+Ref: parent_student.parentId > parent.id
+Ref: parent_student.studentId > student.id
+
+Ref: class.teacherId > teacher.id
+
+Ref: class_student.classId > class.id
+Ref: class_student.studentId > student.id
+
+Ref: lesson.teacherId > teacher.id
+Ref: lesson.classId > class.id
+
+Ref: lesson_content.lessonId > lesson.id
+
+Ref: test.classId > class.id
+Ref: test.lessonId > lesson.id
+
+Ref: test_question.testId > test.id
+Ref: test_option.testQuestionId > test_question.id
+
+Ref: student_test_result.studentId > student.id
+Ref: student_test_result.testId > test.id
+Ref: student_test_answers.resultId > student_test_result.id
+Ref: student_test_answers.questionId > test_question.id
+
+Ref: minigame.teacherId > teacher.id
+Ref: minigame.lessonId > lesson.id
+Ref: minigame_question.miniGameId > minigame.id
+Ref: minigame_option.miniGameQuestionId > minigame_question.id
+
+Ref: student_minigame_result.studentId > student.id
+Ref: student_minigame_result.miniGameId > minigame.id
+Ref: student_minigame_answer.resultId > student_minigame_result.id
+Ref: student_minigame_answer.questionId > minigame_question.id
+
+Ref: student_lesson_progress.studentId > student.id
+Ref: student_lesson_progress.lessonId > lesson.id
+
+Ref: conversation_participant.conversationId > conversation.id
+Ref: conversation_participant.userId > user.id
+
+Ref: message.conversationId > conversation.id
+Ref: message.senderId > user.id
+Ref: message.recipientId > user.id
+
+Ref: notification.userId > user.id
+Ref: notification.senderId > user.id
+
+Ref: daily_study_time.studentId > student.id

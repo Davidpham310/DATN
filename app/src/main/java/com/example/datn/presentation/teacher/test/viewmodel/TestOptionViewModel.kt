@@ -6,6 +6,11 @@ import com.example.datn.core.base.BaseViewModel
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
+import com.example.datn.core.utils.validation.rules.test.ValidateTestDisplayOrder
+import com.example.datn.core.utils.validation.rules.test.ValidateTestMediaUrl
+import com.example.datn.core.utils.validation.rules.test.ValidateTestCorrectOptions
+import com.example.datn.core.utils.validation.rules.test.ValidateTestOptionContent
+import com.example.datn.core.utils.validation.rules.test.ValidateTestOptionCorrectness
 import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.models.TestOption
 import com.example.datn.domain.usecase.test.TestOptionUseCases
@@ -28,6 +33,12 @@ class TestOptionViewModel @Inject constructor(
     companion object {
         private const val TAG = "TestOptionViewModel"
     }
+
+    private val optionContentValidator = ValidateTestOptionContent()
+    private val displayOrderValidator = ValidateTestDisplayOrder()
+    private val optionMediaUrlValidator = ValidateTestMediaUrl()
+    private val optionCorrectnessValidator = ValidateTestOptionCorrectness()
+    private val correctOptionsValidator = ValidateTestCorrectOptions()
 
     fun setQuestionId(questionId: String) {
         Log.d(TAG, "setQuestionId: $questionId")
@@ -79,7 +90,10 @@ class TestOptionViewModel @Inject constructor(
             useCases.listByQuestion(questionId).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true, error = null) }
-                    is Resource.Success -> setState { copy(options = result.data ?: emptyList(), isLoading = false, error = null) }
+                    is Resource.Success -> {
+                        val options = (result.data ?: emptyList()).sortedBy { it.order }
+                        setState { copy(options = options, isLoading = false, error = null) }
+                    }
                     is Resource.Error -> {
                         setState { copy(isLoading = false, error = result.message) }
                         showNotification(result.message ?: "Tải đáp án thất bại", NotificationType.ERROR)
@@ -96,34 +110,57 @@ class TestOptionViewModel @Inject constructor(
 
     private fun addOption(event: TestOptionEvent.ConfirmAddOption) {
         Log.d(TAG, "addOption: content='${event.content}', isCorrect=${event.isCorrect}")
-        if (event.content.isBlank()) {
-            Log.w(TAG, "Add option failed: content is blank")
-            showNotification("Nội dung đáp án không được để trống", NotificationType.ERROR)
-            return
-        }
-
-        // Validation dựa trên QuestionType
         val questionType = state.value.currentQuestionType
-        Log.d(TAG, "Validating option for question type: $questionType")
-        if (!validateOptionForQuestionType(questionType, event.isCorrect)) {
+        val trimmedContent = event.content.trim()
+        val trimmedMediaUrl = event.mediaUrl?.trim()?.ifBlank { null }
+
+        val contentResult = optionContentValidator.validate(trimmedContent)
+        if (!contentResult.successful) {
+            showNotification(contentResult.errorMessage ?: "Nội dung đáp án không hợp lệ", NotificationType.ERROR)
             return
         }
 
-        val current = state.value.options
-        val order = if (current.isEmpty()) 0 else current.maxOf { it.order } + 1
-        viewModelScope.launch {
-            // Nếu SINGLE_CHOICE và option mới là correct, cần unset các options cũ
-            if (questionType == QuestionType.SINGLE_CHOICE && event.isCorrect) {
-                unsetAllCorrectOptions()
-            }
+        val mediaUrlResult = optionMediaUrlValidator.validate(trimmedMediaUrl)
+        if (!mediaUrlResult.successful) {
+            showNotification(mediaUrlResult.errorMessage ?: "Media URL không hợp lệ", NotificationType.ERROR)
+            return
+        }
 
+        val orderResult = displayOrderValidator.validate(event.order)
+        if (!orderResult.successful) {
+            showNotification(orderResult.errorMessage ?: "Thứ tự hiển thị không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val isCorrectForSubmit = when (questionType) {
+            QuestionType.FILL_BLANK -> true
+            QuestionType.ESSAY -> false
+            else -> event.isCorrect
+        }
+
+        val correctnessResult = optionCorrectnessValidator.validate(questionType to isCorrectForSubmit)
+        if (!correctnessResult.successful) {
+            showNotification(correctnessResult.errorMessage ?: "Không thể đánh dấu đáp án đúng", NotificationType.ERROR)
+            return
+        }
+
+        // Câu hỏi điền vào chỗ trống chỉ cần 1 đáp án đúng
+        if (questionType == QuestionType.FILL_BLANK && state.value.options.isNotEmpty()) {
+            showNotification(
+                "Câu hỏi điền vào chỗ trống chỉ cần 1 đáp án. Vui lòng chỉnh sửa đáp án hiện tại.",
+                NotificationType.ERROR
+            )
+            return
+        }
+
+        viewModelScope.launch {
             val option = TestOption(
                 id = "",
                 testQuestionId = event.questionId,
-                content = event.content.trim(),
-                isCorrect = event.isCorrect,
-                order = order,
-                mediaUrl = event.mediaUrl?.trim(),
+                content = trimmedContent,
+                isCorrect = isCorrectForSubmit,
+                order = event.order,
+                mediaUrl = trimmedMediaUrl,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )
@@ -146,34 +183,49 @@ class TestOptionViewModel @Inject constructor(
 
     private fun updateOption(event: TestOptionEvent.ConfirmEditOption) {
         Log.d(TAG, "updateOption: id=${event.id}, content='${event.content}', isCorrect=${event.isCorrect}")
-        if (event.content.isBlank()) {
-            Log.w(TAG, "Update option failed: content is blank")
-            showNotification("Nội dung đáp án không được để trống", NotificationType.ERROR)
-            return
-        }
-
-        // Validation dựa trên QuestionType
         val questionType = state.value.currentQuestionType
-        Log.d(TAG, "Validating option for question type: $questionType")
-        if (!validateOptionForQuestionType(questionType, event.isCorrect)) {
+        val trimmedContent = event.content.trim()
+        val trimmedMediaUrl = event.mediaUrl?.trim()?.ifBlank { null }
+
+        val contentResult = optionContentValidator.validate(trimmedContent)
+        if (!contentResult.successful) {
+            showNotification(contentResult.errorMessage ?: "Nội dung đáp án không hợp lệ", NotificationType.ERROR)
             return
         }
 
-        val origin = state.value.options.find { it.id == event.id }
-        viewModelScope.launch {
-            // Nếu SINGLE_CHOICE và option được set là correct, cần unset các options khác
-            if (questionType == QuestionType.SINGLE_CHOICE && event.isCorrect && origin?.isCorrect == false) {
-                unsetAllCorrectOptions(excludeId = event.id)
-            }
+        val mediaUrlResult = optionMediaUrlValidator.validate(trimmedMediaUrl)
+        if (!mediaUrlResult.successful) {
+            showNotification(mediaUrlResult.errorMessage ?: "Media URL không hợp lệ", NotificationType.ERROR)
+            return
+        }
 
+        val orderResult = displayOrderValidator.validate(event.order)
+        if (!orderResult.successful) {
+            showNotification(orderResult.errorMessage ?: "Thứ tự hiển thị không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
+        val isCorrectForSubmit = when (questionType) {
+            QuestionType.FILL_BLANK -> true
+            QuestionType.ESSAY -> false
+            else -> event.isCorrect
+        }
+
+        val correctnessResult = optionCorrectnessValidator.validate(questionType to isCorrectForSubmit)
+        if (!correctnessResult.successful) {
+            showNotification(correctnessResult.errorMessage ?: "Không thể đánh dấu đáp án đúng", NotificationType.ERROR)
+            return
+        }
+
+        viewModelScope.launch {
             val option = TestOption(
                 id = event.id,
                 testQuestionId = event.questionId,
-                content = event.content.trim(),
-                isCorrect = event.isCorrect,
-                order = origin?.order ?: 0,
-                mediaUrl = event.mediaUrl?.trim(),
-                createdAt = origin?.createdAt ?: Instant.now(),
+                content = trimmedContent,
+                isCorrect = isCorrectForSubmit,
+                order = event.order,
+                mediaUrl = trimmedMediaUrl,
+                createdAt = state.value.options.find { it.id == event.id }?.createdAt ?: Instant.now(),
                 updatedAt = Instant.now()
             )
             useCases.update(option).collect { result ->
@@ -229,6 +281,15 @@ class TestOptionViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun validateOptionsForCurrentQuestion(): Boolean {
+        val result = correctOptionsValidator.validate(state.value.currentQuestionType to state.value.options)
+        if (!result.successful) {
+            showNotification(result.errorMessage ?: "Dữ liệu đáp án không hợp lệ", NotificationType.ERROR)
+            return false
+        }
+        return true
     }
 
     /**

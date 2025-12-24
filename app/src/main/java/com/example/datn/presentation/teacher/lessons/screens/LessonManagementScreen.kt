@@ -111,17 +111,17 @@ fun LessonManagerScreen(
                 lesson = state.editingLesson,
                 classId = classId,
                 onDismiss = { viewModel.onEvent(LessonManagerEvent.DismissDialog) },
-                onConfirmAdd = { title, description, contentLink->
+                onConfirmAdd = { title, description ->
                     viewModel.onEvent(
                         LessonManagerEvent.ConfirmAddLesson(
-                            classId,title, description, contentLink
+                            classId, title, description
                         )
                     )
                 },
-                onConfirmEdit = { id, classId, title, description, contentLink, order ->
+                onConfirmEdit = { id, classId, title, description, order ->
                     viewModel.onEvent(
                         LessonManagerEvent.ConfirmEditLesson(
-                            id, classId, title, description, contentLink, order
+                            id, classId, title, description, order
                         )
                     )
                 }

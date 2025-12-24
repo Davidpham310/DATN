@@ -70,7 +70,7 @@ class MiniGameService @Inject constructor() :
         }.also { games ->
             Log.i(TAG, "🎮 Final result: ${games.size} mini games for lesson $lessonId")
             games.forEach { game ->
-                Log.i(TAG, "  📋 ${game.title} - ${game.gameType} - ${game.level}")
+                Log.i(TAG, "  📋 ${game.title} - ${game.level}")
             }
         }
     } catch (e: Exception) {
@@ -209,17 +209,33 @@ class MiniGameService @Inject constructor() :
     suspend fun addMiniGameQuestion(question: MiniGameQuestion): MiniGameQuestion? = try {
         Log.d(TAG, "Adding new question: ${question.content}")
 
+        val existingQuestions = getQuestionsByMiniGame(question.miniGameId)
+        val desiredOrder = when {
+            question.order < 0 -> existingQuestions.size
+            question.order > existingQuestions.size -> existingQuestions.size
+            else -> question.order
+        }
+
+        val questionsToShift = existingQuestions.filter { it.order >= desiredOrder }
+
         val docRef = if (question.id.isNotEmpty()) questionRef.document(question.id)
         else questionRef.document()
 
         val now = Instant.now()
         val data = question.copy(
             id = docRef.id,
+            order = desiredOrder,
             createdAt = now,
             updatedAt = now
         )
 
-        docRef.set(data).await()
+        firestore.runBatch { batch ->
+            questionsToShift.forEach { existingQuestion ->
+                batch.update(questionRef.document(existingQuestion.id), "order", existingQuestion.order + 1)
+            }
+            batch.set(docRef, data)
+        }.await()
+
         Log.i(TAG, "✅ Added question: ${data.content} (${data.id})")
         data
     } catch (e: Exception) {
@@ -227,17 +243,54 @@ class MiniGameService @Inject constructor() :
         null
     }
 
-    suspend fun updateMiniGameQuestion(questionId: String, question: MiniGameQuestion): Boolean = try {
-        val updated = question.copy(
-            id = questionId,
-            updatedAt = Instant.now()
-        )
-        questionRef.document(questionId).set(updated).await()
-        Log.i(TAG, "✅ Updated question: $questionId")
-        true
-    } catch (e: Exception) {
-        Log.e(TAG, "❌ Error updating question: $questionId", e)
-        false
+    suspend fun updateMiniGameQuestion(questionId: String, question: MiniGameQuestion): Boolean {
+        return try {
+            val doc = questionRef.document(questionId).get().await()
+            if (!doc.exists()) return false
+
+            val oldQuestion = doc.internalToDomain(MiniGameQuestion::class.java)
+            val oldOrder = oldQuestion.order
+
+            val otherQuestions = getQuestionsByMiniGame(question.miniGameId)
+                .filter { it.id != questionId }
+
+            val maxAllowedOrder = otherQuestions.size
+            val clampedOrder = when {
+                question.order < 0 -> oldOrder
+                question.order > maxAllowedOrder -> maxAllowedOrder
+                else -> question.order
+            }
+
+            if (clampedOrder == oldOrder) {
+                val updated = question.copy(
+                    id = questionId,
+                    order = oldOrder,
+                    updatedAt = Instant.now()
+                )
+                questionRef.document(questionId).set(updated).await()
+                Log.i(TAG, "✅ Updated question: $questionId")
+                return true
+            }
+
+            firestore.runBatch { batch ->
+                otherQuestions.find { it.order == clampedOrder }?.let { conflictQuestion ->
+                    batch.update(questionRef.document(conflictQuestion.id), "order", oldOrder)
+                }
+
+                val updated = question.copy(
+                    id = questionId,
+                    order = clampedOrder,
+                    updatedAt = Instant.now()
+                )
+                batch.set(questionRef.document(questionId), updated)
+            }.await()
+
+            Log.i(TAG, "✅ Updated question: $questionId")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error updating question: $questionId", e)
+            false
+        }
     }
 
     suspend fun deleteMiniGameQuestion(questionId: String): Boolean = try {

@@ -7,6 +7,7 @@ import java.time.LocalDate
 sealed class EditProfileEvent : BaseEvent {
     // Common events
     data class LoadProfile(val userId: String, val role: String) : EditProfileEvent()
+    data class UpdateName(val name: String) : EditProfileEvent()
     object SaveProfile : EditProfileEvent()
     object ClearMessages : EditProfileEvent()
     data class UploadAvatar(val inputStream: InputStream, val fileName: String, val fileSize: Long, val contentType: String) : EditProfileEvent()

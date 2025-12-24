@@ -17,7 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.QuestionType
-import com.example.datn.domain.models.GameType
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.layout.Spacer
@@ -380,7 +379,7 @@ private fun QuestionCard(
                 }
                 
                 QuestionType.ESSAY -> {
-                    val expectedKeywords = options.find { it.isCorrect }?.content
+                    val expectedKeywords = options.find { it.isCorrect }?.content ?: options.firstOrNull()?.content
                     EssayQuestion(
                         selectedAnswer = selectedAnswer,
                         onAnswerChanged = onAnswerSelected,
@@ -391,7 +390,10 @@ private fun QuestionCard(
             }
             
             if (isSubmitted) {
-                val correctAnswer = options.find { it.isCorrect }?.content
+                val correctAnswer = when (question.questionType) {
+                    QuestionType.ESSAY -> options.find { it.isCorrect }?.content ?: options.firstOrNull()?.content
+                    else -> options.find { it.isCorrect }?.content
+                }
                 if (correctAnswer != null) {
                     Card(
                         colors = CardDefaults.cardColors(

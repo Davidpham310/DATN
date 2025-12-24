@@ -13,6 +13,9 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.datn.presentation.common.notification.NotificationViewModel
+import com.example.datn.presentation.common.notification.ui.NotificationDetailScreen
+import com.example.datn.presentation.common.notification.ui.NotificationInboxScreen
 import com.example.datn.presentation.teacher.classes.screens.ClassManagerScreen
 import com.example.datn.presentation.teacher.enrollment.EnrollmentManagementScreen
 import com.example.datn.presentation.teacher.lessons.viewmodel.LessonContentManagerViewModel
@@ -38,6 +41,7 @@ import com.example.datn.presentation.teacher.account.ui.TeacherAccountScreen
 import com.example.datn.presentation.teacher.home.ui.TeacherHomeScreen
 import com.example.datn.presentation.teacher.messaging.ui.SelectRecipientScreen
 import com.example.datn.presentation.teacher.messaging.viewmodel.SelectRecipientViewModel
+import com.example.datn.presentation.teacher.notification.ui.TeacherNotificationListScreen
 import com.example.datn.presentation.teacher.notification.ui.TeacherNotificationScreen
 
 @Composable
@@ -60,7 +64,7 @@ fun TeacherNavGraph(
                     navController.navigate(Screen.TeacherNotification.route)
                 },
                 onNavigateToSendNotification = {
-                    navController.navigate(Screen.TeacherNotification.route)
+                    navController.navigate(Screen.TeacherSendNotification.route)
                 },
                 onNavigateToLessonManager = { classId, className ->
                     navController.navigate(
@@ -555,6 +559,43 @@ fun TeacherNavGraph(
 
         // ==================== NOTIFICATION NAVIGATION ====================
         composable(Screen.TeacherNotification.route) {
+            val userId = hiltViewModel<com.example.datn.presentation.common.account.AccountViewModel>()
+                .state.collectAsState().value.currentUser?.id ?: ""
+            val viewModel: NotificationViewModel = hiltViewModel()
+
+            NotificationInboxScreen(
+                userId = userId,
+                onNavigateBack = null,
+                onOpenDetail = { notificationId ->
+                    navController.navigate(Screen.TeacherNotificationDetail.createRoute(notificationId))
+                },
+                onCreate = {
+                    navController.navigate(Screen.TeacherSendNotification.route)
+                },
+                viewModel = viewModel
+            )
+        }
+
+        composable(
+            route = Screen.TeacherNotificationDetail.routeWithArgs,
+            arguments = listOf(
+                navArgument("notificationId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val notificationId = backStackEntry.arguments?.getString("notificationId") ?: ""
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry(Screen.TeacherNotification.route)
+            }
+            val viewModel: NotificationViewModel = hiltViewModel(parentEntry)
+
+            NotificationDetailScreen(
+                notificationId = notificationId,
+                onNavigateBack = { navController.popBackStack() },
+                viewModel = viewModel
+            )
+        }
+
+        composable(Screen.TeacherSendNotification.route) {
             TeacherNotificationScreen(
                 onNavigateBack = { navController.popBackStack() }
             )

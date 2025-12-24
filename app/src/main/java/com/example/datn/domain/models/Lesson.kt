@@ -8,7 +8,6 @@ data class Lesson(
     val classId: String,
     val title: String,
     val description: String? = null,
-    val contentLink: String? = null,
     val order: Int,
     val createdAt: Instant,
     val updatedAt: Instant

@@ -49,7 +49,7 @@ import com.example.datn.data.local.entities.*
         ConversationEntity::class,
         MessageEntity::class
     ],
-    version = 2, // Tăng phiên bản khi thay đổi cấu trúc DB
+    version = 4, // Tăng phiên bản khi thay đổi cấu trúc DB
     exportSchema = false
 )
 @TypeConverters(DateTimeConverter::class, EnumConverter::class, StringListConverter::class)
@@ -112,6 +112,46 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `minigame_new` (
+                        `id` TEXT NOT NULL,
+                        `teacherId` TEXT NOT NULL,
+                        `lessonId` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `contentUrl` TEXT,
+                        `level` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+
+                database.execSQL(
+                    """
+                    INSERT INTO `minigame_new` (`id`, `teacherId`, `lessonId`, `title`, `description`, `contentUrl`, `level`, `createdAt`, `updatedAt`)
+                    SELECT `id`, `teacherId`, `lessonId`, `title`, `description`, `contentUrl`, `level`, `createdAt`, `updatedAt`
+                    FROM `minigame`
+                    """.trimIndent()
+                )
+
+                database.execSQL("DROP TABLE `minigame`")
+                database.execSQL("ALTER TABLE `minigame_new` RENAME TO `minigame`")
+            }
+        }
+
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE test_question ADD COLUMN timeLimit INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -119,7 +159,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                 INSTANCE = instance
                 instance

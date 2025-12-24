@@ -13,7 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.ContentType
 import com.example.datn.domain.models.LessonContent
-import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonContentTitle
+import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonTitle
+import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonContentFile
+import com.example.datn.core.utils.validation.rules.lesson.LessonContentFileValidationInput
+import com.example.datn.core.utils.validation.rules.lesson.ValidateLessonContentText
 
 import java.io.InputStream
 
@@ -67,26 +70,45 @@ fun AddEditLessonContentDialog(
     var contentError by remember { mutableStateOf<String?>(null) }
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
-    val titleValidator = remember { ValidateLessonContentTitle() }
+    val titleValidator = remember { ValidateLessonTitle() }
+    val contentTextValidator = remember { ValidateLessonContentText() }
+    val contentFileValidator = remember { ValidateLessonContentFile() }
 
     fun validateFields(): Boolean {
         val titleResult = titleValidator.validate(title)
         titleError = if (!titleResult.successful) titleResult.errorMessage else null
 
         contentError = when (selectedContentType) {
-            ContentType.TEXT -> if (contentLink.isBlank()) "Nội dung văn bản không được để trống" else null
+            ContentType.TEXT -> {
+                val contentTextResult = contentTextValidator.validate(contentLink)
+                if (!contentTextResult.successful) contentTextResult.errorMessage else null
+            }
             else -> {
                 if (isEditing) {
                     // Khi chỉnh sửa: Yêu cầu file mới chỉ khi người dùng đã chọn (currentFileStream != null),
                     // HOẶC nếu nội dung cũ không có file (lessonContent.content.isBlank()) và người dùng chưa chọn file mới.
-                    if (lessonContent?.content.isNullOrBlank() && currentFileStream == null) {
+                    if (currentFileStream != null) {
+                        val fileResult = contentFileValidator.validate(
+                            LessonContentFileValidationInput(
+                                contentType = selectedContentType,
+                                stream = currentFileStream,
+                                size = currentFileSize
+                            )
+                        )
+                        if (!fileResult.successful) fileResult.errorMessage else null
+                    } else if (lessonContent?.content.isNullOrBlank()) {
                         "Nội dung cần có tệp tin. Vui lòng chọn tệp mới."
-                    } else {
-                        null
-                    }
+                    } else null
                 } else {
                     // Khi thêm mới nội dung không phải TEXT, phải có file
-                    if (currentFileStream == null) "Vui lòng chọn tệp tin (${selectedContentType.name})" else null
+                    val fileResult = contentFileValidator.validate(
+                        LessonContentFileValidationInput(
+                            contentType = selectedContentType,
+                            stream = currentFileStream,
+                            size = currentFileSize
+                        )
+                    )
+                    if (!fileResult.successful) fileResult.errorMessage else null
                 }
             }
         }

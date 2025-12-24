@@ -99,10 +99,10 @@ class LessonManagerViewModel @Inject constructor(
                 copy(showAddEditDialog = false, editingLesson = null)
             }
             is LessonManagerEvent.ConfirmAddLesson -> addLesson(
-                event.classId, event.title, event.description, event.contentLink
+                event.classId, event.title, event.description
             )
             is LessonManagerEvent.ConfirmEditLesson -> updateLesson(
-                event.id, event.classId, event.title, event.description, event.contentLink, event.order
+                event.id, event.classId, event.title, event.description, event.order
             )
         }
     }
@@ -118,8 +118,7 @@ class LessonManagerViewModel @Inject constructor(
     private fun addLesson(
         classId: String,
         title: String,
-        description: String?,
-        contentLink: String?
+        description: String?
     ) {
         val teacherId = currentTeacherIdFlow.value
         if (teacherId.isBlank()) {
@@ -135,7 +134,7 @@ class LessonManagerViewModel @Inject constructor(
 
         viewModelScope.launch {
             lessonUseCases.createLesson(
-                CreateLessonParams(classId, teacherId, title, description, contentLink)
+                CreateLessonParams(classId, teacherId, title, description)
             ).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
@@ -159,7 +158,6 @@ class LessonManagerViewModel @Inject constructor(
         classId: String,
         title: String,
         description: String?,
-        contentLink: String?,
         order: Int
     ) {
         val teacherId = currentTeacherIdFlow.value
@@ -175,7 +173,7 @@ class LessonManagerViewModel @Inject constructor(
 
         viewModelScope.launch {
             lessonUseCases.updateLesson(
-                UpdateLessonParams(id, classId, teacherId, title, description, contentLink, order)
+                UpdateLessonParams(id, classId, teacherId, title, description, order)
             ).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }

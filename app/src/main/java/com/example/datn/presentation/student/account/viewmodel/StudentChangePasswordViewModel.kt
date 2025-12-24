@@ -37,18 +37,24 @@ class StudentChangePasswordViewModel @Inject constructor(
 
     private fun changePassword(currentPassword: String, newPassword: String, confirmPassword: String) {
         if (currentPassword.isBlank() || newPassword.isBlank() || confirmPassword.isBlank()) {
-            showNotification("Vui lòng nhập đầy đủ thông tin", NotificationType.ERROR)
+            val message = "Vui lòng nhập đầy đủ thông tin"
+            setState { copy(error = message, successMessage = null) }
+            showNotification(message, NotificationType.ERROR)
             return
         }
 
         if (newPassword != confirmPassword) {
-            showNotification("Mật khẩu mới và xác nhận mật khẩu không khớp", NotificationType.ERROR)
+            val message = "Mật khẩu xác nhận không khớp"
+            setState { copy(error = message, successMessage = null) }
+            showNotification(message, NotificationType.ERROR)
             return
         }
 
         val newPasswordResult = passwordValidator.validate(newPassword)
         if (!newPasswordResult.successful) {
-            showNotification(newPasswordResult.errorMessage!!, NotificationType.ERROR)
+            val message = newPasswordResult.errorMessage ?: "Mật khẩu mới không hợp lệ"
+            setState { copy(error = message, successMessage = null) }
+            showNotification(message, NotificationType.ERROR)
             return
         }
 
@@ -67,8 +73,19 @@ class StudentChangePasswordViewModel @Inject constructor(
                         showNotification("Đổi mật khẩu thành công", NotificationType.SUCCESS)
                     }
                     is Resource.Error -> {
-                        setState { copy(isLoading = false, error = result.message, successMessage = null) }
-                        showNotification(result.message ?: "Đổi mật khẩu thất bại", NotificationType.ERROR)
+                        val rawMessage = result.message
+                        val message = when {
+                            rawMessage.isNullOrBlank() -> "Đổi mật khẩu thất bại"
+                            rawMessage == "Sai mật khẩu, vui lòng thử lại." -> "Mật khẩu hiện tại không chính xác"
+                            rawMessage == "Email hoặc mật khẩu không hợp lệ." -> "Mật khẩu hiện tại không chính xác"
+                            rawMessage.contains("WRONG_PASSWORD", ignoreCase = true) -> "Mật khẩu hiện tại không chính xác"
+                            rawMessage.contains("INVALID_CREDENTIAL", ignoreCase = true) -> "Mật khẩu hiện tại không chính xác"
+                            rawMessage.contains("INVALID_LOGIN_CREDENTIALS", ignoreCase = true) -> "Mật khẩu hiện tại không chính xác"
+                            else -> rawMessage
+                        }
+
+                        setState { copy(isLoading = false, error = message, successMessage = null) }
+                        showNotification(message, NotificationType.ERROR)
                     }
                 }
             }

@@ -9,7 +9,8 @@ import javax.inject.Inject
 data class LinkParentToStudentParams(
     val studentId: String,
     val parentId: String,
-    val relationship: String
+    val relationship: String,
+    val isPrimaryGuardian: Boolean = true
 )
 
 class LinkParentToStudentUseCase @Inject constructor(
@@ -20,7 +21,8 @@ class LinkParentToStudentUseCase @Inject constructor(
         return studentRepository.linkParentToStudent(
             studentId = params.studentId,
             parentId = params.parentId,
-            relationship = params.relationship
+            relationship = params.relationship,
+            isPrimaryGuardian = params.isPrimaryGuardian
         )
     }
 }

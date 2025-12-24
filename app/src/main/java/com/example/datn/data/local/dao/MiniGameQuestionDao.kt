@@ -8,7 +8,7 @@ import com.example.datn.data.local.entities.MiniGameQuestionEntity
 @Dao
 interface MiniGameQuestionDao : BaseDao<MiniGameQuestionEntity> {
 
-    @Query("SELECT * FROM minigame_question WHERE miniGameId = :miniGameId ORDER BY 'order'")
+    @Query("SELECT * FROM minigame_question WHERE miniGameId = :miniGameId ORDER BY `order`")
     suspend fun getQuestionsByMiniGame(miniGameId: String): List<MiniGameQuestionEntity>
 
     @Query("SELECT * FROM minigame_question WHERE id = :questionId")

@@ -15,7 +15,6 @@ data class UpdateLessonParams(
     val teacherId: String,
     val title: String,
     val description: String?,
-    val contentLink: String?,
     val order: Int
 )
 
@@ -51,7 +50,6 @@ class UpdateLessonUseCase @Inject constructor(
             val updatedLesson = oldLesson!!.copy(
                 title = params.title,
                 description = params.description,
-                contentLink = params.contentLink,
                 order = params.order,
                 teacherId = params.teacherId,
                 classId = params.classId,

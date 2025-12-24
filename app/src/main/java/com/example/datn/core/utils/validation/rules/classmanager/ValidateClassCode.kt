@@ -5,12 +5,16 @@ import com.example.datn.core.utils.validation.Validator
 
 class ValidateClassCode : Validator<String> {
     override fun validate(value: String): ValidationResult {
-        if (value.isBlank()) {
+        val trimmed = value.trim()
+        if (trimmed.isBlank()) {
             return ValidationResult(false, "Mã lớp không được để trống")
         }
-        val regex = Regex("^[A-Za-z0-9_-]{3,10}$")
-        if (!regex.matches(value)) {
-            return ValidationResult(false, "Mã lớp chỉ được chứa chữ, số, dấu gạch dưới hoặc gạch ngang (3–10 ký tự)")
+        if (trimmed.length < 6 || trimmed.length > 10) {
+            return ValidationResult(false, "Mã lớp phải từ 6–10 ký tự")
+        }
+        val regex = Regex("^[A-Z0-9]{6,10}$")
+        if (!regex.matches(trimmed)) {
+            return ValidationResult(false, "Mã lớp chỉ gồm chữ HOA và số")
         }
         return ValidationResult(true)
     }

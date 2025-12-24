@@ -128,28 +128,24 @@ fun LessonMiniGameManagerScreen(
             AddEditMiniGameDialog(
                 game = state.editingGame,
                 onDismiss = { viewModel.onEvent(MiniGameManagerEvent.DismissDialog) },
-                onConfirmAdd = { title, description, gameType, level, contentUrl ->
+                onConfirmAdd = { title, description, level ->
                     viewModel.onEvent(
                         MiniGameManagerEvent.ConfirmAddGame(
                             lessonId = lessonId,
                              title = title,
                              description = description,
-                             gameType = gameType,
-                             level = level,
-                             contentUrl = contentUrl
+                             level = level
                         )
                     )
                 },
-                onConfirmEdit = { id, title, description, gameType, level, contentUrl ->
+                onConfirmEdit = { id, title, description, level ->
                     viewModel.onEvent(
                         MiniGameManagerEvent.ConfirmEditGame(
                             id = id,
                             lessonId = lessonId,
                             title = title,
                             description = description,
-                            gameType = gameType,
-                            level = level,
-                            contentUrl = contentUrl
+                            level = level
                         )
                     )
                 }

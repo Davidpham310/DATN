@@ -20,6 +20,7 @@ fun ParentMainScreen(
         Screen.ParentHome,
         Screen.ParentMyClasses,
         Screen.ParentConversations,
+        Screen.ParentNotifications,
         Screen.ParentAccount
     )
     
@@ -42,6 +43,7 @@ fun ParentMainScreen(
                                 Screen.ParentHome -> Icon(Icons.Default.Home, null)
                                 Screen.ParentMyClasses -> Icon(Icons.Default.School, null)
                                 Screen.ParentConversations -> Icon(Icons.Default.Chat, null)
+                                Screen.ParentNotifications -> Icon(Icons.Default.Notifications, null)
                                 Screen.ParentAccount -> Icon(Icons.Default.Person, null)
                                 else -> Icon(Icons.Default.Home, null)
                             }
@@ -52,6 +54,7 @@ fun ParentMainScreen(
                                     Screen.ParentHome -> "Trang chủ"
                                     Screen.ParentMyClasses -> "Lớp học"
                                     Screen.ParentConversations -> "Tin nhắn"
+                                    Screen.ParentNotifications -> "Thông báo"
                                     Screen.ParentAccount -> "Tài khoản"
                                     else -> ""
                                 }

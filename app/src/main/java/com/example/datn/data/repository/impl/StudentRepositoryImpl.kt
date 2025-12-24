@@ -85,11 +85,17 @@ class StudentRepositoryImpl @Inject constructor(
     override fun linkParentToStudent(
         studentId: String,
         parentId: String,
-        relationship: String
+        relationship: String,
+        isPrimaryGuardian: Boolean
     ): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            firebaseDataSource.linkParentToStudent(studentId, parentId, relationship)
+            firebaseDataSource.linkParentToStudent(
+                studentId = studentId,
+                parentId = parentId,
+                relationship = relationship,
+                isPrimaryGuardian = isPrimaryGuardian
+            )
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             if (e is CancellationException) throw e

@@ -82,6 +82,52 @@ class NotificationRepositoryImpl @Inject constructor(
         emit(Resource.Error("Lỗi không xác định: ${e.message}"))
     }
 
+    override fun getNotificationsBySenderId(senderId: String): Flow<Resource<List<Notification>>> = callbackFlow {
+        trySend(Resource.Loading())
+
+        // 1) Emit local cache first
+        try {
+            val localNotifications = notificationDao.getNotificationsBySenderId(senderId)
+            if (localNotifications.isNotEmpty()) {
+                Log.d(TAG, "Loaded ${localNotifications.size} sent notifications from local cache")
+                trySend(Resource.Success(localNotifications.map { it.toDomain() }))
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load local notifications by sender: $senderId", e)
+        }
+
+        // 2) Listen realtime from Firestore
+        val job = launch {
+            firestoreService.listenNotificationsBySenderId(senderId).collectLatest { remoteNotifications ->
+                Log.d(TAG, "Realtime notifications update for senderId=$senderId size=${remoteNotifications.size}")
+
+                // Sync to local cache
+                try {
+                    remoteNotifications.forEach { notification ->
+                        val entity = notification.toEntity()
+                        if (notificationDao.exists(entity.id)) {
+                            notificationDao.update(entity)
+                        } else {
+                            notificationDao.insert(entity)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed syncing notifications to local for sender: $senderId", e)
+                }
+
+                trySend(Resource.Success(remoteNotifications))
+            }
+        }
+
+        awaitClose {
+            job.cancel()
+        }
+    }.catch { e ->
+        if (e is CancellationException) throw e
+        Log.e(TAG, "Flow error in getNotificationsBySenderId", e)
+        emit(Resource.Error("Lỗi không xác định: ${e.message}"))
+    }
+
     /**
      * Đánh dấu notification là đã đọc
      */

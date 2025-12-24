@@ -141,9 +141,7 @@ class MiniGamePlayViewModel @Inject constructor(
                                 lessonId = lessonId,
                                 title = "Câu hỏi từ bài học",
                                 description = "Tổng hợp câu hỏi từ ${games.size} minigame trong bài học",
-                                gameType = com.example.datn.domain.models.GameType.QUIZ, // Default to QUIZ for mixed content
                                 level = games.getOrNull(0)?.level ?: com.example.datn.domain.models.Level.EASY,
-                                contentUrl = null,
                                 createdAt = games.minOfOrNull { it.createdAt } ?: java.time.Instant.now(),
                                 updatedAt = java.time.Instant.now()
                             )
@@ -482,6 +480,7 @@ class MiniGamePlayViewModel @Inject constructor(
                         // For essay questions, check if answer contains expected keywords/phrases
                         // If no expected answer is provided, give credit for any non-blank answer
                         val expectedAnswer = questionOptions.find { it.isCorrect }?.content
+                            ?: questionOptions.firstOrNull()?.content
                         if (expectedAnswer.isNullOrBlank()) {
                             // No expected answer, give credit for any response
                             !userAnswer.isNullOrBlank()
@@ -497,8 +496,8 @@ class MiniGamePlayViewModel @Inject constructor(
                     }
                 }
                 
-                // Special handling for matching games
-                val finalIsCorrect = if (currentState.miniGame?.gameType == com.example.datn.domain.models.GameType.MATCHING) {
+                // Special handling for matching questions (inferred from option data)
+                val finalIsCorrect = if (isMatchingQuestion(questionOptions)) {
                     checkMatchingAnswer(question.id, userAnswer, questionOptions)
                 } else {
                     isCorrect
@@ -732,6 +731,7 @@ class MiniGamePlayViewModel @Inject constructor(
             }
             com.example.datn.domain.models.QuestionType.ESSAY -> {
                 val expectedAnswer = questionOptions.find { it.isCorrect }?.content
+                    ?: questionOptions.firstOrNull()?.content
                 if (expectedAnswer.isNullOrBlank()) {
                     userAnswer.isNotBlank()
                 } else {
@@ -745,8 +745,8 @@ class MiniGamePlayViewModel @Inject constructor(
             }
         }
         
-        // Special handling for matching games
-        val finalIsCorrect = if (miniGame.gameType == com.example.datn.domain.models.GameType.MATCHING) {
+        // Special handling for matching questions (inferred from option data)
+        val finalIsCorrect = if (isMatchingQuestion(questionOptions)) {
             checkMatchingAnswer(question.id, userAnswer, questionOptions)
         } else {
             isCorrect
@@ -792,6 +792,10 @@ class MiniGamePlayViewModel @Inject constructor(
         }.toSet()
         
         return normalizedUserPairs == correctPairs && correctPairs.isNotEmpty()
+    }
+
+    private fun isMatchingQuestion(questionOptions: List<com.example.datn.domain.models.MiniGameOption>): Boolean {
+        return questionOptions.any { it.pairId != null || it.pairContent != null }
     }
 
     override fun onCleared() {

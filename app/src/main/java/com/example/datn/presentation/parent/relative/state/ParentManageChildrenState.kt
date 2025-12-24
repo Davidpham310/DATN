@@ -14,13 +14,22 @@ data class ParentManageChildrenState(
     // Search existing students
     val searchQuery: String = "",
     val isSearching: Boolean = false,
+    val hasSearched: Boolean = false,
     val searchResults: List<StudentSearchResult> = emptyList(),
+
+    val selectedSearchResult: StudentSearchResult? = null,
+    val showLinkDialog: Boolean = false,
+    val relationshipForLink: RelationshipType = RelationshipType.GUARDIAN,
+    val isPrimaryGuardianForLink: Boolean = true,
 
     // Relationship editing
     val selectedStudent: LinkedStudentInfo? = null,
     val showRelationshipDialog: Boolean = false,
     val relationshipForEdit: RelationshipType = RelationshipType.GUARDIAN,
     val isPrimaryGuardianForEdit: Boolean = true,
+
+    val selectedStudentForUnlink: LinkedStudentInfo? = null,
+    val showUnlinkDialog: Boolean = false,
 
     // Action state
     val isProcessingAction: Boolean = false,

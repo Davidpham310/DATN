@@ -3,6 +3,7 @@ package com.example.datn.presentation.teacher.test.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -33,6 +34,16 @@ fun TestOptionManagerScreen(
         viewModel.setQuestionId(questionId)
     }
 
+    val attemptNavigateBack = {
+        if (viewModel.validateOptionsForCurrentQuestion()) {
+            onNavigateBack()
+        }
+    }
+
+    BackHandler {
+        attemptNavigateBack()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -47,7 +58,7 @@ fun TestOptionManagerScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = attemptNavigateBack) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Quay lại"
@@ -55,6 +66,23 @@ fun TestOptionManagerScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            Surface {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        enabled = !state.isLoading,
+                        onClick = attemptNavigateBack
+                    ) {
+                        Text("Xác nhận")
+                    }
+                }
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -138,7 +166,7 @@ fun TestOptionManagerScreen(
 
                         // Danh sách đáp án
                         items(state.options, key = { it.id }) { option ->
-                            val index = state.options.indexOf(option) + 1
+                            val index = option.order
                             TestOptionItem(
                                 optionNumber = index,
                                 option = option,
@@ -166,14 +194,16 @@ fun TestOptionManagerScreen(
         if (state.showAddEditDialog) {
             AddEditTestOptionDialog(
                 editing = state.editingOption,
+                questionType = state.currentQuestionType,
                 onDismiss = { viewModel.onEvent(TestOptionEvent.DismissDialog) },
-                onConfirm = { content, isCorrect, mediaUrl ->
+                onConfirm = { content, isCorrect, order, mediaUrl ->
                     if (state.editingOption == null) {
                         viewModel.onEvent(
                             TestOptionEvent.ConfirmAddOption(
                                 questionId = questionId,
                                 content = content,
                                 isCorrect = isCorrect,
+                                order = order,
                                 mediaUrl = mediaUrl
                             )
                         )
@@ -184,6 +214,7 @@ fun TestOptionManagerScreen(
                                 questionId = questionId,
                                 content = content,
                                 isCorrect = isCorrect,
+                                order = order,
                                 mediaUrl = mediaUrl
                             )
                         )

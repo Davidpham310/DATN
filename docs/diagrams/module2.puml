@@ -1,0 +1,244 @@
+@startuml LearningModuleFull
+title Domain Model - Learning Module (Full Methods)
+
+skinparam style strictuml
+skinparam classAttributeIconSize 0
+skinparam classFontSize 16
+skinparam classAttributeFontSize 14
+skinparam classBackgroundColor #FDF6E3
+skinparam classBorderColor #073642
+skinparam classArrowFontSize 14
+skinparam defaultTextAlignment center
+skinparam shadowing false
+skinparam linetype ortho
+
+' ===== Class =====
+class Class {
+    +id: String
+    +teacherId: String
+    +name: String
+    +classCode: String
+    +gradeLevel: Int?
+    +subject: String?
+    +createdAt: Instant
+    +updatedAt: Instant
+    --
+    +addClass(classObj: Class): Flow<Resource<Class?>>
+    +updateClass(classId: String, classObj: Class): Flow<Resource<Boolean>>
+    +deleteClass(classId: String): Flow<Resource<Boolean>>
+    +getAllClasses(): Flow<Resource<List<Class>>>
+    +getClassById(classId: String): Flow<Resource<Class?>>
+    +getClassByCode(classCode: String): Flow<Resource<Class?>>
+    +getClassesByTeacher(teacherId: String): Flow<Resource<List<Class>>>
+    +getClassesByStudent(studentId: String): Flow<Resource<List<Class>>>
+}
+
+' ===== ClassStudent =====
+class ClassStudent {
+    +classId: String
+    +studentId: String
+    +enrolledDate: Instant
+    +enrollmentStatus: EnrollmentStatus
+    +approvedBy: String
+    +rejectionReason: String
+    --
+    +addStudentToClass(classId: String, studentId: String, status: EnrollmentStatus = EnrollmentStatus.PENDING, approvedBy: String = ""): Flow<Resource<Boolean>>
+    +removeStudentFromClass(classId: String, studentId: String): Flow<Resource<Boolean>>
+    +approveEnrollment(classId: String, studentId: String, approvedBy: String): Flow<Resource<Boolean>>
+    +rejectEnrollment(classId: String, studentId: String, rejectionReason: String, rejectedBy: String): Flow<Resource<Boolean>>
+    +updateEnrollmentStatus(classId: String, studentId: String, status: EnrollmentStatus, approvedBy: String = "", rejectionReason: String = ""): Flow<Resource<Boolean>>
+}
+
+' ===== Lesson =====
+class Lesson {
+    +id: String
+    +teacherId: String
+    +classId: String
+    +title: String
+    +description: String?
+    +order: Int
+    +createdAt: Instant
+    +updatedAt: Instant
+    --
+    +createLesson(lesson: Lesson): Flow<Resource<Lesson>>
+    +getLessonsByClass(classId: String): Flow<Resource<List<Lesson>>>
+    +getLessonById(lessonId: String): Flow<Resource<Lesson?>>
+    +updateLesson(lessonId: String, lesson: Lesson): Flow<Resource<Boolean>>
+    +deleteLesson(lessonId: String): Flow<Resource<Boolean>>
+}
+
+' ===== LessonContent =====
+class LessonContent {
+    +id: String
+    +lessonId: String
+    +title: String
+    +contentType: ContentType
+    +content: String
+    +order: Int
+    +createdAt: Instant
+    +updatedAt: Instant
+    --
+    +getContentByLesson(lessonId: String): Flow<Resource<List<LessonContent>>>
+    +getContentById(contentId: String): Flow<Resource<LessonContent>>
+    +addContent(content: LessonContent, fileStream: InputStream? = null, fileSize: Long = 0): Flow<Resource<LessonContent>>
+    +updateContent(contentId: String, content: LessonContent, newFileStream: InputStream? = null, newFileSize: Long = 0): Flow<Resource<Boolean>>
+    +deleteContent(contentId: String): Flow<Resource<Boolean>>
+    +getContentUrl(content: LessonContent, expirySeconds: Int = 3600): Flow<Resource<String>>
+}
+
+' ===== Test =====
+class Test {
+    +id: String
+    +classId: String
+    +lessonId: String
+    +title: String
+    +description: String?
+    +totalScore: Double
+    +startTime: Instant
+    +endTime: Instant
+    +createdAt: Instant
+    +updatedAt: Instant
+    --
+    +createTest(test: Test): Flow<Resource<Test>>
+    +updateTest(test: Test): Flow<Resource<Test>>
+    +deleteTest(testId: String): Flow<Resource<Unit>>
+    +getTestDetails(testId: String): Flow<Resource<Test>>
+    +getTestsByLesson(lessonId: String): Flow<Resource<List<Test>>>
+    +getTestsByClasses(classIds: List<String>): Flow<Resource<List<Test>>>
+    +submitTest(studentId: String, testId: String, answers: Map<String, List<String>>): Flow<Resource<StudentTestResult>>
+}
+
+' ===== TestQuestion =====
+class TestQuestion {
+    +id: String
+    +testId: String
+    +content: String
+    +score: Double
+    +questionType: QuestionType
+    +mediaUrl: String?
+    +timeLimit: Int
+    +order: Int
+    +createdAt: Instant
+    +updatedAt: Instant
+    --
+    +createQuestion(question: TestQuestion): Flow<Resource<TestQuestion>>
+    +updateQuestion(question: TestQuestion): Flow<Resource<TestQuestion>>
+    +deleteQuestion(questionId: String): Flow<Resource<Unit>>
+    +getQuestionById(questionId: String): Flow<Resource<TestQuestion?>>
+    +getQuestionsByTest(testId: String): Flow<Resource<List<TestQuestion>>>
+}
+
+' ===== TestOption =====
+class TestOption {
+    +id: String
+    +testQuestionId: String
+    +content: String
+    +isCorrect: Boolean
+    +order: Int
+    +mediaUrl: String?
+    +createdAt: Instant
+    +updatedAt: Instant
+    --
+    +createOption(option: TestOption): Flow<Resource<TestOption>>
+    +updateOption(option: TestOption): Flow<Resource<TestOption>>
+    +deleteOption(optionId: String): Flow<Resource<Unit>>
+    +getOptionsByQuestion(questionId: String): Flow<Resource<List<TestOption>>>
+    +getOptionById(optionId: String): Flow<Resource<TestOption?>>
+}
+
+' ===== StudentLessonProgress =====
+class StudentLessonProgress {
+    +id: String
+    +studentId: String
+    +lessonId: String
+    +progressPercentage: Int
+    +lastAccessedContentId: String?
+    +lastAccessedAt: Instant
+    +isCompleted: Boolean
+    +timeSpentSeconds: Long
+    +createdAt: Instant
+    +updatedAt: Instant
+    --
+    +getProgressByStudentLesson(studentId: String, lessonId: String): Flow<Resource<StudentLessonProgress?>>
+    +updateProgress(studentId: String, lessonId: String, progressPercentage: Int, lastAccessedContentId: String?, lastAccessedAt: Instant, timeSpentSeconds: Long): Flow<Resource<Unit>>
+    +markLessonCompleted(studentId: String, lessonId: String): Flow<Resource<Unit>>
+    +getAllProgressByStudent(studentId: String): Flow<Resource<List<StudentLessonProgress>>>
+}
+
+' ===== MiniGame =====
+class MiniGame {
+    +id: String
+    +teacherId: String
+    +lessonId: String
+    +title: String
+    +description: String
+    +level: Level
+    +createdAt: Instant
+    +updatedAt: Instant
+    --
+    +createGame(game: MiniGame): Flow<Resource<MiniGame>>
+    +getGameById(gameId: String): Flow<Resource<MiniGame?>>
+    +getQuestionsByGame(gameId: String): Flow<Resource<List<MiniGameQuestion>>>
+    +getFilteredGames(level: String?): Flow<Resource<List<MiniGame>>>
+    +getGamesByTeacher(teacherId: String): Flow<Resource<List<MiniGame>>>
+    +getGamesByLesson(lessonId: String): Flow<Resource<List<MiniGame>>>
+    +updateGame(game: MiniGame): Flow<Resource<MiniGame>>
+    +deleteGame(gameId: String): Flow<Resource<Unit>>
+    +searchGames(query: String, teacherId: String? = null): Flow<Resource<List<MiniGame>>>
+}
+
+' ===== MiniGameQuestion =====
+class MiniGameQuestion {
+    +id: String
+    +miniGameId: String
+    +content: String
+    +questionType: QuestionType
+    +score: Double
+    +timeLimit: Long
+    +order: Int
+    +createdAt: Instant
+    +updatedAt: Instant
+    --
+    +createQuestion(question: MiniGameQuestion): Flow<Resource<MiniGameQuestion>>
+    +updateQuestion(question: MiniGameQuestion): Flow<Resource<MiniGameQuestion>>
+    +deleteQuestion(questionId: String): Flow<Resource<Unit>>
+    +getQuestionById(questionId: String): Flow<Resource<MiniGameQuestion?>>
+}
+
+' ===== MiniGameOption =====
+class MiniGameOption {
+    +id: String
+    +miniGameQuestionId: String
+    +content: String
+    +mediaUrl: String?
+    +isCorrect: Boolean
+    +order: Int
+    +hint: String?
+    +pairId: String?
+    +pairContent: String?
+    +createdAt: Instant
+    +updatedAt: Instant
+    --
+    +createOption(option: MiniGameOption): Flow<Resource<MiniGameOption>>
+    +updateOption(option: MiniGameOption): Flow<Resource<MiniGameOption>>
+    +deleteOption(optionId: String): Flow<Resource<Unit>>
+    +getOptionsByQuestion(questionId: String): Flow<Resource<List<MiniGameOption>>>
+    +getOptionById(optionId: String): Flow<Resource<MiniGameOption?>>
+}
+
+' ===== Relationships =====
+Teacher "1" -- "0..*" Class : teacherId
+Class "1" -- "0..*" Lesson : classId
+Lesson "1" -- "0..*" LessonContent : lessonId
+Lesson "1" -- "0..*" Test : lessonId
+Test "1" *-- "1..*" TestQuestion : testId
+TestQuestion "1" *-- "0..*" TestOption : testQuestionId
+Class "1" -- "0..*" ClassStudent : classId
+Student "1" -- "0..*" ClassStudent : studentId
+Lesson "1" -- "0..*" MiniGame : lessonId
+MiniGame "1" *-- "1..*" MiniGameQuestion : miniGameId
+MiniGameQuestion "1" *-- "0..*" MiniGameOption : miniGameQuestionId
+Student "1" -- "0..*" StudentLessonProgress : studentId
+Lesson "1" -- "0..*" StudentLessonProgress : lessonId
+
+@enduml

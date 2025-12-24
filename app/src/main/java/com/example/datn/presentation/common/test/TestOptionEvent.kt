@@ -17,6 +17,7 @@ sealed class TestOptionEvent : BaseEvent {
         val questionId: String,
         val content: String,
         val isCorrect: Boolean,
+        val order: Int,
         val mediaUrl: String?
     ) : TestOptionEvent()
 
@@ -25,6 +26,7 @@ sealed class TestOptionEvent : BaseEvent {
         val questionId: String,
         val content: String,
         val isCorrect: Boolean,
+        val order: Int,
         val mediaUrl: String?
     ) : TestOptionEvent()
 }

@@ -3,6 +3,8 @@ package com.example.datn.presentation.teacher.notification.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseViewModel
 import com.example.datn.core.utils.Resource
+import com.example.datn.core.utils.validation.rules.notification.ValidateNotificationContent
+import com.example.datn.core.utils.validation.rules.notification.ValidateNotificationTitle
 import com.example.datn.domain.models.NotificationType
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.notification.SendTeacherNotificationParams
@@ -44,6 +46,9 @@ class TeacherNotificationViewModel @Inject constructor(
     TeacherNotificationState(),
     notificationManager
 ) {
+
+    private val validateNotificationTitle = ValidateNotificationTitle()
+    private val validateNotificationContent = ValidateNotificationContent()
     
     init {
         loadCurrentUser()
@@ -118,6 +123,15 @@ class TeacherNotificationViewModel @Inject constructor(
             }
             is TeacherNotificationEvent.OnResetFormClicked -> {
                 resetForm()
+            }
+            is TeacherNotificationEvent.OnCancelClicked -> {
+                setState { copy(showCancelConfirmDialog = true) }
+            }
+            is TeacherNotificationEvent.OnDismissCancelConfirmDialog -> {
+                setState { copy(showCancelConfirmDialog = false) }
+            }
+            is TeacherNotificationEvent.OnConfirmCancel -> {
+                setState { copy(showCancelConfirmDialog = false, shouldNavigateBack = true) }
             }
             is TeacherNotificationEvent.OnDismissSuccessDialog -> {
                 setState { copy(showSuccessDialog = false) }
@@ -237,35 +251,26 @@ class TeacherNotificationViewModel @Inject constructor(
                 )
                 return false
             }
-            state.title.isBlank() -> {
-                showNotification(
-                    "Vui lòng nhập tiêu đề thông báo",
-                    com.example.datn.presentation.common.notifications.NotificationType.ERROR
-                )
-                return false
-            }
-            state.content.isBlank() -> {
-                showNotification(
-                    "Vui lòng nhập nội dung thông báo",
-                    com.example.datn.presentation.common.notifications.NotificationType.ERROR
-                )
-                return false
-            }
-            state.title.length < 3 -> {
-                showNotification(
-                    "Tiêu đề phải có ít nhất 3 ký tự",
-                    com.example.datn.presentation.common.notifications.NotificationType.ERROR
-                )
-                return false
-            }
-            state.content.length < 10 -> {
-                showNotification(
-                    "Nội dung phải có ít nhất 10 ký tự",
-                    com.example.datn.presentation.common.notifications.NotificationType.ERROR
-                )
-                return false
-            }
         }
+
+        val titleResult = validateNotificationTitle.validate(state.title)
+        if (!titleResult.successful) {
+            showNotification(
+                titleResult.errorMessage ?: "Tiêu đề không hợp lệ",
+                com.example.datn.presentation.common.notifications.NotificationType.ERROR
+            )
+            return false
+        }
+
+        val contentResult = validateNotificationContent.validate(state.content)
+        if (!contentResult.successful) {
+            showNotification(
+                contentResult.errorMessage ?: "Nội dung thông báo không hợp lệ",
+                com.example.datn.presentation.common.notifications.NotificationType.ERROR
+            )
+            return false
+        }
+
         return true
     }
 
@@ -393,7 +398,9 @@ class TeacherNotificationViewModel @Inject constructor(
                 isLoading = false,
                 error = null,
                 showSuccessDialog = false,
-                bulkSendResult = null
+                bulkSendResult = null,
+                showCancelConfirmDialog = false,
+                shouldNavigateBack = false
             )
         }
     }

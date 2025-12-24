@@ -38,7 +38,9 @@ data class TeacherNotificationState(
     // UI state
     val isSent: Boolean = false,
     val showSuccessDialog: Boolean = false,
-    val bulkSendResult: BulkSendResult? = null
+    val bulkSendResult: BulkSendResult? = null,
+    val showCancelConfirmDialog: Boolean = false,
+    val shouldNavigateBack: Boolean = false
 ) : BaseState
 
 /**
@@ -60,5 +62,8 @@ sealed class TeacherNotificationEvent : BaseEvent {
     // Action events
     object OnSendNotificationClicked : TeacherNotificationEvent()
     object OnResetFormClicked : TeacherNotificationEvent()
+    object OnCancelClicked : TeacherNotificationEvent()
+    object OnDismissCancelConfirmDialog : TeacherNotificationEvent()
+    object OnConfirmCancel : TeacherNotificationEvent()
     object OnDismissSuccessDialog : TeacherNotificationEvent()
 }

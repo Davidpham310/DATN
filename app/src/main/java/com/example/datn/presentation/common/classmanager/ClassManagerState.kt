@@ -11,5 +11,6 @@ data class ClassManagerState(
     val selectedClass: Class? = null,
     val showAddEditDialog: Boolean = false,
     val editingClass: Class? = null,
+    val classCodeError: String? = null,
     val confirmDeleteState: ConfirmationDialogState<Class> = ConfirmationDialogState.empty()
 ) : BaseState

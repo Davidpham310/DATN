@@ -16,13 +16,18 @@ sealed class ParentManageChildrenEvent : BaseEvent {
 
     data class UnlinkStudent(val student: LinkedStudentInfo) : ParentManageChildrenEvent()
 
+    data class OpenUnlinkDialog(val student: LinkedStudentInfo) : ParentManageChildrenEvent()
+    object DismissUnlinkDialog : ParentManageChildrenEvent()
+    object ConfirmUnlinkStudent : ParentManageChildrenEvent()
+
     data class UpdateSearchQuery(val query: String) : ParentManageChildrenEvent()
     object SearchStudents : ParentManageChildrenEvent()
-    data class LinkExistingStudent(
-        val result: StudentSearchResult,
-        val relationship: RelationshipType,
-        val isPrimaryGuardian: Boolean
-    ) : ParentManageChildrenEvent()
+
+    data class OpenLinkDialog(val result: StudentSearchResult) : ParentManageChildrenEvent()
+    object DismissLinkDialog : ParentManageChildrenEvent()
+    data class ChangeLinkRelationship(val relationship: RelationshipType) : ParentManageChildrenEvent()
+    data class ChangeLinkPrimaryGuardian(val isPrimary: Boolean) : ParentManageChildrenEvent()
+    object ConfirmLinkStudent : ParentManageChildrenEvent()
 
     object ClearMessages : ParentManageChildrenEvent()
 }

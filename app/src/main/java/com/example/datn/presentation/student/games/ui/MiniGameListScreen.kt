@@ -214,29 +214,6 @@ private fun MiniGameCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    val gameIcon = when (miniGame.gameType) {
-                        com.example.datn.domain.models.GameType.QUIZ -> Icons.Default.Quiz
-                        com.example.datn.domain.models.GameType.PUZZLE -> Icons.Default.Extension
-                        com.example.datn.domain.models.GameType.MATCHING -> Icons.Default.SwapHoriz
-                    }
-                    
-                    Icon(
-                        gameIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = miniGame.gameType.displayName,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                
                 Button(
                     onClick = onPlayGame,
                     modifier = Modifier.height(36.dp)

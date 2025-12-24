@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.BackHandler
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.NotificationType
 import com.example.datn.domain.usecase.notification.RecipientType
@@ -38,6 +39,40 @@ fun TeacherNotificationScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
+
+    LaunchedEffect(state.shouldNavigateBack) {
+        if (state.shouldNavigateBack) {
+            onNavigateBack()
+        }
+    }
+
+    BackHandler {
+        viewModel.onEvent(TeacherNotificationEvent.OnCancelClicked)
+    }
+
+    if (state.showCancelConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                viewModel.onEvent(TeacherNotificationEvent.OnDismissCancelConfirmDialog)
+            },
+            title = { Text("Xác nhận") },
+            text = { Text("Bạn có chắc chắn muốn hủy?\nThông tin đang nhập sẽ không được lưu.") },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.onEvent(TeacherNotificationEvent.OnConfirmCancel) }
+                ) {
+                    Text("Xác nhận")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.onEvent(TeacherNotificationEvent.OnDismissCancelConfirmDialog) }
+                ) {
+                    Text("Hủy")
+                }
+            }
+        )
+    }
 
     // Success Dialog
     if (state.showSuccessDialog) {
@@ -105,7 +140,9 @@ fun TeacherNotificationScreen(
                     ) 
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        viewModel.onEvent(TeacherNotificationEvent.OnCancelClicked)
+                    }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Quay lại"
@@ -676,8 +713,22 @@ fun TeacherNotificationScreen(
                     Text("Đặt lại")
                 }
 
+                OutlinedButton(
+                    onClick = { viewModel.onEvent(TeacherNotificationEvent.OnCancelClicked) },
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isLoading
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Hủy")
+                }
+
                 Button(
-                    onClick = { 
+                    onClick = {
                         viewModel.onEvent(TeacherNotificationEvent.OnSendNotificationClicked)
                     },
                     modifier = Modifier.weight(1f),
@@ -690,13 +741,13 @@ fun TeacherNotificationScreen(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Default.Send,
+                            imageVector = Icons.Default.Check,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (state.isLoading) "Đang gửi..." else "Gửi thông báo")
+                    Text(if (state.isLoading) "Đang xử lý..." else "Xác nhận")
                 }
             }
 

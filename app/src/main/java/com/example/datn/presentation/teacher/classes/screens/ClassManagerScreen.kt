@@ -57,6 +57,8 @@ fun ClassManagerScreen(
         if (state.showAddEditDialog) {
             AddEditClassDialog(
                 classObj = state.editingClass,
+                classCodeErrorFromDb = state.classCodeError,
+                onClearClassCodeError = { viewModel.onEvent(ClassManagerEvent.ClearClassCodeError) },
                 onDismiss = { viewModel.onEvent(ClassManagerEvent.DismissDialog) },
                 onConfirmAdd = { name, code, gradeLevel, subject ->
                     viewModel.onEvent(

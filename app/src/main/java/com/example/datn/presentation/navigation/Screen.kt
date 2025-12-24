@@ -59,6 +59,13 @@ sealed class Screen(val route: String) {
         val routeWithArgs = "teacher/lesson_content_detail/{contentId}?url={contentUrl}"
     }
     object TeacherNotification : Screen("teacher/notification")
+    object TeacherSendNotification : Screen("teacher/notification/send")
+    object TeacherNotificationDetail : Screen("teacher/notification/detail/{notificationId}") {
+        fun createRoute(notificationId: String): String =
+            "teacher/notification/detail/$notificationId"
+
+        val routeWithArgs: String = "teacher/notification/detail/{notificationId}"
+    }
     object TeacherTestManager : Screen("teacher/test_manager")
     
     // MiniGame routes trong context của LessonContent
@@ -163,6 +170,12 @@ sealed class Screen(val route: String) {
     object ParentAccount : Screen("parent/account")
     object ParentChangePassword : Screen("parent/change_password")
     object ParentNotifications : Screen("parent/notifications")
+    object ParentNotificationDetail : Screen("parent/notifications/detail/{notificationId}") {
+        fun createRoute(notificationId: String): String =
+            "parent/notifications/detail/$notificationId"
+
+        val routeWithArgs: String = "parent/notifications/detail/{notificationId}"
+    }
 
     object ParentManageChildren : Screen("parent/manage_children")
     object ParentCreateStudentAccount : Screen("parent/create_student_account")
@@ -220,6 +233,12 @@ sealed class Screen(val route: String) {
     object StudentConversations : Screen("student/conversations")
     object StudentChangePassword : Screen("student/change_password")
     object StudentNotifications : Screen("student/notifications")
+    object StudentNotificationDetail : Screen("student/notifications/detail/{notificationId}") {
+        fun createRoute(notificationId: String): String =
+            "student/notifications/detail/$notificationId"
+
+        val routeWithArgs: String = "student/notifications/detail/{notificationId}"
+    }
 
     object StudentClassDetail : Screen("student/class_detail/{classId}/{className}") {
         fun createRoute(classId: String, className: String): String =

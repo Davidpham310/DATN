@@ -20,6 +20,8 @@ sealed class TestQuestionEvent : BaseEvent {
         val testId: String,
         val content: String,
         val score: Double,
+        val timeLimit: Int,
+        val order: Int,
         val questionType: QuestionType,
         val mediaUrl: String?
     ) : TestQuestionEvent()
@@ -29,6 +31,8 @@ sealed class TestQuestionEvent : BaseEvent {
         val testId: String,
         val content: String,
         val score: Double,
+        val timeLimit: Int,
+        val order: Int,
         val questionType: QuestionType,
         val mediaUrl: String?
     ) : TestQuestionEvent()

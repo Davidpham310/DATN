@@ -8,8 +8,15 @@ class ValidateClassName : Validator<String> {
         if (value.isBlank()) {
             return ValidationResult(false, "Tên lớp không được để trống")
         }
-        if (value.length < 3) {
-            return ValidationResult(false, "Tên lớp phải có ít nhất 3 ký tự")
+        val trimmed = value.trim()
+        if (trimmed.length < 3 || trimmed.length > 50) {
+            return ValidationResult(false, "Tên lớp phải từ 3–50 ký tự")
+        }
+        if (trimmed.any { c -> !(c.isLetterOrDigit() || c.isWhitespace()) }) {
+            return ValidationResult(false, "Tên lớp không được chứa ký tự đặc biệt")
+        }
+        if (!trimmed.any { it.isLetterOrDigit() }) {
+            return ValidationResult(false, "Tên lớp không hợp lệ")
         }
         return ValidationResult(true)
     }

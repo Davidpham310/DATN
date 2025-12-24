@@ -17,9 +17,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.datn.domain.models.GameType
+import com.example.datn.core.utils.validation.rules.minigame.ValidateMatchingPair
+import com.example.datn.core.utils.validation.rules.minigame.ValidateOptionContent
+import com.example.datn.core.utils.validation.rules.minigame.ValidateOptionHint
+import com.example.datn.core.utils.validation.rules.minigame.ValidateOptionMediaUrl
+import com.example.datn.core.utils.validation.rules.minigame.ValidateOptionPairContent
 import com.example.datn.domain.models.MiniGameOption
 import com.example.datn.domain.models.QuestionType
 
@@ -27,7 +33,6 @@ import com.example.datn.domain.models.QuestionType
 fun AddEditMiniGameOptionDialog(
     editing: MiniGameOption?,
     questionType: QuestionType?,
-    gameType: GameType?,
     onDismiss: () -> Unit,
     onConfirm: (content: String, isCorrect: Boolean, mediaUrl: String?, hint: String?, pairContent: String?) -> Unit
 ) {
@@ -37,10 +42,52 @@ fun AddEditMiniGameOptionDialog(
     val correctState = remember { mutableStateOf(editing?.isCorrect ?: false) }
     val hintState = remember { mutableStateOf(editing?.hint ?: "") }
     val pairContentState = remember { mutableStateOf(editing?.pairContent ?: "") }
+
+    val contentValidator = remember { ValidateOptionContent() }
+    val mediaUrlValidator = remember { ValidateOptionMediaUrl() }
+    val hintValidator = remember { ValidateOptionHint() }
+    val pairContentValidator = remember { ValidateOptionPairContent() }
+    val matchingPairValidator = remember { ValidateMatchingPair() }
+
+    var contentError by remember { mutableStateOf<String?>(null) }
+    var mediaUrlError by remember { mutableStateOf<String?>(null) }
+    var hintError by remember { mutableStateOf<String?>(null) }
+    var pairContentError by remember { mutableStateOf<String?>(null) }
     
     // Determine if we need special fields
-    val isPuzzle = gameType == GameType.PUZZLE && questionType == QuestionType.FILL_BLANK
-    val isMatching = gameType == GameType.MATCHING
+    val qType = questionType
+    val showHintField = qType == QuestionType.FILL_BLANK
+    val showCorrectField = qType == QuestionType.SINGLE_CHOICE || qType == QuestionType.MULTIPLE_CHOICE
+    val showPairContentField = false
+
+    fun validateFields(): Boolean {
+        val contentResult = contentValidator.validate(contentState.value)
+        contentError = if (!contentResult.successful) contentResult.errorMessage else null
+
+        val mediaUrlResult = mediaUrlValidator.validate(urlState.value)
+        mediaUrlError = if (!mediaUrlResult.successful) mediaUrlResult.errorMessage else null
+
+        if (showPairContentField) {
+            val pairContentResult = pairContentValidator.validate(pairContentState.value.ifBlank { null })
+            pairContentError = if (!pairContentResult.successful) pairContentResult.errorMessage else null
+
+            val matchingPairResult = matchingPairValidator.validate(contentState.value to pairContentState.value.ifBlank { null })
+            if (!matchingPairResult.successful) {
+                pairContentError = matchingPairResult.errorMessage
+            }
+        } else {
+            pairContentError = null
+        }
+
+        if (showHintField) {
+            val hintResult = hintValidator.validate(hintState.value.ifBlank { null })
+            hintError = if (!hintResult.successful) hintResult.errorMessage else null
+        } else {
+            hintError = null
+        }
+
+        return contentError == null && mediaUrlError == null && hintError == null && pairContentError == null
+    }
 
     LaunchedEffect(editing?.id) {
         contentState.value = editing?.content ?: ""
@@ -50,6 +97,14 @@ fun AddEditMiniGameOptionDialog(
         pairContentState.value = editing?.pairContent ?: ""
     }
 
+    LaunchedEffect(qType, editing?.id) {
+        when (qType) {
+            QuestionType.FILL_BLANK -> correctState.value = true
+            QuestionType.ESSAY -> correctState.value = false
+            else -> {}
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
@@ -57,59 +112,98 @@ fun AddEditMiniGameOptionDialog(
             Column(Modifier.padding(top = 8.dp)) {
                 OutlinedTextField(
                     value = contentState.value,
-                    onValueChange = { contentState.value = it },
+                    onValueChange = {
+                        contentState.value = it
+                        if (contentError != null) contentError = null
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Nội dung đáp án") }
+                    label = { Text("Nội dung đáp án") },
+                    isError = contentError != null,
+                    supportingText = {
+                        contentError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = urlState.value,
-                    onValueChange = { urlState.value = it },
+                    onValueChange = {
+                        urlState.value = it
+                        if (mediaUrlError != null) mediaUrlError = null
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Media URL (tuỳ chọn)") }
+                    label = { Text("Media URL (tuỳ chọn)") },
+                    isError = mediaUrlError != null,
+                    supportingText = {
+                        mediaUrlError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
                 )
                 Spacer(Modifier.height(8.dp))
                 
-                // PUZZLE specific: Hint field
-                if (isPuzzle) {
+                // Hint field (primarily for fill-blank)
+                if (showHintField) {
                     OutlinedTextField(
                         value = hintState.value,
-                        onValueChange = { hintState.value = it },
+                        onValueChange = {
+                            hintState.value = it
+                            if (hintError != null) hintError = null
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Gợi ý (VD: a__le cho apple)") },
-                        supportingText = { Text("Dùng _ để ẩn ký tự", style = MaterialTheme.typography.bodySmall) }
+                        isError = hintError != null,
+                        supportingText = {
+                            hintError?.let {
+                                Text(it, color = MaterialTheme.colorScheme.error)
+                            } ?: Text("Dùng _ để ẩn ký tự", style = MaterialTheme.typography.bodySmall)
+                        }
                     )
                     Spacer(Modifier.height(8.dp))
                 }
                 
-                // MATCHING specific: Pair content field
-                if (isMatching) {
+                // Pair content field (used for matching-style questions)
+                if (showPairContentField) {
                     OutlinedTextField(
                         value = pairContentState.value,
-                        onValueChange = { pairContentState.value = it },
+                        onValueChange = {
+                            pairContentState.value = it
+                            if (pairContentError != null) pairContentError = null
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Nội dung cặp ghép") },
-                        supportingText = { Text("Nội dung để ghép với đáp án này", style = MaterialTheme.typography.bodySmall) }
+                        isError = pairContentError != null,
+                        supportingText = {
+                            pairContentError?.let {
+                                Text(it, color = MaterialTheme.colorScheme.error)
+                            } ?: Text("Nội dung để ghép với đáp án này (để trống nếu không dùng)", style = MaterialTheme.typography.bodySmall)
+                        }
                     )
                     Spacer(Modifier.height(8.dp))
                 }
-                
-                RowCheckbox(
-                    checked = correctState.value,
-                    onCheckedChange = { correctState.value = it },
-                    label = "Đáp án đúng"
-                )
+
+                if (showCorrectField) {
+                    RowCheckbox(
+                        checked = correctState.value,
+                        onCheckedChange = { correctState.value = it },
+                        label = "Đáp án đúng"
+                    )
+                }
             }
         },
         confirmButton = {
             Button(onClick = { 
-                onConfirm(
-                    contentState.value, 
-                    correctState.value, 
-                    urlState.value.ifBlank { null },
-                    if (isPuzzle) hintState.value.ifBlank { null } else null,
-                    if (isMatching) pairContentState.value.ifBlank { null } else null
-                )
+                if (validateFields()) {
+                    val isCorrectForSubmit = when (qType) {
+                        QuestionType.FILL_BLANK -> true
+                        QuestionType.ESSAY -> false
+                        else -> correctState.value
+                    }
+                    onConfirm(
+                        contentState.value,
+                        isCorrectForSubmit,
+                        urlState.value.ifBlank { null },
+                        if (showHintField) hintState.value.ifBlank { null } else null,
+                        if (showPairContentField) pairContentState.value.ifBlank { null } else null
+                    )
+                }
             }) {
                 Text("Xác nhận")
             }

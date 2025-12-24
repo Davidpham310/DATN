@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.Test
+import com.example.datn.core.utils.validation.rules.test.ValidateTestDescription
 import com.example.datn.core.utils.validation.rules.test.ValidateTestTitle
 import com.example.datn.core.utils.validation.rules.test.ValidateTotalScore
 import java.time.Instant
@@ -63,9 +64,11 @@ fun AddEditTestDialog(
     }
 
     val titleValidator = remember { ValidateTestTitle() }
+    val descriptionValidator = remember { ValidateTestDescription() }
     val scoreValidator = remember { ValidateTotalScore() }
 
     var titleError by remember { mutableStateOf<String?>(null) }
+    var descriptionError by remember { mutableStateOf<String?>(null) }
     var totalScoreError by remember { mutableStateOf<String?>(null) }
     var startTimeError by remember { mutableStateOf<String?>(null) }
     var endTimeError by remember { mutableStateOf<String?>(null) }
@@ -73,6 +76,10 @@ fun AddEditTestDialog(
     fun validateFields(): Boolean {
         val titleResult = titleValidator.validate(title)
         titleError = if (!titleResult.successful) titleResult.errorMessage else null
+
+        val desc = description.ifBlank { null }
+        val descriptionResult = descriptionValidator.validate(desc)
+        descriptionError = if (!descriptionResult.successful) descriptionResult.errorMessage else null
 
         val scoreResult = scoreValidator.validate(totalScoreText)
         totalScoreError = if (!scoreResult.successful) scoreResult.errorMessage else null
@@ -98,12 +105,11 @@ fun AddEditTestDialog(
             endTimeError = "Định dạng thời gian không hợp lệ (yyyy-MM-dd'T'HH:mm)"
         }
 
-        if (startTime != null && endTime != null && startTime.isAfter(endTime)) {
-            startTimeError = "Thời gian bắt đầu phải trước thời gian kết thúc"
-            endTimeError = "Thời gian kết thúc phải sau thời gian bắt đầu"
+        if (startTime != null && endTime != null && !startTime.isBefore(endTime)) {
+            endTimeError = "Thời gian kết thúc phải lớn hơn thời gian bắt đầu"
         }
 
-        return titleError == null && totalScoreError == null && 
+        return titleError == null && descriptionError == null && totalScoreError == null &&
                startTimeError == null && endTimeError == null
     }
 
@@ -147,11 +153,24 @@ fun AddEditTestDialog(
                 // Mô tả
                 OutlinedTextField(
                     value = description,
-                    onValueChange = { description = it },
+                    onValueChange = {
+                        description = it
+                        if (descriptionError != null) descriptionError = null
+                    },
                     label = { Text("Mô tả") },
                     modifier = Modifier.fillMaxWidth(),
+                    isError = descriptionError != null,
                     minLines = 3,
-                    maxLines = 5
+                    maxLines = 5,
+                    supportingText = {
+                        if (descriptionError != null) {
+                            Text(
+                                text = descriptionError!!,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
                 )
 
                 // Tổng điểm

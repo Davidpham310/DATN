@@ -5,11 +5,14 @@ import com.example.datn.BuildConfig
 import io.minio.*
 import io.minio.errors.MinioException
 import io.minio.http.Method
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,20 +25,38 @@ class MinIOService @Inject constructor(
 
     private val TAG = "MinIO Upload"
 
+    private val initScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val isBucketEnsured = AtomicBoolean(false)
+    private val bucketEnsureMutex = Mutex()
+
     init {
         // 🔹 Tự động tạo bucket khi service khởi tạo (nếu chưa tồn tại)
-        try {
-            Log.d(TAG, "🔍 Checking if bucket exists: $bucketName")
-            if (!bucketExists()) {
-                Log.d(TAG, "📁 Bucket không tồn tại, đang tạo: $bucketName")
-                createBucket()
-                Log.d(TAG, "✅ Bucket đã được tạo thành công: $bucketName")
-            } else {
-                Log.d(TAG, "✅ Bucket đã tồn tại: $bucketName")
+        initScope.launch {
+            ensureBucketExists()
+        }
+    }
+
+    private suspend fun ensureBucketExists() {
+        if (isBucketEnsured.get()) return
+
+        bucketEnsureMutex.withLock {
+            if (isBucketEnsured.get()) return
+
+            try {
+                Log.d(TAG, "🔍 Checking if bucket exists: $bucketName")
+                val exists = bucketExists()
+                if (!exists) {
+                    Log.d(TAG, "📁 Bucket không tồn tại, đang tạo: $bucketName")
+                    createBucket()
+                    Log.d(TAG, "✅ Bucket đã được tạo thành công: $bucketName")
+                } else {
+                    Log.d(TAG, "✅ Bucket đã tồn tại: $bucketName")
+                }
+                isBucketEnsured.set(true)
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ Lỗi khi kiểm tra/tạo bucket: ${e.message}")
+                // Không throw exception, để upload có thể tiếp tục
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "⚠️ Lỗi khi kiểm tra/tạo bucket: ${e.message}")
-            // Không throw exception, để upload có thể tiếp tục
         }
     }
 
@@ -48,6 +69,7 @@ class MinIOService @Inject constructor(
         contentType: String = "application/octet-stream",
         onProgress: ((uploaded: Long, total: Long) -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
+        ensureBucketExists()
         require(file.exists()) { "File không tồn tại: ${file.absolutePath}" }
 
         val totalSize = file.length()
@@ -91,6 +113,7 @@ class MinIOService @Inject constructor(
         contentType: String = "application/octet-stream",
         onProgress: ((uploaded: Long, total: Long) -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
+        ensureBucketExists()
         require(size > 0) { "Size phải > 0 để tránh lỗi chữ ký" }
 
         val wrappedInput = ProgressInputStream(inputStream, size) { uploaded, total ->
@@ -211,8 +234,8 @@ class MinIOService @Inject constructor(
     /**
      * 🔹 Kiểm tra bucket có tồn tại không
      */
-    private fun bucketExists(): Boolean {
-        return try {
+    private suspend fun bucketExists(): Boolean = withContext(Dispatchers.IO) {
+        try {
             client.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build())
         } catch (e: Exception) {
             Log.w(TAG, "⚠️ Lỗi kiểm tra bucket: ${e.message}")
@@ -223,7 +246,7 @@ class MinIOService @Inject constructor(
     /**
      * 🔹 Tạo bucket mới
      */
-    private fun createBucket() {
+    private suspend fun createBucket() = withContext(Dispatchers.IO) {
         try {
             client.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build())
             Log.d(TAG, "✅ Bucket tạo thành công: $bucketName")

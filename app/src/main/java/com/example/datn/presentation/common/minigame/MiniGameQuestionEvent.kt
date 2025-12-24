@@ -21,7 +21,8 @@ sealed class MiniGameQuestionEvent : BaseEvent {
         val content: String,
         val questionType: QuestionType,
         val score: Double,
-        val timeLimit: Long
+        val timeLimit: Long,
+        val order: Int
     ) : MiniGameQuestionEvent()
 
     data class ConfirmEditQuestion(
@@ -30,6 +31,7 @@ sealed class MiniGameQuestionEvent : BaseEvent {
         val content: String,
         val questionType: QuestionType,
         val score: Double,
-        val timeLimit: Long
+        val timeLimit: Long,
+        val order: Int
     ) : MiniGameQuestionEvent()
 }

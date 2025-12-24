@@ -13,7 +13,7 @@ interface IMiniGameRepository {
     fun createGame(game: MiniGame): Flow<Resource<MiniGame>>
     fun getGameById(gameId: String): Flow<Resource<MiniGame?>>
     fun getQuestionsByGame(gameId: String): Flow<Resource<List<MiniGameQuestion>>>
-    fun getFilteredGames(type: String?, level: String?): Flow<Resource<List<MiniGame>>>
+    fun getFilteredGames(level: String?): Flow<Resource<List<MiniGame>>>
     fun getGamesByTeacher(teacherId: String): Flow<Resource<List<MiniGame>>>
     fun getGamesByLesson(lessonId: String): Flow<Resource<List<MiniGame>>>
     fun updateGame(game: MiniGame): Flow<Resource<MiniGame>>

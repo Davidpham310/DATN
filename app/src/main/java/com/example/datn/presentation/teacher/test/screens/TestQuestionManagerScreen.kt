@@ -165,7 +165,7 @@ fun TestQuestionManagerScreen(
 
                             // Danh sách câu hỏi
                             items(state.questions, key = { it.id }) { question ->
-                                val index = state.questions.indexOf(question) + 1
+                                val index = question.order
                                 TestQuestionItem(
                                     questionNumber = index,
                                     question = question,
@@ -194,13 +194,15 @@ fun TestQuestionManagerScreen(
                 AddEditTestQuestionDialog(
                     testQuestion = state.editingQuestion,
                     onDismiss = { viewModel.onEvent(TestQuestionEvent.DismissDialog) },
-                    onConfirm = { content, score, questionType, mediaUrl ->
+                    onConfirm = { content, score, timeLimit, order, questionType, mediaUrl ->
                         if (state.editingQuestion == null) {
                             viewModel.onEvent(
                                 TestQuestionEvent.ConfirmAddQuestion(
                                     testId = testId,
                                     content = content,
                                     score = score,
+                                    timeLimit = timeLimit,
+                                    order = order,
                                     questionType = questionType,
                                     mediaUrl = mediaUrl
                                 )
@@ -212,6 +214,8 @@ fun TestQuestionManagerScreen(
                                     testId = testId,
                                     content = content,
                                     score = score,
+                                    timeLimit = timeLimit,
+                                    order = order,
                                     questionType = questionType,
                                     mediaUrl = mediaUrl
                                 )

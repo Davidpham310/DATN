@@ -6,9 +6,9 @@ import com.example.datn.core.base.BaseViewModel
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
-import com.example.datn.domain.models.GameType
 import com.example.datn.domain.models.Level
 import com.example.datn.domain.models.MiniGame
+import com.example.datn.core.utils.validation.rules.minigame.ValidateMiniGameDescription
 import com.example.datn.core.utils.validation.rules.minigame.ValidateMiniGameTitle
 import com.example.datn.domain.usecase.auth.AuthUseCases
 import com.example.datn.domain.usecase.minigame.MiniGameUseCases
@@ -33,6 +33,7 @@ class LessonMiniGameManagerViewModel @Inject constructor(
     private var currentTeacherId: String = ""
 
     private val miniGameTitleValidator = ValidateMiniGameTitle()
+    private val miniGameDescriptionValidator = ValidateMiniGameDescription()
 
     init {
         viewModelScope.launch {
@@ -115,6 +116,12 @@ class LessonMiniGameManagerViewModel @Inject constructor(
             return
         }
 
+        val descriptionResult = miniGameDescriptionValidator.validate(event.description)
+        if (!descriptionResult.successful) {
+            showNotification(descriptionResult.errorMessage ?: "Mô tả không hợp lệ", NotificationType.ERROR)
+            return
+        }
+
         viewModelScope.launch {
             val newGame = MiniGame(
                 id = "",
@@ -122,9 +129,7 @@ class LessonMiniGameManagerViewModel @Inject constructor(
                 lessonId = event.lessonId,
                 title = event.title.trim(),
                 description = event.description.trim(),
-                gameType = event.gameType,
                 level = event.level,
-                contentUrl = event.contentUrl?.trim(),
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )
@@ -152,8 +157,15 @@ class LessonMiniGameManagerViewModel @Inject constructor(
             return
         }
 
-        if (event.title.isBlank()) {
-            showNotification("Tiêu đề không được để trống", NotificationType.ERROR)
+        val titleResult = miniGameTitleValidator.validate(event.title)
+        if (!titleResult.successful) {
+            showNotification(titleResult.errorMessage ?: "Tiêu đề không được để trống", NotificationType.ERROR)
+            return
+        }
+
+        val descriptionResult = miniGameDescriptionValidator.validate(event.description)
+        if (!descriptionResult.successful) {
+            showNotification(descriptionResult.errorMessage ?: "Mô tả không hợp lệ", NotificationType.ERROR)
             return
         }
 
@@ -167,9 +179,7 @@ class LessonMiniGameManagerViewModel @Inject constructor(
                 lessonId = event.lessonId,
                 title = event.title.trim(),
                 description = event.description.trim(),
-                gameType = event.gameType,
                 level = event.level,
-                contentUrl = event.contentUrl?.trim(),
                 createdAt = originalGame?.createdAt ?: Instant.now(),
                 updatedAt = Instant.now()
             )

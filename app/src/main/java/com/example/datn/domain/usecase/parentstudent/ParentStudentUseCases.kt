@@ -9,5 +9,8 @@ data class ParentStudentUseCases @Inject constructor(
     val getStudentClassesForParent: GetStudentClassesForParentUseCase,
     val getLinkedStudents: GetLinkedStudentsUseCase,
     val linkParentToStudent: LinkParentToStudentUseCase,
+    val checkStudentHasPrimaryGuardian: CheckStudentHasPrimaryGuardianUseCase,
+    val checkStudentHasOtherPrimaryGuardian: CheckStudentHasOtherPrimaryGuardianUseCase,
+    val checkStudentLinkedToParent: CheckStudentLinkedToParentUseCase,
     val createStudentAccountForParent: CreateStudentAccountForParentUseCase
 )

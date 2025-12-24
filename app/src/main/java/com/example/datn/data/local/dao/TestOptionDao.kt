@@ -14,7 +14,7 @@ interface TestOptionDao : BaseDao<TestOptionEntity> {
      * @param testQuestionId ID của câu hỏi.
      * @return Danh sách các đáp án (TestOptionEntity).
      */
-    @Query("SELECT * FROM test_option WHERE testQuestionId = :testQuestionId")
+    @Query("SELECT * FROM test_option WHERE testQuestionId = :testQuestionId ORDER BY `order`")
     suspend fun getOptionsByQuestion(testQuestionId: String): List<TestOptionEntity>
 
     /**

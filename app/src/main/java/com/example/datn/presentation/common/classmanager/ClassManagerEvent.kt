@@ -9,6 +9,7 @@ sealed class ClassManagerEvent : BaseEvent {
     data class DeleteClass(val classModel: Class) : ClassManagerEvent()
     data class ShowError(val message: String) : ClassManagerEvent()
     object ShowAddClassDialog : ClassManagerEvent()
+    object ClearClassCodeError : ClassManagerEvent()
 
     data class ConfirmAddClass(
         val name: String,

@@ -131,6 +131,24 @@ class FirestoreNotificationService @Inject constructor() :
         }.sortedByDescending { it.createdAt }
     }
 
+    suspend fun getNotificationsBySenderId(senderId: String): List<Notification> {
+        Log.d(TAG, "Fetching notifications by senderId: $senderId")
+
+        val snapshot = collectionRef
+            .whereEqualTo("senderId", senderId)
+            .get()
+            .await()
+
+        return snapshot.documents.mapNotNull { doc ->
+            try {
+                doc.toEntity()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error parsing notification document: ${doc.id}", e)
+                null
+            }
+        }.sortedByDescending { it.createdAt }
+    }
+
     fun listenNotificationsByUserId(userId: String): Flow<List<Notification>> = callbackFlow {
         var listener: ListenerRegistration? = null
 
@@ -158,6 +176,41 @@ class FirestoreNotificationService @Inject constructor() :
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error setting up notifications listener for user: $userId", e)
+            close(e)
+        }
+
+        awaitClose {
+            listener?.remove()
+        }
+    }
+
+    fun listenNotificationsBySenderId(senderId: String): Flow<List<Notification>> = callbackFlow {
+        var listener: ListenerRegistration? = null
+
+        try {
+            val query = collectionRef
+                .whereEqualTo("senderId", senderId)
+
+            listener = query.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val notifications = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            doc.toEntity()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error parsing notification document: ${doc.id}", e)
+                            null
+                        }
+                    }
+                    trySend(notifications.sortedByDescending { it.createdAt })
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up notifications listener for sender: $senderId", e)
             close(e)
         }
 
