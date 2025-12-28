@@ -1,4 +1,4 @@
-package com.example.datn
+package com.example.datn.app
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp

@@ -1,6 +1,6 @@
 package com.example.datn.core.di
 
-import FileRepositoryImpl
+import com.example.datn.data.repository.impl.FileRepositoryImpl
 import android.content.Context
 import androidx.room.Room
 import com.example.datn.BuildConfig

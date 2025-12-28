@@ -1,4 +1,4 @@
-package com.example.datn
+package com.example.datn.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
