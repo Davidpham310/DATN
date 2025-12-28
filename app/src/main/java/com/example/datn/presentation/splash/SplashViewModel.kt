@@ -9,8 +9,6 @@ import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.UserRole
 import com.example.datn.domain.usecase.splash.SplashUseCase
-import com.example.datn.presentation.common.splash.SplashEvent
-import com.example.datn.presentation.common.splash.SplashState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.minio.BucketExistsArgs
 import io.minio.MakeBucketArgs

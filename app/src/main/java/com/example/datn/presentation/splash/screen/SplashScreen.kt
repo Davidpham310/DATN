@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.UserRole
-import com.example.datn.presentation.common.splash.SplashEvent
+import com.example.datn.presentation.splash.SplashEvent
 import com.example.datn.presentation.splash.SplashViewModel
 import kotlinx.coroutines.flow.collectLatest
 
