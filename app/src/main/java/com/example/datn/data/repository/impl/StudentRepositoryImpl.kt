@@ -4,7 +4,7 @@ import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.Student
 import com.example.datn.domain.models.User
 import com.example.datn.domain.repository.IStudentRepository
-import com.example.datn.core.network.datasource.FirebaseDataSource
+import com.example.datn.data.remote.datasource.FirebaseDataSource
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow

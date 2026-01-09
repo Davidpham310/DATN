@@ -17,6 +17,16 @@ sealed class StudentLessonViewEvent : BaseEvent {
         val initialContentId: String? = null
     ) : StudentLessonViewEvent()
 
+    data class RequestPlayMiniGame(
+        val miniGameId: String,
+        val lessonId: String
+    ) : StudentLessonViewEvent()
+
+    data class NavigateToMiniGame(
+        val miniGameId: String,
+        val lessonId: String
+    ) : StudentLessonViewEvent()
+
     /**
      * Navigate to next content (if available and accessible)
      */

@@ -52,7 +52,7 @@ class AuthViewModel @Inject constructor(
 
         launch {
             authUseCases.login(LoginParams(email, password, role)).collect { resource ->
-                handleAuthResult(resource, successMessage = "Login successful")
+                handleAuthResult(resource, successMessage = "Đăng nhập thành công")
             }
         }
     }

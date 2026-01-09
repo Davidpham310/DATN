@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -21,8 +22,11 @@ import com.example.datn.domain.models.TestQuestion
 fun AddEditTestQuestionDialog(
     testQuestion: TestQuestion? = null,
     onDismiss: () -> Unit,
+    isLoading: Boolean = false,
     onConfirm: (content: String, score: Double, timeLimit: Int, order: Int, questionType: QuestionType, mediaUrl: String?) -> Unit
 ) {
+    val isEditing = testQuestion != null
+
     var content by remember { mutableStateOf(testQuestion?.content ?: "") }
     var score by remember { mutableStateOf(testQuestion?.score?.toString() ?: "") }
     var timeLimit by remember { mutableStateOf(testQuestion?.timeLimit?.toString() ?: "") }
@@ -72,7 +76,9 @@ fun AddEditTestQuestionDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (!isLoading) onDismiss()
+        },
         title = { Text(if (testQuestion == null) "Thêm câu hỏi" else "Sửa câu hỏi") },
         text = {
             Column(
@@ -88,6 +94,7 @@ fun AddEditTestQuestionDialog(
                     },
                     label = { Text("Nội dung câu hỏi *") },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading,
                     isError = contentError != null,
                     minLines = 3,
                     maxLines = 5,
@@ -107,6 +114,7 @@ fun AddEditTestQuestionDialog(
                     },
                     label = { Text("Điểm số *") },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = scoreError != null,
                     supportingText = {
@@ -124,6 +132,7 @@ fun AddEditTestQuestionDialog(
                     },
                     label = { Text("Thời gian trả lời *") },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = timeLimitError != null,
                     supportingText = {
@@ -141,6 +150,7 @@ fun AddEditTestQuestionDialog(
                     },
                     label = { Text("Thứ tự hiển thị *") },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = displayOrderError != null,
                     supportingText = {
@@ -151,35 +161,49 @@ fun AddEditTestQuestionDialog(
                 )
 
                 // Question Type Dropdown
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
+                if (isEditing) {
                     OutlinedTextField(
                         value = selectedType.displayName,
                         onValueChange = {},
                         readOnly = true,
+                        enabled = false,
                         label = { Text("Loại câu hỏi") },
-                        trailingIcon = {
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
+                        modifier = Modifier.fillMaxWidth()
                     )
-
-                    ExposedDropdownMenu(
+                } else {
+                    ExposedDropdownMenuBox(
                         expanded = expanded,
-                        onDismissRequest = { expanded = false }
+                        onExpandedChange = {
+                            if (!isLoading) expanded = !expanded
+                        }
                     ) {
-                        questionTypes.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type.displayName) },
-                                onClick = {
-                                    selectedType = type
-                                    expanded = false
-                                }
-                            )
+                        OutlinedTextField(
+                            value = selectedType.displayName,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Loại câu hỏi") },
+                            trailingIcon = {
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(),
+                            enabled = !isLoading
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            questionTypes.forEach { type ->
+                                DropdownMenuItem(
+                                    text = { Text(type.displayName) },
+                                    onClick = {
+                                        selectedType = type
+                                        expanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -193,6 +217,7 @@ fun AddEditTestQuestionDialog(
                     },
                     label = { Text("URL hình ảnh/video (tùy chọn)") },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading,
                     isError = mediaUrlError != null,
                     supportingText = {
                         mediaUrlError?.let {
@@ -217,13 +242,26 @@ fun AddEditTestQuestionDialog(
                             mediaUrl.trim().ifBlank { null }
                         )
                     }
-                }
+                },
+                enabled = !isLoading
             ) {
-                Text("Xác nhận")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text("Xác nhận")
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isLoading
+            ) {
                 Text("Hủy")
             }
         }

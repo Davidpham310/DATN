@@ -11,6 +11,7 @@ data class StudentTestListState(
     val tests: List<TestWithStatus> = emptyList(),
     val upcomingTests: List<TestWithStatus> = emptyList(),
     val ongoingTests: List<TestWithStatus> = emptyList(),
+    val overdueTests: List<TestWithStatus> = emptyList(),
     val completedTests: List<TestWithStatus> = emptyList(),
     override val isLoading: Boolean = false,
     override val error: String? = null
@@ -47,7 +48,7 @@ data class TestWithStatus(
                 val days = Duration.between(now, test.startTime).toDays()
                 "Còn $days ngày"
             }
-            now.isAfter(test.endTime) -> "Đã kết thúc"
+            !now.isBefore(test.endTime) -> "Đã kết thúc"
             else -> {
                 val hours = Duration.between(now, test.endTime).toHours()
                 when {

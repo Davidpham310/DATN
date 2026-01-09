@@ -6,7 +6,7 @@ import com.example.datn.domain.models.EnrollmentStatus
 import com.example.datn.domain.models.Parent
 import com.example.datn.domain.models.Student
 import com.example.datn.domain.repository.IParentRepository
-import com.example.datn.core.network.datasource.FirebaseDataSource
+import com.example.datn.data.remote.datasource.FirebaseDataSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject

@@ -20,7 +20,8 @@ data class UpdateLessonContentParams(
     val contentText: String? = null,    // Nếu contentType = TEXT, lưu trực tiếp
     val order: Int,
     val newFileStream: InputStream? = null,  // Nếu cập nhật file
-    val newFileSize: Long = 0
+    val newFileSize: Long = 0,
+    val onUploadProgress: ((uploaded: Long, total: Long) -> Unit)? = null
 )
 
 class UpdateLessonContentUseCase @Inject constructor(
@@ -71,7 +72,8 @@ class UpdateLessonContentUseCase @Inject constructor(
                 contentId = params.contentId,
                 content = updatedContent,
                 newFileStream = params.newFileStream,
-                newFileSize = params.newFileSize
+                newFileSize = params.newFileSize,
+                onUploadProgress = params.onUploadProgress
             ).collect { result ->
                 when (result) {
                     is Resource.Success -> {

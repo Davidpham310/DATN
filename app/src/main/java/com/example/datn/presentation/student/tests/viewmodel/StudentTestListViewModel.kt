@@ -51,6 +51,7 @@ class StudentTestListViewModel @Inject constructor(
         when (event) {
             StudentTestListEvent.LoadTests -> loadTests()
             StudentTestListEvent.RefreshTests -> refreshTests()
+            is StudentTestListEvent.RequestStartTest -> handleRequestStartTest(event.testId)
             is StudentTestListEvent.NavigateToTest -> {
                 // Navigation handled by screen
             }
@@ -129,9 +130,11 @@ class StudentTestListViewModel @Inject constructor(
                                 tests = emptyList(),
                                 upcomingTests = emptyList(),
                                 ongoingTests = emptyList(),
+                                overdueTests = emptyList(),
                                 completedTests = emptyList()
                             )
                         }
+                        showNotification("Hiện chưa có bài kiểm tra", NotificationType.INFO)
                         return@collect
                     }
 
@@ -142,6 +145,23 @@ class StudentTestListViewModel @Inject constructor(
                             is Resource.Success -> {
                                 val tests = testsResult.data ?: emptyList()
                                 Log.d(TAG, "[loadTestsForStudent] Loaded ${tests.size} tests")
+
+                                if (tests.isEmpty()) {
+                                    setState {
+                                        copy(
+                                            isLoading = false,
+                                            tests = emptyList(),
+                                            upcomingTests = emptyList(),
+                                            ongoingTests = emptyList(),
+                                            overdueTests = emptyList(),
+                                            completedTests = emptyList(),
+                                            error = null
+                                        )
+                                    }
+                                    showNotification("Hiện chưa có bài kiểm tra", NotificationType.INFO)
+                                    return@collect
+                                }
+
                                 processTests(tests, studentId)
                             }
                             is Resource.Error -> {
@@ -167,6 +187,37 @@ class StudentTestListViewModel @Inject constructor(
 
     private fun refreshTests() {
         loadTests()
+    }
+
+    private fun handleRequestStartTest(testId: String) {
+        val testWithStatus = state.value.tests.firstOrNull { it.test.id == testId }
+        if (testWithStatus == null) {
+            showNotification("Không tìm thấy bài kiểm tra", NotificationType.ERROR)
+            return
+        }
+
+        if (testWithStatus.hasResult) {
+            val resultId = testWithStatus.result?.id
+            if (resultId != null) {
+                sendEvent(StudentTestListEvent.NavigateToResult(testId = testId, resultId = resultId))
+            } else {
+                showNotification("Không tìm thấy kết quả bài kiểm tra", NotificationType.ERROR)
+            }
+            return
+        }
+
+        val now = Instant.now()
+        when {
+            now.isBefore(testWithStatus.test.startTime) -> {
+                showNotification("Bài kiểm tra chưa được mở", NotificationType.ERROR)
+            }
+            !now.isBefore(testWithStatus.test.endTime) -> {
+                showNotification("Bài kiểm tra đã kết thúc", NotificationType.ERROR)
+            }
+            else -> {
+                sendEvent(StudentTestListEvent.NavigateToTest(testId))
+            }
+        }
     }
 
     private suspend fun processTests(
@@ -209,12 +260,12 @@ class StudentTestListViewModel @Inject constructor(
         val status = when {
             result != null -> result.completionStatus
             now.isBefore(test.startTime) -> TestStatus.UNSUBMITTED
-            now.isAfter(test.endTime) -> TestStatus.OVERDUE
+            !now.isBefore(test.endTime) -> TestStatus.OVERDUE
             else -> TestStatus.UNSUBMITTED
         }
         
-        val isOverdue = now.isAfter(test.endTime) && result == null
-        val canTake = now.isAfter(test.startTime) &&
+        val isOverdue = !now.isBefore(test.endTime) && result == null
+        val canTake = !now.isBefore(test.startTime) &&
                      now.isBefore(test.endTime) &&
                      (result == null || result.completionStatus != TestStatus.GRADED)
         
@@ -235,7 +286,7 @@ class StudentTestListViewModel @Inject constructor(
                 val days = java.time.Duration.between(now, test.startTime).toDays()
                 "Còn $days ngày"
             }
-            now.isAfter(test.endTime) -> null
+            !now.isBefore(test.endTime) -> null
             else -> {
                 val hours = java.time.Duration.between(now, test.endTime).toHours()
                 when {
@@ -253,6 +304,7 @@ class StudentTestListViewModel @Inject constructor(
     private fun categorizeTests(testsWithStatus: List<TestWithStatus>) {
         Log.d(TAG, "[categorizeTests] Categorizing ${testsWithStatus.size} tests")
         val now = Instant.now()
+        val completedStatuses = listOf(TestStatus.COMPLETED, TestStatus.GRADED, TestStatus.SUBMITTED)
 
         val upcoming = testsWithStatus.filter {
             it.test.startTime.isAfter(now)
@@ -260,13 +312,17 @@ class StudentTestListViewModel @Inject constructor(
 
         val ongoing = testsWithStatus.filter {
             !it.test.startTime.isAfter(now) &&
-            !it.test.endTime.isBefore(now) &&
-            it.status !in listOf(TestStatus.COMPLETED, TestStatus.GRADED)
+            it.test.endTime.isAfter(now) &&
+            it.status !in completedStatuses
         }.sortedBy { it.test.endTime }
 
         val completed = testsWithStatus.filter {
-            it.status in listOf(TestStatus.COMPLETED, TestStatus.GRADED)
+            it.status in completedStatuses
         }.sortedByDescending { it.result?.submissionTime }
+
+        val overdue = testsWithStatus.filter {
+            it.status == TestStatus.OVERDUE
+        }.sortedByDescending { it.test.endTime }
 
         Log.d(TAG, "[categorizeTests] Upcoming: ${upcoming.size}, Ongoing: ${ongoing.size}, Completed: ${completed.size}")
         setState {
@@ -274,6 +330,7 @@ class StudentTestListViewModel @Inject constructor(
                 tests = testsWithStatus,
                 upcomingTests = upcoming,
                 ongoingTests = ongoing,
+                overdueTests = overdue,
                 completedTests = completed,
                 isLoading = false,
                 error = null

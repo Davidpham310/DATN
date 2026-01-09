@@ -1,12 +1,16 @@
 package com.example.datn.data.sync
 
+import androidx.room.withTransaction
 import android.util.Log
-import com.example.datn.core.network.datasource.FirebaseDataSource
+import com.example.datn.data.remote.datasource.FirebaseDataSource
 import com.example.datn.core.utils.Resource
+import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.*
 import com.example.datn.data.local.entities.toEntity
 import com.example.datn.data.mapper.toEntity
+import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.models.SyncEntityType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -23,6 +27,7 @@ import javax.inject.Singleton
 @Singleton
 class FirebaseRoomSyncManager @Inject constructor(
     private val firebaseDataSource: FirebaseDataSource,
+    private val appDatabase: AppDatabase,
     private val testDao: TestDao,
     private val testQuestionDao: TestQuestionDao,
     private val testOptionDao: TestOptionDao,
@@ -51,76 +56,120 @@ class FirebaseRoomSyncManager @Inject constructor(
             if (!forceSync) {
                 val cachedTest = testDao.getById(testId)
                 val cachedQuestions = testQuestionDao.getQuestionsByTest(testId)
-                
-                if (cachedTest != null && cachedQuestions.isNotEmpty()) {
-                    // Check if có options cho ít nhất 1 question
-                    val hasOptions = cachedQuestions.any { question ->
-                        testOptionDao.getOptionsByQuestion(question.id).isNotEmpty()
-                    }
-                    
-                    if (hasOptions) {
-                        Log.d(TAG, "[syncTestData] Found complete data in cache (test + ${cachedQuestions.size} questions + options), skip sync")
-                        return Resource.Success(Unit)
-                    } else {
-                        Log.d(TAG, "[syncTestData] Test & questions in cache but missing options, will sync")
-                    }
-                } else {
-                    Log.d(TAG, "[syncTestData] Incomplete cache (test=${cachedTest != null}, questions=${cachedQuestions.size}), will sync")
-                }
-            }
-            
-            // Step 2: Fetch từ Firebase
-            Log.d(TAG, "[syncTestData] Fetching from Firebase...")
-            when (val testResult = firebaseDataSource.getTestById(testId)) {
-                is Resource.Success -> {
-                    val test = testResult.data
-                    if (test != null) {
-                        // Step 3: Save to Room
-                        testDao.insert(test.toEntity())
-                        Log.d(TAG, "[syncTestData] ✅ Test synced to Room")
-                    }
-                }
-                is Resource.Error -> {
-                    Log.e(TAG, "[syncTestData] Firebase error: ${testResult.message}")
-                    return Resource.Error(testResult.message ?: "Lỗi sync test")
-                }
-                else -> {}
-            }
-            
-            // Step 4: Fetch questions
-            Log.d(TAG, "[syncTestData] Fetching questions...")
-            when (val questionsResult = firebaseDataSource.getTestQuestions(testId)) {
-                is Resource.Success -> {
-                    val questions = questionsResult.data ?: emptyList()
-                    questions.forEach { question ->
-                        testQuestionDao.insert(question.toEntity())
-                    }
-                    Log.d(TAG, "[syncTestData] ✅ ${questions.size} questions synced")
-                    
-                    // Step 5: Fetch options for each question
-                    questions.forEach { question ->
-                        when (val optionsResult = firebaseDataSource.getTestOptionsByQuestion(question.id)) {
-                            is Resource.Success -> {
-                                val options = optionsResult.data ?: emptyList()
-                                options.forEach { option ->
-                                    testOptionDao.insert(option.toEntity())
-                                }
-                                Log.d(TAG, "[syncTestData] ✅ ${options.size} options synced for question ${question.id}")
-                            }
-                            else -> {
-                                Log.w(TAG, "[syncTestData] Failed to sync options for question ${question.id}")
-                            }
+
+                val isCacheComplete = cachedTest != null &&
+                    cachedQuestions.isNotEmpty() &&
+                    cachedQuestions.all { question ->
+                        if (question.questionType == QuestionType.ESSAY) {
+                            true
+                        } else {
+                            testOptionDao.getOptionsByQuestion(question.id).isNotEmpty()
                         }
                     }
+
+                if (isCacheComplete) {
+                    Log.d(
+                        TAG,
+                        "[syncTestData] Found complete data in cache (test + ${cachedQuestions.size} questions + options), skip sync"
+                    )
+                    return Resource.Success(Unit)
                 }
-                else -> {
-                    Log.w(TAG, "[syncTestData] Failed to sync questions")
+
+                Log.d(
+                    TAG,
+                    "[syncTestData] Cache incomplete (test=${cachedTest != null}, questions=${cachedQuestions.size}), will sync"
+                )
+            }
+            
+
+            // Step 2: Fetch từ Firebase
+            Log.d(TAG, "[syncTestData] Fetching from Firebase...")
+
+            val remoteTest = when (val testResult = firebaseDataSource.getTestById(testId)) {
+                is Resource.Success -> testResult.data
+                is Resource.Error -> {
+                    Log.e(TAG, "[syncTestData] Firebase error (test): ${testResult.message}")
+                    return Resource.Error(testResult.message)
                 }
+                is Resource.Loading -> null
+            }
+
+            if (remoteTest == null) {
+                Log.w(TAG, "[syncTestData] Firebase returned null test")
+                return Resource.Error("Không tìm thấy bài kiểm tra")
+            }
+
+            val remoteQuestions = when (val questionsResult = firebaseDataSource.getTestQuestions(testId)) {
+                is Resource.Success -> questionsResult.data ?: emptyList()
+                is Resource.Error -> {
+                    Log.e(TAG, "[syncTestData] Firebase error (questions): ${questionsResult.message}")
+                    return Resource.Error(questionsResult.message)
+                }
+                is Resource.Loading -> emptyList()
+            }.distinctBy { it.id }
+
+            val optionsByQuestionId = mutableMapOf<String, List<com.example.datn.domain.models.TestOption>>()
+            val failedOptionQuestionIds = mutableListOf<String>()
+
+            remoteQuestions.forEach { question ->
+                when (val optionsResult = firebaseDataSource.getTestOptionsByQuestion(question.id)) {
+                    is Resource.Success -> {
+                        val options = optionsResult.data ?: emptyList()
+                        optionsByQuestionId[question.id] = options.distinctBy { it.id }
+                    }
+                    is Resource.Error -> {
+                        failedOptionQuestionIds.add(question.id)
+                        Log.w(
+                            TAG,
+                            "[syncTestData] Firebase error (options) for question ${question.id}: ${optionsResult.message}"
+                        )
+                    }
+                    is Resource.Loading -> {
+                        failedOptionQuestionIds.add(question.id)
+                        Log.w(TAG, "[syncTestData] Firebase loading (options) for question ${question.id}")
+                    }
+                }
+            }
+
+            // Step 3: Save to Room (atomic)
+            appDatabase.withTransaction {
+                // Upsert test
+                testDao.insert(remoteTest.toEntity())
+
+                // Delete questions/options that were removed from Firebase
+                val localQuestions = testQuestionDao.getQuestionsByTest(testId)
+                val remoteQuestionIds = remoteQuestions.map { it.id }.toSet()
+
+                localQuestions
+                    .filter { it.id !in remoteQuestionIds }
+                    .forEach { removed ->
+                        testOptionDao.deleteOptionsByQuestion(removed.id)
+                        testQuestionDao.deleteById(removed.id)
+                    }
+
+                // Upsert questions
+                testQuestionDao.insertAll(remoteQuestions.map { it.toEntity() })
+
+                // Replace options only for questions we successfully fetched
+                optionsByQuestionId.forEach { (questionId, options) ->
+                    testOptionDao.deleteOptionsByQuestion(questionId)
+                    if (options.isNotEmpty()) {
+                        testOptionDao.insertAll(options.map { it.toEntity() })
+                    }
+                }
+            }
+
+            if (failedOptionQuestionIds.isNotEmpty()) {
+                Log.w(
+                    TAG,
+                    "[syncTestData] Completed with warnings: failed to sync options for ${failedOptionQuestionIds.size}/${remoteQuestions.size} questions"
+                )
             }
             
             Log.d(TAG, "[syncTestData] ✅ COMPLETE")
             Resource.Success(Unit)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "[syncTestData] ERROR: ${e.message}", e)
             Resource.Error("Lỗi đồng bộ: ${e.message}")
         }
@@ -217,10 +266,18 @@ class FirebaseRoomSyncManager @Inject constructor(
     suspend fun clearTestCache(testId: String) {
         try {
             Log.d(TAG, "[clearTestCache] Clearing cache for test: $testId")
-            testDao.deleteById(testId)
+            appDatabase.withTransaction {
+                val questions = testQuestionDao.getQuestionsByTest(testId)
+                questions.forEach { question ->
+                    testOptionDao.deleteOptionsByQuestion(question.id)
+                }
+                testQuestionDao.deleteQuestionsByTest(testId)
+                testDao.deleteById(testId)
+            }
             // Questions and options will be cascade deleted if FK constraints are set
             Log.d(TAG, "[clearTestCache] ✅ Cache cleared")
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "[clearTestCache] ERROR: ${e.message}", e)
         }
     }

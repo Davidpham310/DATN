@@ -2,7 +2,7 @@ package com.example.datn.presentation.parent.messaging.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.datn.core.network.datasource.FirebaseDataSource
+import com.example.datn.data.remote.datasource.FirebaseDataSource
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.User
 import com.example.datn.domain.models.UserRole

@@ -2,7 +2,7 @@ package com.example.datn.domain.usecase.student
 
 import com.example.datn.core.base.BaseUseCase
 import com.example.datn.core.utils.Resource
-import com.example.datn.core.network.service.student.StudentService
+import com.example.datn.data.remote.service.student.StudentService
 import com.example.datn.domain.models.Student
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow

@@ -151,7 +151,7 @@ class MiniGamePlayViewModel @Inject constructor(
                             setState {
                                 copy(
                                     isLoading = false,
-                                    error = "Bài học này chưa có câu hỏi nào"
+                                    error = "Bài học hiện tại chưa có minigame"
                                 )
                             }
                         }

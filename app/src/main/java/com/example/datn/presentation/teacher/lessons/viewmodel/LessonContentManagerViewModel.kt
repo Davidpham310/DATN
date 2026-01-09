@@ -63,7 +63,7 @@ class LessonContentManagerViewModel @Inject constructor(
                 selectedFileSize = size
             )
         }
-        showNotification("Đã chọn tệp: $fileName (${size / 1024} KB)", NotificationType.INFO)
+//        showNotification("Đã chọn tệp: $fileName (${size / 1024} KB)", NotificationType.INFO)
     }
 
     fun resetFileSelection() {
@@ -73,6 +73,31 @@ class LessonContentManagerViewModel @Inject constructor(
                 selectedFileName = null,
                 selectedFileStream = null,
                 selectedFileSize = 0L
+            )
+        }
+    }
+
+    private fun resetUploadDialog() {
+        setState {
+            copy(
+                isUploadDialogVisible = false,
+                uploadFileName = null,
+                uploadBytesUploaded = 0L,
+                uploadTotalBytes = 0L,
+                uploadProgressPercent = 0
+            )
+        }
+    }
+
+    private fun updateUploadProgress(uploaded: Long, total: Long) {
+        val safeTotal = if (total > 0) total else 1L
+        val percent = ((uploaded * 100) / safeTotal).toInt().coerceIn(0, 100)
+        setState {
+            copy(
+                isUploadDialogVisible = true,
+                uploadBytesUploaded = uploaded,
+                uploadTotalBytes = total,
+                uploadProgressPercent = percent
             )
         }
     }
@@ -188,6 +213,19 @@ class LessonContentManagerViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val shouldShowUploadDialog = type != ContentType.TEXT && event.fileStream != null && event.fileSize > 0
+            if (shouldShowUploadDialog) {
+                setState {
+                    copy(
+                        isUploadDialogVisible = true,
+                        uploadFileName = state.value.selectedFileName,
+                        uploadBytesUploaded = 0L,
+                        uploadTotalBytes = event.fileSize,
+                        uploadProgressPercent = 0
+                    )
+                }
+            }
+
             lessonUseCases.createLessonContent(
                 CreateLessonContentParams(
                     lessonId = event.lessonId,
@@ -195,19 +233,22 @@ class LessonContentManagerViewModel @Inject constructor(
                     contentType = type,
                     contentText = if (type == ContentType.TEXT) event.contentLink?.trim() else null,
                     fileStream = event.fileStream,
-                    fileSize = event.fileSize
+                    fileSize = event.fileSize,
+                    onUploadProgress = if (shouldShowUploadDialog) ::updateUploadProgress else null
                 )
             ).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
                         resetFileSelection()
+                        resetUploadDialog()
                         setState { copy(isLoading = false, showAddEditDialog = false) }
                         showNotification("Thêm nội dung thành công!", NotificationType.SUCCESS)
                         refreshContents()
                     }
                     is Resource.Error -> {
                         setState { copy(isLoading = false) }
+                        resetUploadDialog()
                         // Nếu upload/add thất bại, reset file selection để tránh dùng lại stream đã đóng
                         resetFileSelection()
                         showNotification(result.message ?: "Thêm nội dung thất bại", NotificationType.ERROR)
@@ -268,6 +309,19 @@ class LessonContentManagerViewModel @Inject constructor(
         val order = state.value.lessonContents.find { it.id == event.id }?.order ?: 0
 
         viewModelScope.launch {
+            val shouldShowUploadDialog = type != ContentType.TEXT && event.fileStream != null && event.fileSize > 0
+            if (shouldShowUploadDialog) {
+                setState {
+                    copy(
+                        isUploadDialogVisible = true,
+                        uploadFileName = state.value.selectedFileName,
+                        uploadBytesUploaded = 0L,
+                        uploadTotalBytes = event.fileSize,
+                        uploadProgressPercent = 0
+                    )
+                }
+            }
+
             lessonUseCases.updateLessonContent(
                 UpdateLessonContentParams(
                     contentId = event.id,
@@ -277,19 +331,22 @@ class LessonContentManagerViewModel @Inject constructor(
                     contentText = if (type == ContentType.TEXT) event.contentLink?.trim() else null,
                     order = order,
                     newFileStream = event.fileStream,
-                    newFileSize = event.fileSize
+                    newFileSize = event.fileSize,
+                    onUploadProgress = if (shouldShowUploadDialog) ::updateUploadProgress else null
                 )
             ).collect { result ->
                 when (result) {
                     is Resource.Loading -> setState { copy(isLoading = true) }
                     is Resource.Success -> {
                         resetFileSelection()
+                        resetUploadDialog()
                         setState { copy(isLoading = false, showAddEditDialog = false, editingContent = null) }
                         showNotification("Cập nhật nội dung thành công!", NotificationType.SUCCESS)
                         refreshContents()
                     }
                     is Resource.Error -> {
                         setState { copy(isLoading = false) }
+                        resetUploadDialog()
                         // Nếu update thất bại, cũng reset file selection để tránh stream cũ
                         resetFileSelection()
                         showNotification(result.message ?: "Cập nhật nội dung thất bại", NotificationType.ERROR)

@@ -238,6 +238,11 @@ class TestQuestionManagerViewModel @Inject constructor(
             return
         }
 
+        if (existing.questionType != questionType) {
+            showNotification("Không thể thay đổi loại câu hỏi sau khi tạo", NotificationType.ERROR)
+            return
+        }
+
         val trimmedContent = content.trim()
         val trimmedMediaUrl = mediaUrl?.trim()?.ifBlank { null }
 
@@ -275,7 +280,7 @@ class TestQuestionManagerViewModel @Inject constructor(
             val updated = existing.copy(
                 content = trimmedContent,
                 score = score,
-                questionType = questionType,
+                questionType = existing.questionType,
                 mediaUrl = trimmedMediaUrl,
                 timeLimit = timeLimit,
                 order = order,

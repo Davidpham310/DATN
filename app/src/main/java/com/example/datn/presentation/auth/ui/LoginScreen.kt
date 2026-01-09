@@ -105,7 +105,7 @@ fun LoginScreen(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Login")
+            Text("Đăng nhập")
         }
 
         Spacer(modifier = Modifier.height(8.dp))

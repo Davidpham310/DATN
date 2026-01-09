@@ -1,10 +1,16 @@
 package com.example.datn.presentation.teacher.test.components
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.datn.domain.models.Test
@@ -13,6 +19,7 @@ import com.example.datn.core.utils.validation.rules.test.ValidateTestTitle
 import com.example.datn.core.utils.validation.rules.test.ValidateTotalScore
 import java.time.Instant
 import java.time.LocalDateTime
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -48,7 +55,9 @@ fun AddEditTestDialog(
     
     // Format datetime for display
     val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
+    val displayDateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
     val zoneId = ZoneId.systemDefault()
+    val context = LocalContext.current
     
     var startTimeText by remember {
         mutableStateOf(
@@ -61,6 +70,51 @@ fun AddEditTestDialog(
             test?.endTime?.atZone(zoneId)?.toLocalDateTime()?.format(dateTimeFormatter)
                 ?: LocalDateTime.now().plusHours(2).format(dateTimeFormatter)
         )
+    }
+
+    fun formatForDisplay(value: String): String {
+        return try {
+            LocalDateTime.parse(value, dateTimeFormatter).format(displayDateTimeFormatter)
+        } catch (e: Exception) {
+            value
+        }
+    }
+
+    fun showDateTimePicker(
+        currentValue: String,
+        onSelected: (String) -> Unit
+    ) {
+        val initial = try {
+            LocalDateTime.parse(currentValue, dateTimeFormatter)
+        } catch (e: Exception) {
+            LocalDateTime.now()
+        }
+
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
+                TimePickerDialog(
+                    context,
+                    { _, hourOfDay, minute ->
+                        val selected = LocalDateTime.of(
+                            selectedDate.year,
+                            selectedDate.month,
+                            selectedDate.dayOfMonth,
+                            hourOfDay,
+                            minute
+                        )
+                        onSelected(selected.format(dateTimeFormatter))
+                    },
+                    initial.hour,
+                    initial.minute,
+                    true
+                ).show()
+            },
+            initial.year,
+            initial.monthValue - 1,
+            initial.dayOfMonth
+        ).show()
     }
 
     val titleValidator = remember { ValidateTestTitle() }
@@ -202,15 +256,32 @@ fun AddEditTestDialog(
 
                 // Thời gian bắt đầu
                 OutlinedTextField(
-                    value = startTimeText,
-                    onValueChange = {
-                        startTimeText = it
-                        if (startTimeError != null) startTimeError = null
-                    },
+                    value = formatForDisplay(startTimeText),
+                    onValueChange = { },
                     label = { Text("Thời gian bắt đầu *") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showDateTimePicker(startTimeText) { selected ->
+                                startTimeText = selected
+                                if (startTimeError != null) startTimeError = null
+                            }
+                        },
                     singleLine = true,
+                    readOnly = true,
                     isError = startTimeError != null,
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                showDateTimePicker(startTimeText) { selected ->
+                                    startTimeText = selected
+                                    if (startTimeError != null) startTimeError = null
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Filled.CalendarToday, contentDescription = "Chọn thời gian bắt đầu")
+                        }
+                    },
                     supportingText = {
                         if (startTimeError != null) {
                             Text(
@@ -220,7 +291,7 @@ fun AddEditTestDialog(
                             )
                         } else {
                             Text(
-                                text = "Định dạng: yyyy-MM-dd'T'HH:mm (VD: 2024-01-15T09:00)",
+                                text = "Chọn ngày/giờ (VD: 15/01/2024 09:00)",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -229,15 +300,32 @@ fun AddEditTestDialog(
 
                 // Thời gian kết thúc
                 OutlinedTextField(
-                    value = endTimeText,
-                    onValueChange = {
-                        endTimeText = it
-                        if (endTimeError != null) endTimeError = null
-                    },
+                    value = formatForDisplay(endTimeText),
+                    onValueChange = { },
                     label = { Text("Thời gian kết thúc *") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showDateTimePicker(endTimeText) { selected ->
+                                endTimeText = selected
+                                if (endTimeError != null) endTimeError = null
+                            }
+                        },
                     singleLine = true,
+                    readOnly = true,
                     isError = endTimeError != null,
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                showDateTimePicker(endTimeText) { selected ->
+                                    endTimeText = selected
+                                    if (endTimeError != null) endTimeError = null
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Filled.CalendarToday, contentDescription = "Chọn thời gian kết thúc")
+                        }
+                    },
                     supportingText = {
                         if (endTimeError != null) {
                             Text(
@@ -247,7 +335,7 @@ fun AddEditTestDialog(
                             )
                         } else {
                             Text(
-                                text = "Định dạng: yyyy-MM-dd'T'HH:mm (VD: 2024-01-15T11:00)",
+                                text = "Chọn ngày/giờ (VD: 15/01/2024 11:00)",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }

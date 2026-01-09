@@ -59,8 +59,8 @@ abstract class AppDatabase : RoomDatabase() {
 
     // Core & Join DAOs
     abstract fun userDao(): UserDao
-    abstract fun studentDao(): StudentDao // Giả định bạn có StudentDao
-    abstract fun teacherDao(): TeacherDao // Giả định bạn có TeacherDao
+    abstract fun studentDao(): StudentDao 
+    abstract fun teacherDao(): TeacherDao
     abstract fun parentStudentDao(): ParentStudentDao
     abstract fun classStudentDao(): ClassStudentDao
 

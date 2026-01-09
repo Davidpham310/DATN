@@ -1,6 +1,6 @@
 package com.example.datn.data.repository.impl
 
-import com.example.datn.core.network.service.messaging.FirebaseMessagingService
+import com.example.datn.data.remote.service.messaging.FirebaseMessagingService
 import com.example.datn.core.utils.Resource
 import com.example.datn.data.local.dao.ConversationDao
 import com.example.datn.data.local.dao.ConversationParticipantDao
@@ -28,7 +28,7 @@ class MessagingRepositoryImpl @Inject constructor(
     private val messageDao: MessageDao,
     private val participantDao: ConversationParticipantDao,
     private val firebaseMessaging: FirebaseMessagingService,
-    private val firebaseAuthDataSource: com.example.datn.core.network.datasource.FirebaseAuthDataSource,
+    private val firebaseAuthDataSource: com.example.datn.data.remote.datasource.FirebaseAuthDataSource,
     private val userDao: com.example.datn.data.local.dao.UserDao
 ) : IMessagingRepository {
 

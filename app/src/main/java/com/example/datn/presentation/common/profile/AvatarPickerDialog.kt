@@ -28,7 +28,9 @@ fun AvatarPickerDialog(
     selectedFileName: String? = null
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (!isUploading) onDismiss()
+        },
         title = {
             Text(
                 text = "Cập nhật avatar",

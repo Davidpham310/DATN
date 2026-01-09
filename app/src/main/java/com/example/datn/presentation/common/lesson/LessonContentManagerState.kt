@@ -17,5 +17,10 @@ data class LessonContentManagerState(
     val editingContent: LessonContent? = null,
     val confirmDeleteState: ConfirmationDialogState<LessonContent> = ConfirmationDialogState.empty(),
     val currentLessonId: String = "",
-    val contentUrls: Map<String, String> = emptyMap()
+    val contentUrls: Map<String, String> = emptyMap(),
+    val isUploadDialogVisible: Boolean = false,
+    val uploadFileName: String? = null,
+    val uploadBytesUploaded: Long = 0L,
+    val uploadTotalBytes: Long = 0L,
+    val uploadProgressPercent: Int = 0
 ) : BaseState

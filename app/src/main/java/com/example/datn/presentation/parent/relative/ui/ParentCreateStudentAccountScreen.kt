@@ -1,14 +1,18 @@
 package com.example.datn.presentation.parent.relative.ui
 
+import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -16,6 +20,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.RelationshipType
 import com.example.datn.presentation.parent.relative.event.ParentCreateStudentAccountEvent
 import com.example.datn.presentation.parent.relative.viewmodel.ParentCreateStudentAccountViewModel
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,6 +30,10 @@ fun ParentCreateStudentAccountScreen(
     viewModel: ParentCreateStudentAccountViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+
+    val context = LocalContext.current
+    val dobStorageFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+    val dobDisplayFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -38,6 +48,34 @@ fun ParentCreateStudentAccountScreen(
             onNavigateBack()
             viewModel.onEvent(ParentCreateStudentAccountEvent.ClearMessages)
         }
+    }
+
+    fun formatDobForDisplay(value: String): String {
+        if (value.isBlank()) return ""
+        return try {
+            LocalDate.parse(value.trim(), dobStorageFormatter).format(dobDisplayFormatter)
+        } catch (_: Exception) {
+            value
+        }
+    }
+
+    fun showDobPicker(currentValue: String, onSelected: (String) -> Unit) {
+        val initial = try {
+            LocalDate.parse(currentValue.trim(), dobStorageFormatter)
+        } catch (_: Exception) {
+            LocalDate.now()
+        }
+
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val selected = LocalDate.of(year, month + 1, dayOfMonth)
+                onSelected(selected.format(dobStorageFormatter))
+            },
+            initial.year,
+            initial.monthValue - 1,
+            initial.dayOfMonth
+        ).show()
     }
 
     Scaffold(
@@ -102,11 +140,35 @@ fun ParentCreateStudentAccountScreen(
             )
 
             OutlinedTextField(
-                value = dateOfBirthText,
-                onValueChange = { dateOfBirthText = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Ngày sinh (yyyy-MM-dd)") },
-                singleLine = true
+                value = formatDobForDisplay(dateOfBirthText),
+                onValueChange = { },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        showDobPicker(dateOfBirthText) { selected ->
+                            dateOfBirthText = selected
+                        }
+                    },
+                label = { Text("Ngày sinh") },
+                singleLine = true,
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            showDobPicker(dateOfBirthText) { selected ->
+                                dateOfBirthText = selected
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Filled.CalendarToday, contentDescription = "Chọn ngày sinh")
+                    }
+                },
+                supportingText = {
+                    Text(
+                        text = "Chọn ngày (dd/MM/yyyy)",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             )
 
             Text(

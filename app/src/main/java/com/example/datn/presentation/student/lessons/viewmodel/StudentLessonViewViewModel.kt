@@ -419,6 +419,10 @@ class StudentLessonViewViewModel @Inject constructor(
     override fun onEvent(event: StudentLessonViewEvent) {
         when (event) {
             is StudentLessonViewEvent.LoadLesson -> loadLesson(event.lessonId, event.initialContentId)
+            is StudentLessonViewEvent.RequestPlayMiniGame -> handleRequestPlayMiniGame(
+                miniGameId = event.miniGameId,
+                lessonId = event.lessonId
+            )
             StudentLessonViewEvent.NextContent -> navigateToNextContent()
             StudentLessonViewEvent.PreviousContent -> navigateToPreviousContent()
             is StudentLessonViewEvent.GoToContent -> navigateToContent(event.index)
@@ -451,6 +455,30 @@ class StudentLessonViewViewModel @Inject constructor(
             is StudentLessonViewEvent.CheckContentCompletion -> { /* Handled via public function */ }
 
             else -> {}
+        }
+    }
+
+    private fun handleRequestPlayMiniGame(miniGameId: String, lessonId: String) {
+        viewModelScope.launch {
+            saveProgressJob?.join()
+
+            val currentState = state.value
+            val isLessonCompleted = currentState.isLessonCompleted || currentState.progressPercentage >= 100
+
+            if (!isLessonCompleted) {
+                showNotification(
+                    "Bạn cần hoàn thành nội dung bài học trước khi chơi game",
+                    NotificationType.ERROR
+                )
+                return@launch
+            }
+
+            sendEvent(
+                StudentLessonViewEvent.NavigateToMiniGame(
+                    miniGameId = miniGameId,
+                    lessonId = lessonId
+                )
+            )
         }
     }
 

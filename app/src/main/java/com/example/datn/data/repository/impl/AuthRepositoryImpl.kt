@@ -2,10 +2,10 @@ package com.example.datn.data.repository.impl
 
 
 import android.util.Log
-import com.example.datn.core.network.datasource.FirebaseAuthDataSource
-import com.example.datn.core.network.service.parent.ParentProfileService
-import com.example.datn.core.network.service.student.StudentService
-import com.example.datn.core.network.service.teacher.TeacherService
+import com.example.datn.data.remote.datasource.FirebaseAuthDataSource
+import com.example.datn.data.remote.service.parent.ParentProfileService
+import com.example.datn.data.remote.service.student.StudentService
+import com.example.datn.data.remote.service.teacher.TeacherService
 import com.example.datn.core.utils.Resource
 import com.example.datn.core.utils.firebase.FirebaseErrorMapper
 import com.example.datn.data.local.dao.UserDao

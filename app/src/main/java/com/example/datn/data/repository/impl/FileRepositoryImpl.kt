@@ -1,6 +1,6 @@
 package com.example.datn.data.repository.impl
 
-import com.example.datn.core.network.service.minio.MinIOService
+import com.example.datn.data.remote.service.minio.MinIOService
 import com.example.datn.domain.repository.IFileRepository
 import java.io.InputStream
 import javax.inject.Inject
@@ -11,8 +11,14 @@ class FileRepositoryImpl @Inject constructor(
     private val minIOService: MinIOService
 ) : IFileRepository {
 
-    override suspend fun uploadFile(objectName: String, inputStream: InputStream, size: Long, contentType: String) {
-        minIOService.uploadFile(objectName, inputStream, size, contentType)
+    override suspend fun uploadFile(
+        objectName: String,
+        inputStream: InputStream,
+        size: Long,
+        contentType: String,
+        onProgress: ((uploaded: Long, total: Long) -> Unit)?
+    ) {
+        minIOService.uploadFile(objectName, inputStream, size, contentType, onProgress)
     }
 
     override suspend fun getFile(objectName: String): InputStream {

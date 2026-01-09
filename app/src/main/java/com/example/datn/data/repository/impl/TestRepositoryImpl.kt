@@ -1,6 +1,6 @@
 package com.example.datn.data.repository.impl
 
-import com.example.datn.core.network.datasource.FirebaseDataSource
+import com.example.datn.data.remote.datasource.FirebaseDataSource
 import com.example.datn.core.utils.Resource
 import com.example.datn.data.local.dao.StudentTestAnswerDao
 import com.example.datn.data.local.dao.StudentTestResultDao
@@ -268,49 +268,48 @@ class TestRepositoryImpl @Inject constructor(
                         val questions = testQuestionDao.getQuestionsByTest(saved.testId)
                         val studentAnswers = mutableListOf<StudentTestAnswer>()
                         
-                        questions.forEach { questionEntity: com.example.datn.data.local.entities.TestQuestionEntity ->
+                        for (questionEntity in questions) {
                             val question = questionEntity.toDomain()
-                            val answerValue = answers[question.id]
-                            
-                            if (answerValue != null) {
-                                // Get options để grade
-                                val options = testOptionDao.getOptionsByQuestion(question.id)
-                                    .map { optionEntity: com.example.datn.data.local.entities.TestOptionEntity -> 
-                                        optionEntity.toDomain() 
-                                    }
-                                
-                                // Calculate correctness and score
-                                val (isCorrect, earnedScore) = gradeAnswer(question, options, answerValue)
-                                
-                                // Serialize answer
-                                val answerString = when (answerValue) {
-                                    is String -> answerValue
-                                    is List<*> -> answerValue.joinToString(",")
-                                    else -> answerValue.toString()
-                                }
-                                
-                                // Create StudentTestAnswer
-                                val studentAnswer = StudentTestAnswer(
-                                    id = UUID.randomUUID().toString(),
-                                    resultId = saved.id,
-                                    questionId = question.id,
-                                    answer = answerString,
-                                    isCorrect = isCorrect,
-                                    earnedScore = earnedScore,
-                                    createdAt = Instant.now(),
-                                    updatedAt = Instant.now()
-                                )
-                                
-                                android.util.Log.d("TestRepository", """
+                            val answerValue = answers[question.id] ?: continue
+
+                            // Get options để grade
+                            val optionEntities = testOptionDao.getOptionsByQuestion(question.id)
+                            val options = optionEntities.map { it.toDomain() }
+
+                            // Calculate correctness and score
+                            val (isCorrect, earnedScore) = gradeAnswer(question, options, answerValue)
+
+                            // Serialize answer
+                            val answerString = when (answerValue) {
+                                is String -> answerValue
+                                is List<*> -> answerValue.joinToString(",")
+                                else -> answerValue.toString()
+                            }
+
+                            // Create StudentTestAnswer
+                            val studentAnswer = StudentTestAnswer(
+                                id = UUID.randomUUID().toString(),
+                                resultId = saved.id,
+                                questionId = question.id,
+                                answer = answerString,
+                                isCorrect = isCorrect,
+                                earnedScore = earnedScore,
+                                createdAt = Instant.now(),
+                                updatedAt = Instant.now()
+                            )
+
+                            android.util.Log.d(
+                                "TestRepository",
+                                """
                                     [SAVE ANSWER]
                                     Question: ${question.content}
                                     AnswerString: $answerString
                                     isCorrect: $isCorrect
                                     earnedScore: $earnedScore
-                                """.trimIndent())
-                                
-                                studentAnswers.add(studentAnswer)
-                            }
+                                """.trimIndent()
+                            )
+
+                            studentAnswers.add(studentAnswer)
                         }
                         
                         // Save all answers to Room

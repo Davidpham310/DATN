@@ -31,6 +31,7 @@ fun AddEditLessonContentDialog(
     selectedFileName: String?,
     selectedFileStream: InputStream?,
     selectedFileSize: Long,
+    isLoading: Boolean = false,
     // Callback xác nhận thêm/sửa
     onConfirmAdd: (
         lessonId: String,
@@ -64,6 +65,9 @@ fun AddEditLessonContentDialog(
     val currentFileStream = selectedFileStream
     val currentFileSize = selectedFileSize
 
+    val selectableContentTypes = remember {
+        ContentType.entries.filter { it != ContentType.MINIGAME }
+    }
     // State error
     var titleError by remember { mutableStateOf<String?>(null) }
 
@@ -117,7 +121,9 @@ fun AddEditLessonContentDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (!isLoading) onDismiss()
+        },
         title = {
             Text(
                 text = if (isEditing) "Chỉnh sửa nội dung" else "Thêm nội dung",
@@ -141,31 +147,43 @@ fun AddEditLessonContentDialog(
                     },
                     label = { Text("Tiêu đề nội dung *") },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading,
                     isError = titleError != null,
                     supportingText = { titleError?.let { Text(it, color = MaterialTheme.colorScheme.error) } }
                 )
 
                 // Loại nội dung (Dropdown) (Giữ nguyên)
-                Box {
+                @OptIn(ExperimentalMaterial3Api::class)
+                ExposedDropdownMenuBox(
+                    expanded = isDropdownExpanded && !isEditing && !isLoading,
+                    onExpandedChange = {
+                        if (!isEditing && !isLoading) {
+                            isDropdownExpanded = !isDropdownExpanded
+                        }
+                    }
+                ) {
                     OutlinedTextField(
-                        value = selectedContentType.name,
-                        onValueChange = { /* Read Only */ },
+                        value = selectedContentType.displayName,
+                        onValueChange = {},
+                        readOnly = true,
                         label = { Text("Loại nội dung *") },
-                        readOnly = isEditing, // Không cho phép đổi loại khi chỉnh sửa
                         trailingIcon = {
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, Modifier.clickable(enabled = !isEditing) { isDropdownExpanded = !isDropdownExpanded })
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDropdownExpanded)
                         },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !isEditing) { isDropdownExpanded = true }
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        enabled = !isLoading,
+                        colors = ExposedDropdownMenuDefaults.textFieldColors()
                     )
-                    DropdownMenu(
-                        expanded = isDropdownExpanded && !isEditing,
+
+                    ExposedDropdownMenu(
+                        expanded = isDropdownExpanded && !isEditing && !isLoading,
                         onDismissRequest = { isDropdownExpanded = false }
                     ) {
-                        ContentType.entries.forEach { type ->
+                        selectableContentTypes.forEach { type ->
                             DropdownMenuItem(
-                                text = { Text(type.name) },
+                                text = { Text(type.displayName) },
                                 onClick = {
                                     selectedContentType = type
                                     isDropdownExpanded = false
@@ -186,6 +204,7 @@ fun AddEditLessonContentDialog(
                         },
                         label = { Text("Nội dung văn bản * (Markdown/HTML)") },
                         modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading,
                         minLines = 5,
                         isError = contentError != null,
                         supportingText = { contentError?.let { Text(it, color = MaterialTheme.colorScheme.error) } }
@@ -196,7 +215,8 @@ fun AddEditLessonContentDialog(
                         Button(
                             // GỌI CALLBACK YÊU CẦU MỞ FILE PICKER
                             onClick = { onSelectFile(selectedContentType) },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isLoading
                         ) {
                             Text(if (isEditing) "Chọn tệp tin mới (tùy chọn)" else "Chọn tệp tin *")
                         }
@@ -252,13 +272,26 @@ fun AddEditLessonContentDialog(
                             )
                         }
                     }
-                }
+                },
+                enabled = !isLoading
             ) {
-                Text("Xác nhận")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text("Xác nhận")
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isLoading
+            ) {
                 Text("Hủy")
             }
         }

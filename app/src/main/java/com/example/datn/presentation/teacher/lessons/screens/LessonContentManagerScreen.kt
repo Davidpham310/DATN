@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.domain.models.ContentType
 import com.example.datn.presentation.common.lesson.LessonContentManagerEvent
@@ -146,13 +147,26 @@ fun LessonContentManagerScreen(
             }
         }
     ) { paddingValues ->
+        fun formatBytes(bytes: Long): String {
+            if (bytes <= 0) return "0 B"
+            val kb = 1024.0
+            val mb = kb * 1024.0
+            val gb = mb * 1024.0
+            return when {
+                bytes >= gb -> String.format("%.2f GB", bytes / gb)
+                bytes >= mb -> String.format("%.2f MB", bytes / mb)
+                bytes >= kb -> String.format("%.2f KB", bytes / kb)
+                else -> "$bytes B"
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
             when {
-                state.isLoading && state.lessonContents.isEmpty() -> {
+                state.isLoading && state.lessonContents.isEmpty() && !state.showAddEditDialog -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -177,7 +191,7 @@ fun LessonContentManagerScreen(
             }
 
             // Loading overlay
-            if (state.isLoading && state.lessonContents.isNotEmpty()) {
+            if (state.isLoading && state.lessonContents.isNotEmpty() && !state.showAddEditDialog) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -198,6 +212,7 @@ fun LessonContentManagerScreen(
                 selectedFileName = state.selectedFileName,
                 selectedFileStream = state.selectedFileStream,
                 selectedFileSize = state.selectedFileSize,
+                isLoading = state.isLoading,
                 onConfirmAdd = { lessonId, title, description, contentLink, contentType, fileStream, fileSize ->
                     // description không dùng cho LessonContent, pass null
                     viewModel.onEvent(
@@ -227,6 +242,40 @@ fun LessonContentManagerScreen(
                         )
                     )
                 }
+            )
+        }
+
+        if (state.isUploadDialogVisible) {
+            AlertDialog(
+                onDismissRequest = { },
+                title = { Text("Đang tải lên") },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        state.uploadFileName?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+
+                        LinearProgressIndicator(
+                            progress = (state.uploadProgressPercent / 100f).coerceIn(0f, 1f),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Text(
+                            text = "${state.uploadProgressPercent}%",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        if (state.uploadTotalBytes > 0) {
+                            Text(
+                                text = "${formatBytes(state.uploadBytesUploaded)} / ${formatBytes(state.uploadTotalBytes)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                confirmButton = { }
             )
         }
 

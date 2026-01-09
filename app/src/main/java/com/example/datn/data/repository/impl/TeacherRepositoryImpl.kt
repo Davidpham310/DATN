@@ -1,7 +1,7 @@
 package com.example.datn.data.repository.impl
 
 import com.example.datn.core.utils.Resource
-import com.example.datn.core.network.datasource.FirebaseDataSource
+import com.example.datn.data.remote.datasource.FirebaseDataSource
 import com.example.datn.data.local.dao.TeacherDao
 import com.example.datn.data.mapper.toDomain
 import com.example.datn.data.mapper.toEntity

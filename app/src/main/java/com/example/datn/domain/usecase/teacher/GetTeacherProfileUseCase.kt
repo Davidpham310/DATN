@@ -2,7 +2,7 @@ package com.example.datn.domain.usecase.teacher
 
 import com.example.datn.core.base.BaseUseCase
 import com.example.datn.core.utils.Resource
-import com.example.datn.core.network.service.teacher.TeacherService
+import com.example.datn.data.remote.service.teacher.TeacherService
 import com.example.datn.domain.models.Teacher
 import java.time.Instant
 import javax.inject.Inject

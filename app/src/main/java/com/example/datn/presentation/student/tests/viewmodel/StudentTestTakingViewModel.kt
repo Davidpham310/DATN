@@ -91,15 +91,36 @@ class StudentTestTakingViewModel @Inject constructor(
                 when (testResult) {
                     is Resource.Success -> {
                         val test = testResult.data
-                        if (test == null) {
-                            Log.e(TAG, "[loadTest] Test not found")
-                            setState { copy(isLoading = false, error = "Không tìm thấy bài kiểm tra") }
-                            showNotification("Không tìm thấy bài kiểm tra", NotificationType.ERROR)
-                            return@collectLatest
+                        val now = Instant.now()
+                        when {
+                            now.isBefore(test.startTime) -> {
+                                Log.w(TAG, "[loadTest] Test not opened yet - startTime: ${test.startTime}")
+                                setState {
+                                    copy(
+                                        isLoading = false,
+                                        test = test,
+                                        error = "Bài kiểm tra chưa được mở"
+                                    )
+                                }
+                                showNotification("Bài kiểm tra chưa được mở", NotificationType.ERROR)
+                                return@collectLatest
+                            }
+                            !now.isBefore(test.endTime) -> {
+                                Log.w(TAG, "[loadTest] Test ended - endTime: ${test.endTime}")
+                                setState {
+                                    copy(
+                                        isLoading = false,
+                                        test = test,
+                                        error = "Bài kiểm tra đã kết thúc"
+                                    )
+                                }
+                                showNotification("Bài kiểm tra đã kết thúc", NotificationType.ERROR)
+                                return@collectLatest
+                            }
                         }
                         
                         Log.d(TAG, "[loadTest] Test loaded - title: ${test.title}, totalScore: ${test.totalScore}")
-                        setState { copy(test = test) }
+                        setState { copy(test = test, error = null) }
                         
                         // Load questions
                         loadQuestionsAndOptions(testId)

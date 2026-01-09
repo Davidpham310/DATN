@@ -1,12 +1,12 @@
 package com.example.datn.domain.usecase.parentstudent
  
 import com.example.datn.core.base.BaseUseCase
-import com.example.datn.core.network.datasource.FirebaseAuthDataSource
+import com.example.datn.data.remote.datasource.FirebaseAuthDataSource
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.Student
 import com.example.datn.domain.models.UserRole
-import com.example.datn.core.network.datasource.FirebaseDataSource
-import com.example.datn.core.network.service.student.StudentService
+import com.example.datn.data.remote.datasource.FirebaseDataSource
+import com.example.datn.data.remote.service.student.StudentService
 import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject

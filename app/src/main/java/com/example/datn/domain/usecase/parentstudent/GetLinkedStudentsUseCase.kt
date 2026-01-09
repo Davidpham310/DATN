@@ -6,8 +6,8 @@ import com.example.datn.domain.models.ParentStudent
 import com.example.datn.domain.models.Student
 import com.example.datn.domain.models.User
 import com.example.datn.domain.repository.IParentRepository
-import com.example.datn.core.network.datasource.FirebaseDataSource
-import com.example.datn.core.network.service.parent.ParentStudentService
+import com.example.datn.data.remote.datasource.FirebaseDataSource
+import com.example.datn.data.remote.service.parent.ParentStudentService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow

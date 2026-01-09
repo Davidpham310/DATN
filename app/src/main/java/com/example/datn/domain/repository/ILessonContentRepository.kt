@@ -13,14 +13,16 @@ interface ILessonContentRepository {
     fun addContent(
         content: LessonContent,
         fileStream: InputStream? = null,
-        fileSize: Long = 0
+        fileSize: Long = 0,
+        onUploadProgress: ((uploaded: Long, total: Long) -> Unit)? = null
     ): Flow<Resource<LessonContent>>
 
     fun updateContent(
         contentId: String,
         content: LessonContent,
         newFileStream: InputStream? = null,
-        newFileSize: Long = 0
+        newFileSize: Long = 0,
+        onUploadProgress: ((uploaded: Long, total: Long) -> Unit)? = null
     ): Flow<Resource<Boolean>>
 
     fun deleteContent(contentId: String): Flow<Resource<Boolean>>

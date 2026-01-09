@@ -4,22 +4,24 @@ import com.example.datn.data.repository.impl.FileRepositoryImpl
 import android.content.Context
 import androidx.room.Room
 import com.example.datn.BuildConfig
-import com.example.datn.core.network.datasource.FirebaseAuthDataSource
-import com.example.datn.core.network.datasource.FirebaseDataSource
-import com.example.datn.core.network.service.messaging.FirebaseMessagingService
-import com.example.datn.core.network.service.classroom.ClassService
-import com.example.datn.core.network.service.lesson.LessonContentService
-import com.example.datn.core.network.service.lesson.LessonService
-import com.example.datn.core.network.service.mini_game.MiniGameService
-import com.example.datn.core.network.service.parent.ParentStudentService
-import com.example.datn.core.network.service.parent.ParentService
-import com.example.datn.core.network.service.student.StudentService
-import com.example.datn.core.network.service.teacher.TeacherService
-import com.example.datn.core.network.service.test.TestService
-import com.example.datn.core.network.service.minio.MinIOService
-import com.example.datn.core.network.service.user.UserService
-import com.example.datn.core.network.service.notification.FirestoreNotificationService
-import com.example.datn.core.network.service.parent.ParentProfileService
+import com.example.datn.data.remote.datasource.FirebaseAuthDataSource
+import com.example.datn.data.remote.datasource.FirebaseDataSource
+import com.example.datn.data.remote.service.messaging.FirebaseMessagingService
+import com.example.datn.data.remote.service.classroom.ClassService
+import com.example.datn.data.remote.service.conversation.ConversationService
+import com.example.datn.data.remote.service.lesson.LessonContentService
+import com.example.datn.data.remote.service.lesson.LessonService
+import com.example.datn.data.remote.service.message.MessageService
+import com.example.datn.data.remote.service.mini_game.MiniGameService
+import com.example.datn.data.remote.service.parent.ParentStudentService
+import com.example.datn.data.remote.service.parent.ParentService
+import com.example.datn.data.remote.service.student.StudentService
+import com.example.datn.data.remote.service.teacher.TeacherService
+import com.example.datn.data.remote.service.test.TestService
+import com.example.datn.data.remote.service.minio.MinIOService
+import com.example.datn.data.remote.service.user.UserService
+import com.example.datn.data.remote.service.notification.FirestoreNotificationService
+import com.example.datn.data.remote.service.parent.ParentProfileService
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.data.local.AppDatabase
 import com.example.datn.data.local.dao.ClassDao
@@ -274,8 +276,8 @@ object AppModule {
         lessonContentService: LessonContentService,
         miniGameService: MiniGameService,
         testService: TestService,
-        conversationService: com.example.datn.core.network.service.conversation.ConversationService,
-        messageService: com.example.datn.core.network.service.message.MessageService,
+        conversationService: ConversationService,
+        messageService: MessageService,
         studentService: StudentService,
         parentStudentService: ParentStudentService
     ): FirebaseDataSource = FirebaseDataSource(
@@ -457,13 +459,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideConversationService(): com.example.datn.core.network.service.conversation.ConversationService =
-        com.example.datn.core.network.service.conversation.ConversationService()
+    fun provideConversationService(): ConversationService = ConversationService()
 
     @Provides
     @Singleton
-    fun provideMessageService(): com.example.datn.core.network.service.message.MessageService =
-        com.example.datn.core.network.service.message.MessageService()
+    fun provideMessageService(): MessageService = MessageService()
 
     // Messaging DAOs
     @Provides
@@ -668,6 +668,7 @@ object AppModule {
     @Singleton
     fun provideFirebaseRoomSyncManager(
         firebaseDataSource: FirebaseDataSource,
+        appDatabase: AppDatabase,
         testDao: TestDao,
         testQuestionDao: TestQuestionDao,
         testOptionDao: com.example.datn.data.local.dao.TestOptionDao,
@@ -681,6 +682,7 @@ object AppModule {
     ): com.example.datn.data.sync.FirebaseRoomSyncManager =
         com.example.datn.data.sync.FirebaseRoomSyncManager(
             firebaseDataSource,
+            appDatabase,
             testDao,
             testQuestionDao,
             testOptionDao,

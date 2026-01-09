@@ -1,7 +1,7 @@
 package com.example.datn.data.repository.impl
 
 import android.util.Log
-import com.example.datn.core.network.service.notification.FirestoreNotificationService
+import com.example.datn.data.remote.service.notification.FirestoreNotificationService
 import com.example.datn.core.utils.Resource
 import com.example.datn.data.local.dao.NotificationDao
 import com.example.datn.data.mapper.toDomain

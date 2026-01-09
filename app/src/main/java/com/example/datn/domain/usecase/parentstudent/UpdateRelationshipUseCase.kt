@@ -3,7 +3,7 @@ package com.example.datn.domain.usecase.parentstudent
 import com.example.datn.core.base.BaseUseCase
 import com.example.datn.core.utils.Resource
 import com.example.datn.domain.models.RelationshipType
-import com.example.datn.core.network.service.parent.ParentStudentService
+import com.example.datn.data.remote.service.parent.ParentStudentService
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow

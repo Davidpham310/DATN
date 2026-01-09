@@ -40,6 +40,7 @@ import com.example.datn.domain.models.LessonContent
 import com.example.datn.presentation.student.lessons.event.StudentLessonViewEvent
 import com.example.datn.presentation.student.lessons.viewmodel.StudentLessonViewViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,6 +67,19 @@ fun StudentLessonViewScreen(
     LaunchedEffect(state.shouldAutoExitLesson) {
         if (state.shouldAutoExitLesson) {
             onNavigateBack()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.eventFlow.collectLatest { event ->
+            when (event) {
+                is StudentLessonViewEvent.NavigateToMiniGame -> {
+                    navController.navigate(
+                        Screen.StudentMiniGamePlay.createRoute(event.miniGameId, event.lessonId)
+                    )
+                }
+                else -> Unit
+            }
         }
     }
 
@@ -127,7 +141,7 @@ fun StudentLessonViewScreen(
                 actions = {
                     if (state.lessonContents.isNotEmpty()) {
                         IconButton(onClick = {
-                            Log.d("StudentLessonViewUI", "🧩 UI click: ShowProgressDialog")
+                            Log.d("StudentLessonViewUI", " UI click: ShowProgressDialog")
                             viewModel.onEvent(StudentLessonViewEvent.ShowProgressDialog)
                         }) {
                             Icon(
@@ -155,11 +169,11 @@ fun StudentLessonViewScreen(
                 maxWarnings = 3,
                 isMaxWarning = state.inactivityWarningCount >= 3,
                 onContinue = {
-                    Log.d("StudentLessonViewUI", "🧩 UI click: ContinueLesson (Tôi đang học)")
+                    Log.d("StudentLessonViewUI", " UI click: ContinueLesson (Tôi đang học)")
                     viewModel.onEvent(StudentLessonViewEvent.ContinueLesson)
                 },
                 onExit = {
-                    Log.d("StudentLessonViewUI", "🧩 UI click: ExitLessonWithoutSaving (Thoát)")
+                    Log.d("StudentLessonViewUI", " UI click: ExitLessonWithoutSaving (Thoát)")
                     viewModel.onEvent(StudentLessonViewEvent.ExitLessonWithoutSaving)
                 }
             )
@@ -263,8 +277,11 @@ fun StudentLessonViewScreen(
                             lesson = state.lesson,
                             onViewAllGames = {
                                 val virtualGameId = "lesson_$lessonId"
-                                navController.navigate(
-                                    Screen.StudentMiniGamePlay.createRoute(virtualGameId, lessonId)
+                                viewModel.onEvent(
+                                    StudentLessonViewEvent.RequestPlayMiniGame(
+                                        miniGameId = virtualGameId,
+                                        lessonId = lessonId
+                                    )
                                 )
                             }
                         )
@@ -350,25 +367,28 @@ fun StudentLessonViewScreen(
                                 content = currentContent,
                                 resolvedContent = resolvedUrl,
                                 onOpenContent = {
-                                    Log.d("StudentLessonViewUI", "🧩 UI interaction: onOpenContent -> RecordInteraction(CLICK)")
+                                    Log.d("StudentLessonViewUI", " UI interaction: onOpenContent -> RecordInteraction(CLICK)")
                                     viewModel.onEvent(StudentLessonViewEvent.RecordInteraction("CLICK"))
                                     viewModel.onEvent(StudentLessonViewEvent.MarkCurrentAsViewed)
                                     viewModel.onEvent(StudentLessonViewEvent.SaveProgress)
                                 },
                                 onPlayGame = if (isMiniGame) { gameId ->
-                                    Log.d("StudentLessonViewUI", "🧩 UI interaction: onPlayGame -> RecordInteraction(CLICK)")
+                                    Log.d("StudentLessonViewUI", " UI interaction: onPlayGame -> RecordInteraction(CLICK)")
                                     viewModel.onEvent(StudentLessonViewEvent.RecordInteraction("CLICK"))
                                     viewModel.onEvent(StudentLessonViewEvent.MarkCurrentAsViewed)
                                     viewModel.onEvent(StudentLessonViewEvent.SaveProgress)
-                                    navController.navigate(
-                                        Screen.StudentMiniGamePlay.createRoute(gameId, lessonId)
+                                    viewModel.onEvent(
+                                        StudentLessonViewEvent.RequestPlayMiniGame(
+                                            miniGameId = gameId,
+                                            lessonId = lessonId
+                                        )
                                     )
                                 } else { _ -> },
                                 onVideoForceExit = {
                                     onNavigateBack()
                                 },
                                 onRecordInteraction = {
-                                    Log.d("StudentLessonViewUI", "🧩 UI interaction: onRecordInteraction -> RecordInteraction(CLICK)")
+                                    Log.d("StudentLessonViewUI", " UI interaction: onRecordInteraction -> RecordInteraction(CLICK)")
                                     viewModel.onEvent(StudentLessonViewEvent.RecordInteraction("CLICK"))
                                 },
                                 shouldPauseMedia = state.showInactivityWarning,

@@ -33,32 +33,38 @@ fun TeacherMainScreen(
                         selected = currentRoute == screen.route,
                         onClick = {
                             navController.navigate(screen.route) {
-                                popUpTo(Screen.TeacherHome.route){ inclusive = false }
+                                popUpTo(Screen.TeacherHome.route) { inclusive = false }
                                 launchSingleTop = true
                             }
                         },
                         icon = {
-                            when (screen) {
-                                Screen.TeacherHome -> Icon(Icons.Default.Home, null)
-                                Screen.TeacherClassManager -> Icon(Icons.Default.School, null)
-                                Screen.TeacherMessages -> Icon(Icons.Default.Message, null)
-                                Screen.TeacherNotification -> Icon(Icons.Default.Notifications, null)
-                                Screen.TeacherAccount -> Icon(Icons.Default.Person, null)
-                                else -> Icon(Icons.Default.Home, null)
-                            }
-                        },
-                        label = {
-                            Text(
-                                when (screen) {
-                                    Screen.TeacherHome -> "Trang chủ"
-                                    Screen.TeacherClassManager -> "Lớp học"
-                                    Screen.TeacherMessages -> "Nhắn tin"
-                                    Screen.TeacherNotification -> "Thông báo"
-                                    Screen.TeacherAccount -> "Tài khoản"
-                                    else -> ""
-                                }
+                            Icon(
+                                imageVector = when (screen) {
+                                    Screen.TeacherHome -> Icons.Default.Home
+                                    Screen.TeacherClassManager -> Icons.Default.School
+                                    Screen.TeacherMessages -> Icons.Default.Message
+                                    Screen.TeacherNotification -> Icons.Default.Notifications
+                                    Screen.TeacherAccount -> Icons.Default.Person
+                                    else -> Icons.Default.Home
+                                },
+                                contentDescription = null
                             )
-                        }
+                        },
+                        label = if (currentRoute == screen.route) {
+                            {
+                                Text(
+                                    when (screen) {
+                                        Screen.TeacherHome -> "Trang chủ"
+                                        Screen.TeacherClassManager -> "Lớp học"
+                                        Screen.TeacherMessages -> "Nhắn tin"
+                                        Screen.TeacherNotification -> "Thông báo"
+                                        Screen.TeacherAccount -> "Tài khoản"
+                                        else -> ""
+                                    }
+                                )
+                            }
+                        } else null,
+                        alwaysShowLabel = false
                     )
                 }
             }

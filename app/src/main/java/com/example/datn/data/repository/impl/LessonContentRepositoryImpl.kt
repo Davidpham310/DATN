@@ -1,7 +1,7 @@
 package com.example.datn.data.repository.impl
 
 import android.util.Log
-import com.example.datn.core.network.datasource.FirebaseDataSource
+import com.example.datn.data.remote.datasource.FirebaseDataSource
 import com.example.datn.domain.models.LessonContent
 import com.example.datn.domain.repository.ILessonContentRepository
 import com.example.datn.core.utils.Resource
@@ -89,7 +89,8 @@ class LessonContentRepositoryImpl @Inject constructor(
     override fun addContent(
         content: LessonContent,
         fileStream: InputStream?,
-        fileSize: Long
+        fileSize: Long,
+        onUploadProgress: ((uploaded: Long, total: Long) -> Unit)?
     ): Flow<Resource<LessonContent>> = flow {
         emit(Resource.Loading())
         try {
@@ -111,7 +112,8 @@ class LessonContentRepositoryImpl @Inject constructor(
                     objectName,
                     fileStream,
                     fileSize,
-                    mimeType
+                    mimeType,
+                    onUploadProgress
                 )
                 Log.i(TAG, "✅ Uploaded file to MinIO: $objectName")
 
@@ -145,7 +147,8 @@ class LessonContentRepositoryImpl @Inject constructor(
         contentId: String,
         content: LessonContent,
         newFileStream: InputStream? ,
-        newFileSize: Long
+        newFileSize: Long,
+        onUploadProgress: ((uploaded: Long, total: Long) -> Unit)?
     ): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
@@ -172,7 +175,8 @@ class LessonContentRepositoryImpl @Inject constructor(
                     newObject,
                     newFileStream,
                     newFileSize,
-                    mimeType
+                    mimeType,
+                    onUploadProgress
                 )
                 Log.i(TAG, "✅ Uploaded new file to MinIO: $newObject")
 

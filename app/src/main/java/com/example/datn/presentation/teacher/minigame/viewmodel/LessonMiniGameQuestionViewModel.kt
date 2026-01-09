@@ -195,15 +195,20 @@ class LessonMiniGameQuestionViewModel @Inject constructor(
             return
         }
 
-        // Get the original question to preserve createdAt and order
         val originalQuestion = state.value.questions.find { it.id == event.id }
+            ?: state.value.editingQuestion
+
+        if (originalQuestion != null && originalQuestion.questionType != event.questionType) {
+            showNotification("Không thể thay đổi loại câu hỏi sau khi tạo", NotificationType.ERROR)
+            return
+        }
 
         viewModelScope.launch {
             val updatedQuestion = MiniGameQuestion(
                 id = event.id,
                 miniGameId = event.gameId,
                 content = event.content.trim(),
-                questionType = event.questionType,
+                questionType = originalQuestion?.questionType ?: event.questionType,
                 score = event.score,
                 timeLimit = event.timeLimit,
                 order = event.order,

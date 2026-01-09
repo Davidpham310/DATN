@@ -178,35 +178,46 @@ fun AddEditQuestionDialog(
                 )
 
                 // Question Type Dropdown
-                Box {
+                if (isEditing) {
                     OutlinedTextField(
                         value = selectedQuestionType.displayName,
                         onValueChange = {},
                         label = { Text("Loại câu hỏi *") },
                         readOnly = true,
-                        trailingIcon = {
-                            Icon(
-                                Icons.Default.ArrowDropDown,
-                                null,
-                                Modifier.clickable { isQuestionTypeExpanded = !isQuestionTypeExpanded }
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isQuestionTypeExpanded = true }
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    DropdownMenu(
-                        expanded = isQuestionTypeExpanded,
-                        onDismissRequest = { isQuestionTypeExpanded = false }
-                    ) {
-                        allowedQuestionTypes.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type.displayName) },
-                                onClick = {
-                                    selectedQuestionType = type
-                                    isQuestionTypeExpanded = false
-                                }
-                            )
+                } else {
+                    Box {
+                        OutlinedTextField(
+                            value = selectedQuestionType.displayName,
+                            onValueChange = {},
+                            label = { Text("Loại câu hỏi *") },
+                            readOnly = true,
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    null,
+                                    Modifier.clickable { isQuestionTypeExpanded = !isQuestionTypeExpanded }
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isQuestionTypeExpanded = true }
+                        )
+                        DropdownMenu(
+                            expanded = isQuestionTypeExpanded,
+                            onDismissRequest = { isQuestionTypeExpanded = false }
+                        ) {
+                            allowedQuestionTypes.forEach { type ->
+                                DropdownMenuItem(
+                                    text = { Text(type.displayName) },
+                                    onClick = {
+                                        selectedQuestionType = type
+                                        isQuestionTypeExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }

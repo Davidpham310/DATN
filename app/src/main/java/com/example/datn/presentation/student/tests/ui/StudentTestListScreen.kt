@@ -20,6 +20,7 @@ import com.example.datn.domain.models.TestStatus
 import com.example.datn.presentation.student.tests.event.StudentTestListEvent
 import com.example.datn.presentation.student.tests.state.TestWithStatus
 import com.example.datn.presentation.student.tests.viewmodel.StudentTestListViewModel
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,7 +32,13 @@ fun StudentTestListScreen(
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.onEvent(StudentTestListEvent.LoadTests)
+        viewModel.eventFlow.collectLatest { event ->
+            when (event) {
+                is StudentTestListEvent.NavigateToTest -> onNavigateToTest(event.testId)
+                is StudentTestListEvent.NavigateToResult -> onNavigateToResult(event.testId, event.resultId)
+                else -> {}
+            }
+        }
     }
 
     Scaffold(
@@ -83,7 +90,10 @@ fun StudentTestListScreen(
                         }
                     }
                 }
-                state.upcomingTests.isEmpty() && state.ongoingTests.isEmpty() && state.completedTests.isEmpty() -> {
+                state.upcomingTests.isEmpty() &&
+                    state.ongoingTests.isEmpty() &&
+                    state.overdueTests.isEmpty() &&
+                    state.completedTests.isEmpty() -> {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -99,7 +109,7 @@ fun StudentTestListScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Chưa có bài kiểm tra nào",
+                            text = "Hiện chưa có bài kiểm tra",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -124,7 +134,11 @@ fun StudentTestListScreen(
                             items(state.upcomingTests) { testWithStatus ->
                                 UpcomingTestCard(
                                     testWithStatus = testWithStatus,
-                                    onClick = { /* Cannot take yet */ }
+                                    onClick = {
+                                        viewModel.onEvent(
+                                            StudentTestListEvent.RequestStartTest(testWithStatus.test.id)
+                                        )
+                                    }
                                 )
                             }
                             item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -144,13 +158,31 @@ fun StudentTestListScreen(
                                 OngoingTestCard(
                                     testWithStatus = testWithStatus,
                                     onClick = {
-                                        if (testWithStatus.hasResult) {
-                                            testWithStatus.result?.let { result ->
-                                                onNavigateToResult(testWithStatus.test.id, result.id)
-                                            }
-                                        } else {
-                                            onNavigateToTest(testWithStatus.test.id)
-                                        }
+                                        viewModel.onEvent(
+                                            StudentTestListEvent.RequestStartTest(testWithStatus.test.id)
+                                        )
+                                    }
+                                )
+                            }
+                            item { Spacer(modifier = Modifier.height(8.dp)) }
+                        }
+
+                        if (state.overdueTests.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Đã Kết Thúc (${state.overdueTests.size})",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            items(state.overdueTests) { testWithStatus ->
+                                OngoingTestCard(
+                                    testWithStatus = testWithStatus,
+                                    onClick = {
+                                        viewModel.onEvent(
+                                            StudentTestListEvent.RequestStartTest(testWithStatus.test.id)
+                                        )
                                     }
                                 )
                             }
@@ -171,9 +203,9 @@ fun StudentTestListScreen(
                                 CompletedTestCard(
                                     testWithStatus = testWithStatus,
                                     onClick = {
-                                        testWithStatus.result?.let { result ->
-                                            onNavigateToResult(testWithStatus.test.id, result.id)
-                                        }
+                                        viewModel.onEvent(
+                                            StudentTestListEvent.RequestStartTest(testWithStatus.test.id)
+                                        )
                                     }
                                 )
                             }

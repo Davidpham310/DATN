@@ -88,7 +88,8 @@ fun TestQuestionManagerScreen(
                                 excelPickerLauncher.launch(
                                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                 )
-                            }
+                            },
+                            enabled = !state.isLoading
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AddBox,
@@ -115,7 +116,7 @@ fun TestQuestionManagerScreen(
                     .padding(paddingValues)
             ) {
                 when {
-                    state.isLoading && state.questions.isEmpty() -> {
+                    state.isLoading && state.questions.isEmpty() && !state.showAddEditDialog -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -179,7 +180,7 @@ fun TestQuestionManagerScreen(
                 }
 
                 // Loading overlay
-                if (state.isLoading && state.questions.isNotEmpty()) {
+                if (state.isLoading && state.questions.isNotEmpty() && !state.showAddEditDialog) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -194,6 +195,7 @@ fun TestQuestionManagerScreen(
                 AddEditTestQuestionDialog(
                     testQuestion = state.editingQuestion,
                     onDismiss = { viewModel.onEvent(TestQuestionEvent.DismissDialog) },
+                    isLoading = state.isLoading,
                     onConfirm = { content, score, timeLimit, order, questionType, mediaUrl ->
                         if (state.editingQuestion == null) {
                             viewModel.onEvent(

@@ -17,7 +17,8 @@ data class CreateLessonContentParams(
     val contentType: ContentType,
     val contentText: String? = null,   // Nếu contentType = TEXT, lưu trực tiếp
     val fileStream: InputStream? = null, // Nếu contentType != TEXT, upload file
-    val fileSize: Long = 0
+    val fileSize: Long = 0,
+    val onUploadProgress: ((uploaded: Long, total: Long) -> Unit)? = null
 )
 
 class CreateLessonContentUseCase @Inject constructor(
@@ -34,6 +35,6 @@ class CreateLessonContentUseCase @Inject constructor(
             createdAt = Instant.now(),
             updatedAt = Instant.now()
         )
-        return repository.addContent(content, params.fileStream, params.fileSize)
+        return repository.addContent(content, params.fileStream, params.fileSize, params.onUploadProgress)
     }
 }
