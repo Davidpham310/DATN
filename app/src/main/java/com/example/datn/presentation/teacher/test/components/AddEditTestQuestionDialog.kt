@@ -1,8 +1,12 @@
 package com.example.datn.presentation.teacher.test.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -10,6 +14,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import android.net.Uri
+import android.graphics.BitmapFactory
 import com.example.datn.core.utils.validation.rules.test.ValidateTestMediaUrl
 import com.example.datn.core.utils.validation.rules.test.ValidateTestDisplayOrder
 import com.example.datn.core.utils.validation.rules.test.ValidateTestQuestionContent
@@ -22,8 +31,12 @@ import com.example.datn.domain.models.TestQuestion
 fun AddEditTestQuestionDialog(
     testQuestion: TestQuestion? = null,
     onDismiss: () -> Unit,
+    onSelectFile: () -> Unit,
+    onClearSelectedFile: () -> Unit,
+    selectedFileName: String?,
     isLoading: Boolean = false,
-    onConfirm: (content: String, score: Double, timeLimit: Int, order: Int, questionType: QuestionType, mediaUrl: String?) -> Unit
+    onConfirm: (content: String, score: Double, timeLimit: Int, order: Int, questionType: QuestionType, mediaUrl: String?) -> Unit,
+    imagePreviewUri: Uri? = null
 ) {
     val isEditing = testQuestion != null
 
@@ -69,10 +82,7 @@ fun AddEditTestQuestionDialog(
         val displayOrderResult = displayOrderValidator.validate(displayOrderValue)
         displayOrderError = if (!displayOrderResult.successful) displayOrderResult.errorMessage else null
 
-        val mediaUrlResult = mediaUrlValidator.validate(mediaUrl.ifBlank { null })
-        mediaUrlError = if (!mediaUrlResult.successful) mediaUrlResult.errorMessage else null
-
-        return contentError == null && scoreError == null && timeLimitError == null && displayOrderError == null && mediaUrlError == null
+        return contentError == null && scoreError == null && timeLimitError == null && displayOrderError == null
     }
 
     AlertDialog(
@@ -82,7 +92,10 @@ fun AddEditTestQuestionDialog(
         title = { Text(if (testQuestion == null) "Thêm câu hỏi" else "Sửa câu hỏi") },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Content
@@ -209,22 +222,64 @@ fun AddEditTestQuestionDialog(
                 }
 
                 // Media URL (optional)
-                OutlinedTextField(
-                    value = mediaUrl,
-                    onValueChange = {
-                        mediaUrl = it
-                        if (mediaUrlError != null) mediaUrlError = null
-                    },
-                    label = { Text("URL hình ảnh/video (tùy chọn)") },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading,
-                    isError = mediaUrlError != null,
-                    supportingText = {
-                        mediaUrlError?.let {
-                            Text(it, color = MaterialTheme.colorScheme.error)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = onSelectFile,
+                        enabled = !isLoading,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.AttachFile, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Chọn file")
+                    }
+
+                    if (!selectedFileName.isNullOrBlank()) {
+                        IconButton(
+                            onClick = onClearSelectedFile,
+                            enabled = !isLoading
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Bỏ chọn file")
                         }
                     }
-                )
+                }
+
+                if (!selectedFileName.isNullOrBlank()) {
+                    Text(
+                        text = selectedFileName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+
+                // Preview image if available
+                val context = LocalContext.current
+                val previewBitmap = remember(imagePreviewUri) {
+                    imagePreviewUri?.let { uri ->
+                        try {
+                            context.contentResolver.openInputStream(uri)?.use { stream ->
+                                BitmapFactory.decodeStream(stream)
+                            }
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+                }
+                if (previewBitmap != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Image(
+                        bitmap = previewBitmap.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                    )
+                }
+
+                // Media URL text input removed. File selection above is the source of media.
             }
         },
         confirmButton = {
@@ -239,7 +294,7 @@ fun AddEditTestQuestionDialog(
                             timeLimitValue,
                             displayOrderValue,
                             selectedType,
-                            mediaUrl.trim().ifBlank { null }
+                            null
                         )
                     }
                 },

@@ -1,5 +1,9 @@
 package com.example.datn.presentation.student.tests.ui
 
+import android.net.Uri
+import android.view.ViewGroup
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,9 +15,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.AsyncImage
 import com.example.datn.domain.models.QuestionType
 import com.example.datn.presentation.student.tests.event.StudentTestTakingEvent
 import com.example.datn.presentation.student.tests.state.Answer
@@ -58,6 +70,7 @@ fun StudentTestTakingScreen(
             questions = state.questions,
             currentIndex = state.currentQuestionIndex,
             answers = state.answers,
+            resolveUrl = { url -> viewModel.resolveDirectUrl(url) },
             onQuestionSelected = { index ->
                 viewModel.onEvent(StudentTestTakingEvent.GoToQuestion(index))
             },
@@ -211,6 +224,7 @@ fun StudentTestTakingScreen(
                                 QuestionContent(
                                     question = state.currentQuestion!!,
                                     currentAnswer = state.answers[state.currentQuestion!!.question.id],
+                                    resolveUrl = { url -> viewModel.resolveDirectUrl(url) },
                                     onAnswerChanged = { answer ->
                                         val question = state.currentQuestion!!.question
                                         when (question.questionType) {
@@ -270,6 +284,7 @@ fun StudentTestTakingScreen(
 private fun QuestionContent(
     question: QuestionWithOptions,
     currentAnswer: Answer?,
+    resolveUrl: suspend (String) -> String,
     onAnswerChanged: (Answer) -> Unit
 ) {
     Card(
@@ -304,13 +319,30 @@ private fun QuestionContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Question Text
-            Text(
-                text = question.question.content,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            val mediaUrl = question.question.mediaUrl
+            if (mediaUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                // Fallback to text when no media
+                Text(
+                    text = question.question.content,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            } else {
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    QuestionMediaPreview(
+                        mediaUrl = mediaUrl,
+                        resolveUrl = resolveUrl,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -320,6 +352,7 @@ private fun QuestionContent(
                     SingleChoiceOptions(
                         options = question.options,
                         selectedOptionId = (currentAnswer as? Answer.SingleChoice)?.optionId,
+                        resolveUrl = resolveUrl,
                         onOptionSelected = { optionId ->
                             onAnswerChanged(Answer.SingleChoice(optionId))
                         }
@@ -329,6 +362,7 @@ private fun QuestionContent(
                     MultipleChoiceOptions(
                         options = question.options,
                         selectedOptionIds = (currentAnswer as? Answer.MultipleChoice)?.optionIds ?: emptySet(),
+                        resolveUrl = resolveUrl,
                         onOptionsChanged = { optionIds ->
                             onAnswerChanged(Answer.MultipleChoice(optionIds))
                         }
@@ -359,32 +393,56 @@ private fun QuestionContent(
 private fun SingleChoiceOptions(
     options: List<com.example.datn.domain.models.TestOption>,
     selectedOptionId: String?,
+    resolveUrl: suspend (String) -> String,
     onOptionSelected: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { option ->
+        val rows = options.chunked(2)
+        rows.forEach { rowOptions ->
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        color = if (option.id == selectedOptionId)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowOptions.forEach { option ->
+                    val isSelected = option.id == selectedOptionId
+                    Surface(
+                        onClick = { onOptionSelected(option.id) },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected)
                             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                         else
-                            Color.Transparent,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = option.id == selectedOptionId,
-                    onClick = { onOptionSelected(option.id) }
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = option.content,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                            MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            val optUrl = option.mediaUrl
+                            if (!optUrl.isNullOrBlank()) {
+                                QuestionMediaPreviewMini(
+                                    mediaUrl = optUrl,
+                                    resolveUrl = resolveUrl,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(120.dp)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = { onOptionSelected(option.id) }
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = option.content,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                }
+                if (rowOptions.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
@@ -394,39 +452,62 @@ private fun SingleChoiceOptions(
 private fun MultipleChoiceOptions(
     options: List<com.example.datn.domain.models.TestOption>,
     selectedOptionIds: Set<String>,
+    resolveUrl: suspend (String) -> String,
     onOptionsChanged: (Set<String>) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { option ->
+        val rows = options.chunked(2)
+        rows.forEach { rowOptions ->
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        color = if (option.id in selectedOptionIds)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowOptions.forEach { option ->
+                    val isSelected = option.id in selectedOptionIds
+                    Surface(
+                        onClick = {
+                            val newSelection = if (isSelected) selectedOptionIds - option.id else selectedOptionIds + option.id
+                            onOptionsChanged(newSelection)
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected)
                             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                         else
-                            Color.Transparent,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = option.id in selectedOptionIds,
-                    onCheckedChange = { checked ->
-                        val newSelection = if (checked) {
-                            selectedOptionIds + option.id
-                        } else {
-                            selectedOptionIds - option.id
+                            MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            val optUrl = option.mediaUrl
+                            if (!optUrl.isNullOrBlank()) {
+                                QuestionMediaPreviewMini(
+                                    mediaUrl = optUrl,
+                                    resolveUrl = resolveUrl,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(120.dp)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { checked ->
+                                        val newSelection = if (checked) selectedOptionIds + option.id else selectedOptionIds - option.id
+                                        onOptionsChanged(newSelection)
+                                    }
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = option.content,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
-                        onOptionsChanged(newSelection)
                     }
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = option.content,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                }
+                if (rowOptions.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
@@ -443,6 +524,232 @@ private fun FillBlankInput(
         modifier = Modifier.fillMaxWidth(),
         label = { Text("Nhập câu trả lời") },
         placeholder = { Text("Nhập câu trả lời của bạn...") }
+    )
+}
+
+private enum class QuestionMediaKind {
+    IMAGE,
+    VIDEO,
+    AUDIO,
+    PDF
+}
+
+private fun detectMediaKind(mediaUrl: String): QuestionMediaKind {
+    val url = mediaUrl.substringBefore('?').lowercase()
+    return when {
+        url.endsWith(".pdf") -> QuestionMediaKind.PDF
+        url.endsWith(".mp4") || url.endsWith(".mkv") || url.endsWith(".mov") || url.endsWith(".webm") -> QuestionMediaKind.VIDEO
+        url.endsWith(".mp3") || url.endsWith(".wav") || url.endsWith(".m4a") || url.endsWith(".aac") || url.endsWith(".ogg") -> QuestionMediaKind.AUDIO
+        else -> QuestionMediaKind.IMAGE
+    }
+}
+
+@Composable
+private fun QuestionMediaPreview(
+    mediaUrl: String,
+    resolveUrl: suspend (String) -> String,
+    modifier: Modifier = Modifier
+) {
+    val resolvedUrl by produceState(initialValue = mediaUrl, key1 = mediaUrl) {
+        value = resolveUrl(mediaUrl)
+    }
+    val kind = remember(resolvedUrl) { detectMediaKind(resolvedUrl) }
+    when (kind) {
+        QuestionMediaKind.IMAGE -> {
+            AsyncImage(
+                model = resolvedUrl,
+                contentDescription = null,
+                modifier = modifier.heightIn(min = 180.dp, max = 360.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+        QuestionMediaKind.VIDEO -> {
+            QuestionVideoPlayer(
+                videoUrl = resolvedUrl,
+                modifier = modifier.height(220.dp)
+            )
+        }
+        QuestionMediaKind.AUDIO -> {
+            QuestionAudioPlayer(
+                audioUrl = resolvedUrl,
+                modifier = modifier
+            )
+        }
+        QuestionMediaKind.PDF -> {
+            QuestionPdfViewer(
+                pdfUrl = resolvedUrl,
+                modifier = modifier.height(420.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuestionMediaPreviewMini(
+    mediaUrl: String,
+    resolveUrl: suspend (String) -> String,
+    modifier: Modifier = Modifier
+) {
+    val resolvedUrl by produceState(initialValue = mediaUrl, key1 = mediaUrl) {
+        value = resolveUrl(mediaUrl)
+    }
+    val kind = remember(resolvedUrl) { detectMediaKind(resolvedUrl) }
+    when (kind) {
+        QuestionMediaKind.IMAGE -> {
+            AsyncImage(
+                model = resolvedUrl,
+                contentDescription = null,
+                modifier = modifier.heightIn(min = 72.dp, max = 120.dp),
+                contentScale = ContentScale.Crop
+            )
+        }
+        QuestionMediaKind.VIDEO -> {
+            Row(
+                modifier = modifier,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Video",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        }
+        QuestionMediaKind.AUDIO -> {
+            Row(
+                modifier = modifier,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.VolumeUp, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Audio",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        }
+        QuestionMediaKind.PDF -> {
+            Row(
+                modifier = modifier,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Description, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "PDF",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+@androidx.annotation.OptIn(UnstableApi::class)
+@Composable
+private fun QuestionVideoPlayer(videoUrl: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+
+    val exoPlayer = remember(videoUrl) {
+        val httpDataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(15_000)
+
+        val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(httpDataSourceFactory)
+
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build()
+            .apply {
+                setMediaItem(MediaItem.fromUri(Uri.parse(videoUrl)))
+                prepare()
+            }
+    }
+
+    DisposableEffect(videoUrl) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                player = exoPlayer
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+        },
+        modifier = modifier
+    )
+}
+
+@androidx.annotation.OptIn(UnstableApi::class)
+@Composable
+private fun QuestionAudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+
+    val exoPlayer = remember(audioUrl) {
+        val httpDataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(15_000)
+
+        val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(httpDataSourceFactory)
+
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build()
+            .apply {
+                setMediaItem(MediaItem.fromUri(Uri.parse(audioUrl)))
+                prepare()
+            }
+    }
+
+    DisposableEffect(audioUrl) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                player = exoPlayer
+                useController = true
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            }
+        },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun QuestionPdfViewer(pdfUrl: String, modifier: Modifier = Modifier) {
+    AndroidView(
+        factory = { context ->
+            WebView(context).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                webViewClient = WebViewClient()
+                settings.javaScriptEnabled = true
+                settings.builtInZoomControls = true
+                settings.displayZoomControls = false
+                loadUrl("https://docs.google.com/viewer?url=$pdfUrl&embedded=true")
+            }
+        },
+        modifier = modifier
     )
 }
 
@@ -503,6 +810,7 @@ private fun QuestionListDialog(
     questions: List<QuestionWithOptions>,
     currentIndex: Int,
     answers: Map<String, Answer>,
+    resolveUrl: suspend (String) -> String,
     onQuestionSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -537,7 +845,30 @@ private fun QuestionListDialog(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Câu ${index + 1}")
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Câu ${index + 1}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                val mediaUrl = question.question.mediaUrl
+                                if (!mediaUrl.isNullOrBlank()) {
+                                    QuestionMediaPreviewMini(
+                                        mediaUrl = mediaUrl,
+                                        resolveUrl = resolveUrl,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                } else {
+                                    Text(
+                                        text = question.question.content,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                        maxLines = 2
+                                    )
+                                }
+                            }
                             if (isAnswered) {
                                 Icon(
                                     Icons.Default.CheckCircle,

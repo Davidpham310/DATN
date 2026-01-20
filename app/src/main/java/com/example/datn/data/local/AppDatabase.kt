@@ -49,7 +49,7 @@ import com.example.datn.data.local.entities.*
         ConversationEntity::class,
         MessageEntity::class
     ],
-    version = 4, // Tăng phiên bản khi thay đổi cấu trúc DB
+    version = 5, // Tăng phiên bản khi thay đổi cấu trúc DB
     exportSchema = false
 )
 @TypeConverters(DateTimeConverter::class, EnumConverter::class, StringListConverter::class)
@@ -152,6 +152,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE test_question ADD COLUMN mediaUrl TEXT DEFAULT NULL"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -159,7 +167,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

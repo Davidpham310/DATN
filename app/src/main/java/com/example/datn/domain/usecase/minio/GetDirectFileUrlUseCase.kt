@@ -1,7 +1,7 @@
 package com.example.datn.domain.usecase.minio
 
 import com.example.datn.domain.repository.IFileRepository
-import jakarta.inject.Inject
+import javax.inject.Inject
 
 class GetDirectFileUrlUseCase @Inject constructor(
     private val repository: IFileRepository

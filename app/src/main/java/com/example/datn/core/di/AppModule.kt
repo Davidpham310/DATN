@@ -166,9 +166,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, "app_db")
-            .fallbackToDestructiveMigration() // Cho phép reset nếu cấu trúc đổi
-            .build()
+        AppDatabase.getDatabase(context)
 
 
     // Notifications
@@ -397,8 +395,9 @@ object AppModule {
 
     @Provides
     fun provideTestQuestionUseCases(
-        repository: ITestQuestionRepository
-    ): TestQuestionUseCases = TestQuestionUseCases(repository)
+        repository: ITestQuestionRepository,
+        testRepository: ITestRepository
+    ): TestQuestionUseCases = TestQuestionUseCases(repository, testRepository)
 
     @Provides
     fun provideTestOptionUseCases(
@@ -455,7 +454,9 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideTestService(): TestService = TestService()
+    fun provideTestService(
+        minIOService: MinIOService
+    ): TestService = TestService(minIOService)
 
     @Provides
     @Singleton

@@ -8,8 +8,10 @@ import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.models.StudentTestResult
 import com.example.datn.domain.models.TestStatus
 import com.example.datn.domain.usecase.auth.AuthUseCases
+import com.example.datn.domain.usecase.minio.GetDirectFileUrlUseCase
 import com.example.datn.domain.usecase.progress.LogDailyStudyTimeUseCase
 import com.example.datn.domain.usecase.student.GetStudentProfileByUserIdUseCase
+import com.example.datn.domain.usecase.test.TestUseCases
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.presentation.student.tests.event.StudentTestTakingEvent
@@ -29,10 +31,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class StudentTestTakingViewModel @Inject constructor(
-    private val testUseCases: com.example.datn.domain.usecase.test.TestUseCases,
+    private val testUseCases: TestUseCases,
     private val authUseCases: AuthUseCases,
     private val getStudentProfileByUserId: GetStudentProfileByUserIdUseCase,
     private val logDailyStudyTime: LogDailyStudyTimeUseCase,
+    private val getDirectFileUrl: GetDirectFileUrlUseCase,
     notificationManager: NotificationManager
 ) : BaseViewModel<StudentTestTakingState, StudentTestTakingEvent>(
     StudentTestTakingState(),
@@ -69,6 +72,15 @@ class StudentTestTakingViewModel @Inject constructor(
             StudentTestTakingEvent.ConfirmSubmit -> submitTest()
             StudentTestTakingEvent.ToggleQuestionList -> setState { copy(showQuestionList = !showQuestionList) }
             StudentTestTakingEvent.SaveProgress -> saveProgress()
+        }
+    }
+
+    suspend fun resolveDirectUrl(objectName: String): String {
+        return try {
+            if (objectName.startsWith("http")) objectName else getDirectFileUrl(objectName)
+        } catch (e: Exception) {
+            Log.w(TAG, "[resolveDirectUrl] Failed to resolve URL for $objectName: ${e.message}")
+            objectName
         }
     }
 

@@ -2,6 +2,7 @@ package com.example.datn.data.remote.service.test
 
 import android.util.Log
 import com.example.datn.data.remote.service.firestore.BaseFirestoreService
+import com.example.datn.data.remote.service.minio.MinIOService
 import com.example.datn.core.utils.mapper.internalToDomain
 import com.example.datn.domain.models.Test
 import com.example.datn.domain.models.TestOption
@@ -15,7 +16,9 @@ import javax.inject.Inject
 
 private const val TAG = "TestService"
 
-class TestService @Inject constructor() :
+class TestService @Inject constructor(
+    private val minIOService: MinIOService
+) :
     BaseFirestoreService<Test>(
         collectionName = "tests",
         clazz = Test::class.java
@@ -25,6 +28,15 @@ class TestService @Inject constructor() :
     private val optionRef = FirebaseFirestore.getInstance().collection("test_options")
     private val resultRef = FirebaseFirestore.getInstance().collection("student_test_results")
     private val answerRef = FirebaseFirestore.getInstance().collection("student_test_answers")
+
+    private fun toObjectKey(path: String): String {
+        val candidates = listOf("tests/", "test_options/", "lessons/")
+        for (p in candidates) {
+            val idx = path.indexOf(p)
+            if (idx >= 0) return path.substring(idx)
+        }
+        return path
+    }
 
     // ==================== QUESTIONS ====================
     suspend fun getQuestionsByTest(testId: String): List<TestQuestion> = try {
@@ -40,46 +52,134 @@ class TestService @Inject constructor() :
     }
 
     suspend fun addTestQuestion(question: TestQuestion): TestQuestion? = try {
+        // Load existing questions to determine desired order and shifts
+        val existingQuestions = getQuestionsByTest(question.testId)
+
+        val currentMaxQ = existingQuestions.maxOfOrNull { it.order } ?: 0
+        val desiredOrder = when {
+            // If no order provided (<= 0), append to end using 1-based indexing
+            question.order <= 0 -> currentMaxQ + 1
+            // Clamp to end (max+1) if larger than allowed insert position
+            question.order > currentMaxQ + 1 -> currentMaxQ + 1
+            else -> question.order
+        }
+
+        val questionsToShift = existingQuestions.filter { it.order >= desiredOrder }
+
         val docRef = if (question.id.isNotEmpty()) questionRef.document(question.id) else questionRef.document()
+
         val now = Instant.now()
-        val data = question.copy(id = docRef.id, createdAt = now, updatedAt = now)
-        docRef.set(data).await()
+        val data = question.copy(
+            id = docRef.id,
+            order = desiredOrder,
+            createdAt = now,
+            updatedAt = now
+        )
+
+        firestore.runBatch { batch ->
+            questionsToShift.forEach { existingQuestion ->
+                batch.update(questionRef.document(existingQuestion.id), "order", existingQuestion.order + 1)
+            }
+            batch.set(docRef, data)
+        }.await()
+
         data
     } catch (e: Exception) {
         Log.e(TAG, "Error addTestQuestion", e)
         null
     }
 
-    suspend fun updateTestQuestion(questionId: String, question: TestQuestion): Boolean = try {
-        val existingDoc = questionRef.document(questionId).get().await()
-        if (!existingDoc.exists()) {
-            false
-        } else {
-            val existingQuestion = existingDoc.internalToDomain(TestQuestion::class.java)
+    suspend fun updateTestQuestion(questionId: String, question: TestQuestion): Boolean {
+        return try {
+            val doc = questionRef.document(questionId).get().await()
+            if (!doc.exists()) return false
 
-            val updated = question.copy(
-                id = questionId,
-                testId = existingQuestion.testId,
-                questionType = existingQuestion.questionType,
-                createdAt = existingQuestion.createdAt,
-                updatedAt = Instant.now()
-            )
-            questionRef.document(questionId).set(updated).await()
+            val oldQuestion = doc.internalToDomain(TestQuestion::class.java)
+            val oldOrder = oldQuestion.order
+
+            val otherQuestions = getQuestionsByTest(oldQuestion.testId)
+                .filter { it.id != questionId }
+
+            // For update within existing items, valid range is [1..maxOrder]
+            val maxAllowedOrder = (otherQuestions.maxOfOrNull { it.order } ?: 0).coerceAtLeast(1)
+            val clampedOrder = when {
+                question.order < 1 -> oldOrder
+                question.order > maxAllowedOrder -> maxAllowedOrder
+                else -> question.order
+            }
+
+            if (clampedOrder == oldOrder) {
+                val updated = question.copy(
+                    id = questionId,
+                    testId = oldQuestion.testId,
+                    order = oldOrder,
+                    questionType = oldQuestion.questionType,
+                    createdAt = oldQuestion.createdAt,
+                    updatedAt = Instant.now()
+                )
+                questionRef.document(questionId).set(updated).await()
+                return true
+            }
+
+            firestore.runBatch { batch ->
+                otherQuestions.find { it.order == clampedOrder }?.let { conflict ->
+                    batch.update(questionRef.document(conflict.id), "order", oldOrder)
+                }
+
+                val updated = question.copy(
+                    id = questionId,
+                    testId = oldQuestion.testId,
+                    order = clampedOrder,
+                    questionType = oldQuestion.questionType,
+                    createdAt = oldQuestion.createdAt,
+                    updatedAt = Instant.now()
+                )
+                batch.set(questionRef.document(questionId), updated)
+            }.await()
+
             true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updateTestQuestion", e)
+            false
         }
-    } catch (e: Exception) {
-        Log.e(TAG, "Error updateTestQuestion", e)
-        false
     }
 
     suspend fun deleteTestQuestion(questionId: String): Boolean = try {
-        // Delete all options first
+        // Try to load question for MinIO cleanup
+        var questionMedia: String? = null
+        try {
+            val qDoc = questionRef.document(questionId).get().await()
+            if (qDoc.exists()) {
+                val q = qDoc.internalToDomain(TestQuestion::class.java)
+                questionMedia = q.mediaUrl
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not fetch question before delete: $questionId", e)
+        }
+
+        // Delete all options first (and their MinIO files)
         val options = getOptionsByQuestion(questionId)
         options.forEach { option ->
+            val media = option.mediaUrl
+            if (!media.isNullOrBlank()) {
+                try { minIOService.deleteFile(toObjectKey(media)) } catch (e: Exception) {
+                    Log.w(TAG, "Failed to delete option media from MinIO: $media", e)
+                }
+            }
             optionRef.document(option.id).delete().await()
         }
-        // Then delete the question
+
+        // Delete the question document
         questionRef.document(questionId).delete().await()
+
+        // Delete question media from MinIO if provided
+        val qm = questionMedia
+        if (!qm.isNullOrBlank()) {
+            try { minIOService.deleteFile(toObjectKey(qm)) } catch (e: Exception) {
+                Log.w(TAG, "Failed to delete question media from MinIO: $qm", e)
+            }
+        }
+
         true
     } catch (e: Exception) {
         Log.e(TAG, "Error deleteTestQuestion", e)
@@ -101,33 +201,117 @@ class TestService @Inject constructor() :
             try { doc.internalToDomain(TestOption::class.java) } catch (e: Exception) {
                 Log.e(TAG, "Failed to map option ${doc.id}", e); null
             }
-        }
+        }.sortedBy { it.order }
     } catch (e: Exception) {
         Log.e(TAG, "Error getOptionsByQuestion", e)
         emptyList()
     }
 
     suspend fun addOption(option: TestOption): TestOption? = try {
+        // Load existing options to determine desired order and shifts
+        val existing = getOptionsByQuestion(option.testQuestionId)
+
+        val currentMaxO = existing.maxOfOrNull { it.order } ?: 0
+        val desiredOrder = when {
+            // If no order provided (<= 0), append to end using 1-based indexing
+            option.order <= 0 -> currentMaxO + 1
+            // Clamp to end (max+1) if larger than allowed insert position
+            option.order > currentMaxO + 1 -> currentMaxO + 1
+            else -> option.order
+        }
+
+        val toShift = existing.filter { it.order >= desiredOrder }
+
         val docRef = if (option.id.isNotEmpty()) optionRef.document(option.id) else optionRef.document()
         val now = Instant.now()
-        val data = option.copy(id = docRef.id, createdAt = now, updatedAt = now)
-        docRef.set(data).await()
+        val data = option.copy(
+            id = docRef.id,
+            order = desiredOrder,
+            createdAt = now,
+            updatedAt = now
+        )
+
+        firestore.runBatch { batch ->
+            toShift.forEach { ex ->
+                batch.update(optionRef.document(ex.id), "order", ex.order + 1)
+            }
+            batch.set(docRef, data)
+        }.await()
+
         data
     } catch (e: Exception) {
         Log.e(TAG, "Error addOption", e)
         null
     }
 
-    suspend fun updateOption(optionId: String, option: TestOption): Boolean = try {
-        val updated = option.copy(id = optionId, updatedAt = Instant.now())
-        optionRef.document(optionId).set(updated).await()
-        true
-    } catch (e: Exception) {
-        Log.e(TAG, "Error updateOption", e)
-        false
+    suspend fun updateOption(optionId: String, option: TestOption): Boolean {
+        return try {
+            val doc = optionRef.document(optionId).get().await()
+            if (!doc.exists()) return false
+
+            val old = doc.internalToDomain(TestOption::class.java)
+            val oldOrder = old.order
+
+            val others = getOptionsByQuestion(old.testQuestionId).filter { it.id != optionId }
+            // For update within existing items, valid range is [1..maxOrder]
+            val maxAllowed = (others.maxOfOrNull { it.order } ?: 0).coerceAtLeast(1)
+            val clampedOrder = when {
+                option.order < 1 -> oldOrder
+                option.order > maxAllowed -> maxAllowed
+                else -> option.order
+            }
+
+            if (clampedOrder == oldOrder) {
+                val updated = option.copy(
+                    id = optionId,
+                    testQuestionId = old.testQuestionId,
+                    order = oldOrder,
+                    createdAt = old.createdAt,
+                    updatedAt = Instant.now()
+                )
+                optionRef.document(optionId).set(updated).await()
+                return true
+            }
+
+            firestore.runBatch { batch ->
+                others.find { it.order == clampedOrder }?.let { conflict ->
+                    batch.update(optionRef.document(conflict.id), "order", oldOrder)
+                }
+
+                val updated = option.copy(
+                    id = optionId,
+                    testQuestionId = old.testQuestionId,
+                    order = clampedOrder,
+                    createdAt = old.createdAt,
+                    updatedAt = Instant.now()
+                )
+                batch.set(optionRef.document(optionId), updated)
+            }.await()
+
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updateOption", e)
+            false
+        }
     }
 
     suspend fun deleteOption(optionId: String): Boolean = try {
+        // Try to load option to remove its MinIO media if any
+        try {
+            val doc = optionRef.document(optionId).get().await()
+            if (doc.exists()) {
+                val opt = doc.internalToDomain(TestOption::class.java)
+                val media = opt.mediaUrl
+                if (!media.isNullOrBlank()) {
+                    try { minIOService.deleteFile(media) } catch (e: Exception) {
+                        Log.w(TAG, "Failed to delete option media from MinIO: $media", e)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not fetch option before delete: $optionId", e)
+        }
+
         optionRef.document(optionId).delete().await()
         true
     } catch (e: Exception) {
@@ -191,10 +375,28 @@ class TestService @Inject constructor() :
     suspend fun deleteTest(testId: String): Boolean = try {
         val qs = getQuestionsByTest(testId)
         qs.forEach { q ->
-            optionRef.whereEqualTo("testQuestionId", q.id).get().await().documents.forEach { d ->
-                optionRef.document(d.id).delete().await()
+            // Delete options and their MinIO media
+            val opts = getOptionsByQuestion(q.id)
+            opts.forEach { opt ->
+                val media = opt.mediaUrl
+                if (!media.isNullOrBlank()) {
+                    try { minIOService.deleteFile(toObjectKey(media)) } catch (e: Exception) {
+                        Log.w(TAG, "Failed to delete option media from MinIO: $media", e)
+                    }
+                }
+                optionRef.document(opt.id).delete().await()
             }
+
+            // Delete question doc
             questionRef.document(q.id).delete().await()
+
+            // Delete question media
+            val qMedia = q.mediaUrl
+            if (!qMedia.isNullOrBlank()) {
+                try { minIOService.deleteFile(toObjectKey(qMedia)) } catch (e: Exception) {
+                    Log.w(TAG, "Failed to delete question media from MinIO: $qMedia", e)
+                }
+            }
         }
         collectionRef.document(testId).delete().await(); true
     } catch (e: Exception) {

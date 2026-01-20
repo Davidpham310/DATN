@@ -1,6 +1,6 @@
 package com.example.datn.domain.usecase.classmanager
 
-import jakarta.inject.Inject
+import javax.inject.Inject
 
 data class ClassUseCases @Inject constructor(
     // Class CRUD

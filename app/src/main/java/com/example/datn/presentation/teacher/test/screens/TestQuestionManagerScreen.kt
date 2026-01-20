@@ -43,31 +43,69 @@ fun TestQuestionManagerScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
-        val context = LocalContext.current
-        val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-        val excelPickerLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent()
-        ) { uri: Uri? ->
-            uri?.let {
-                scope.launch(Dispatchers.IO) {
-                    try {
-                        val inputStream = context.contentResolver.openInputStream(it)
-                        if (inputStream != null) {
-                            viewModel.importFromExcel(testId, inputStream)
-                        }
-                    } catch (_: Exception) {
-                        // ViewModel will surface errors via notifications on import flow
+    var currentMimeType by remember { mutableStateOf<String?>(null) }
+
+    val excelPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val inputStream = context.contentResolver.openInputStream(it)
+                    if (inputStream != null) {
+                        viewModel.importFromExcel(testId, inputStream)
                     }
+                } catch (_: Exception) {
+                    // ViewModel will surface errors via notifications on import flow
                 }
             }
         }
+    }
 
-        LaunchedEffect(testId) {
-            viewModel.setTest(testId, testTitle)
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val contentResolver = context.contentResolver
+                    val inputStream = contentResolver.openInputStream(it)
+                    val fileName = contentResolver.query(it, null, null, null, null)?.use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("_display_name")
+                        cursor.moveToFirst()
+                        cursor.getString(nameIndex)
+                    } ?: "file_upload"
+                    val fileSize = contentResolver.query(it, null, null, null, null)?.use { cursor ->
+                        val sizeIndex = cursor.getColumnIndex("_size")
+                        cursor.moveToFirst()
+                        cursor.getLong(sizeIndex)
+                    } ?: 0L
+
+                    val mimeType = contentResolver.getType(it)
+
+                    if (inputStream != null && fileSize > 0) {
+                        viewModel.onFileSelected(fileName, inputStream, fileSize, mimeType)
+                    }
+                } catch (_: Exception) {
+                    // Errors will be surfaced via ViewModel on confirm upload
+                }
+            }
         }
+    }
 
-        Scaffold(
+    val openFilePicker: () -> Unit = {
+        currentMimeType = "*/*"
+        filePickerLauncher.launch(currentMimeType!!)
+    }
+
+    LaunchedEffect(testId) {
+        viewModel.setTest(testId, testTitle)
+    }
+
+    Scaffold(
             topBar = {
                 TopAppBar(
                     title = {
@@ -195,6 +233,9 @@ fun TestQuestionManagerScreen(
                 AddEditTestQuestionDialog(
                     testQuestion = state.editingQuestion,
                     onDismiss = { viewModel.onEvent(TestQuestionEvent.DismissDialog) },
+                    onSelectFile = openFilePicker,
+                    onClearSelectedFile = { viewModel.resetFileSelection() },
+                    selectedFileName = state.selectedFileName,
                     isLoading = state.isLoading,
                     onConfirm = { content, score, timeLimit, order, questionType, mediaUrl ->
                         if (state.editingQuestion == null) {
@@ -224,6 +265,53 @@ fun TestQuestionManagerScreen(
                             )
                         }
                     }
+                )
+            }
+
+            if (state.isUploadDialogVisible) {
+                fun formatBytes(bytes: Long): String {
+                    if (bytes <= 0) return "0 B"
+                    val kb = 1024.0
+                    val mb = kb * 1024.0
+                    val gb = mb * 1024.0
+                    return when {
+                        bytes >= gb -> String.format("%.2f GB", bytes / gb)
+                        bytes >= mb -> String.format("%.2f MB", bytes / mb)
+                        bytes >= kb -> String.format("%.2f KB", bytes / kb)
+                        else -> "$bytes B"
+                    }
+                }
+
+                AlertDialog(
+                    onDismissRequest = { },
+                    title = { Text("Đang tải lên") },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            state.uploadFileName?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+
+                            LinearProgressIndicator(
+                                progress = (state.uploadProgressPercent / 100f).coerceIn(0f, 1f),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Text(
+                                text = "${state.uploadProgressPercent}%",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+
+                            if (state.uploadTotalBytes > 0) {
+                                Text(
+                                    text = "${formatBytes(state.uploadBytesUploaded)} / ${formatBytes(state.uploadTotalBytes)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = { }
                 )
             }
 
@@ -408,5 +496,3 @@ fun TestQuestionManagerScreen(
             }
         }
     }
-
-

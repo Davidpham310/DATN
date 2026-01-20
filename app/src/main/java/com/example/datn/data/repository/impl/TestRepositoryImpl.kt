@@ -134,6 +134,8 @@ class TestRepositoryImpl @Inject constructor(
                 }
                 is Resource.Loading -> emit(Resource.Loading())
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error("Lỗi khi lấy thông tin bài kiểm tra: ${e.message}"))
         }

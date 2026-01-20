@@ -3,6 +3,7 @@ package com.example.datn.presentation.teacher.test.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.example.datn.core.base.BaseState
 import com.example.datn.core.base.BaseViewModel
+import android.util.Log
 import com.example.datn.presentation.common.notifications.NotificationManager
 import com.example.datn.presentation.common.notifications.NotificationType
 import com.example.datn.core.utils.Resource
@@ -12,6 +13,7 @@ import com.example.datn.core.utils.validation.rules.test.ValidateTestQuestionCon
 import com.example.datn.core.utils.validation.rules.test.ValidateTestQuestionScore
 import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.models.TestQuestion
+import com.example.datn.domain.usecase.minio.MinIOUseCase
 import com.example.datn.domain.usecase.test.ImportTestQuestionsFromExcelUseCase
 import com.example.datn.domain.usecase.test.TestQuestionUseCases
 import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
@@ -30,6 +32,7 @@ import javax.inject.Inject
 class TestQuestionManagerViewModel @Inject constructor(
     private val testQuestionUseCases: TestQuestionUseCases,
     private val importTestQuestionsFromExcelUseCase: ImportTestQuestionsFromExcelUseCase,
+    private val minIOUseCase: MinIOUseCase,
     notificationManager: NotificationManager
 ) : BaseViewModel<TestQuestionState, TestQuestionEvent>(TestQuestionState(), notificationManager) {
 
@@ -37,6 +40,109 @@ class TestQuestionManagerViewModel @Inject constructor(
     private val questionScoreValidator = ValidateTestQuestionScore()
     private val questionMediaUrlValidator = ValidateTestMediaUrl()
     private val displayOrderValidator = ValidateTestDisplayOrder()
+
+    fun onFileSelected(fileName: String, stream: InputStream, size: Long, mimeType: String?) {
+        state.value.selectedFileStream?.close()
+        setState {
+            copy(
+                selectedFileName = fileName,
+                selectedFileStream = stream,
+                selectedFileSize = size,
+                selectedFileMimeType = mimeType
+            )
+        }
+    }
+
+    fun resetFileSelection() {
+        state.value.selectedFileStream?.close()
+        setState {
+            copy(
+                selectedFileName = null,
+                selectedFileStream = null,
+                selectedFileSize = 0L,
+                selectedFileMimeType = null
+            )
+        }
+    }
+
+    private fun resetUploadDialog() {
+        setState {
+            copy(
+                isUploadDialogVisible = false,
+                uploadFileName = null,
+                uploadBytesUploaded = 0L,
+                uploadTotalBytes = 0L,
+                uploadProgressPercent = 0
+            )
+        }
+    }
+
+    private fun updateUploadProgress(uploaded: Long, total: Long) {
+        val safeTotal = if (total > 0) total else 1L
+        val percent = ((uploaded * 100) / safeTotal).toInt().coerceIn(0, 100)
+        setState {
+            copy(
+                isUploadDialogVisible = true,
+                uploadBytesUploaded = uploaded,
+                uploadTotalBytes = total,
+                uploadProgressPercent = percent
+            )
+        }
+    }
+
+    private fun guessExtension(fileName: String?, mimeType: String?): String {
+        val nameLower = fileName.orEmpty().lowercase()
+        return when {
+            nameLower.endsWith(".pdf") || mimeType == "application/pdf" -> ".pdf"
+            nameLower.endsWith(".mp4") || (mimeType?.startsWith("video/") == true) -> ".mp4"
+            nameLower.endsWith(".mp3") || (mimeType?.startsWith("audio/") == true) -> ".mp3"
+            nameLower.endsWith(".jpg") || nameLower.endsWith(".jpeg") || mimeType == "image/jpeg" -> ".jpg"
+            nameLower.endsWith(".png") || mimeType == "image/png" -> ".png"
+            mimeType?.startsWith("image/") == true -> ".jpg"
+            else -> ""
+        }
+    }
+
+    private fun guessContentType(mimeType: String?): String {
+        return mimeType?.trim().takeUnless { it.isNullOrBlank() } ?: "application/octet-stream"
+    }
+
+    private suspend fun uploadSelectedFileAndGetUrl(testId: String): String? {
+        val fileStream = state.value.selectedFileStream ?: return null
+        val fileSize = state.value.selectedFileSize
+        val fileName = state.value.selectedFileName
+        val mimeType = state.value.selectedFileMimeType
+
+        if (fileSize <= 0) return null
+
+        val ext = guessExtension(fileName, mimeType)
+        val objectName = "tests/$testId/questions/question_${System.currentTimeMillis()}$ext"
+        Log.d("TestQuestionVM", "objectName=$objectName, fileName=$fileName, mimeType=$mimeType, size=$fileSize")
+
+        setState {
+            copy(
+                isUploadDialogVisible = true,
+                uploadFileName = fileName,
+                uploadBytesUploaded = 0L,
+                uploadTotalBytes = fileSize,
+                uploadProgressPercent = 0
+            )
+        }
+
+        return try {
+            minIOUseCase.uploadFile(
+                objectName = objectName,
+                inputStream = fileStream,
+                size = fileSize,
+                contentType = guessContentType(mimeType),
+                onProgress = ::updateUploadProgress
+            )
+            Log.i("TestQuestionVM", "Uploaded media to MinIO: $objectName")
+            objectName
+        } finally {
+            resetFileSelection()
+        }
+    }
 
     override fun onEvent(event: TestQuestionEvent) {
         when (event) {
@@ -95,14 +201,20 @@ class TestQuestionManagerViewModel @Inject constructor(
     }
 
     private fun showAddDialog() {
+        resetFileSelection()
+        resetUploadDialog()
         setState { copy(showAddEditDialog = true, editingQuestion = null) }
     }
 
     private fun showEditDialog(question: TestQuestion) {
+        resetFileSelection()
+        resetUploadDialog()
         setState { copy(showAddEditDialog = true, editingQuestion = question) }
     }
 
     private fun dismissDialog() {
+        resetFileSelection()
+        resetUploadDialog()
         setState { copy(showAddEditDialog = false, editingQuestion = null) }
     }
 
@@ -111,6 +223,8 @@ class TestQuestionManagerViewModel @Inject constructor(
             copy(
                 confirmDeleteState = confirmDeleteState.copy(
                     isShowing = true,
+                    title = "Xác nhận xóa câu hỏi",
+                    message = "Bạn có chắc chắn muốn xóa câu hỏi này?\nHành động này không thể hoàn tác.",
                     data = question
                 )
             )
@@ -190,13 +304,23 @@ class TestQuestionManagerViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val uploadedUrl = try {
+                uploadSelectedFileAndGetUrl(testId)
+            } catch (e: Exception) {
+                resetUploadDialog()
+                showNotification("Upload file thất bại: ${e.message}", NotificationType.ERROR)
+                return@launch
+            } finally {
+                resetUploadDialog()
+            }
+
             val newQuestion = TestQuestion(
                 id = "",
                 testId = testId,
                 content = trimmedContent,
                 score = score,
                 questionType = questionType,
-                mediaUrl = trimmedMediaUrl,
+                mediaUrl = uploadedUrl ?: trimmedMediaUrl,
                 timeLimit = timeLimit,
                 order = order,
                 createdAt = Instant.now(),
@@ -214,7 +338,9 @@ class TestQuestionManagerViewModel @Inject constructor(
                         }
                         is Resource.Error -> {
                             setState { copy(isLoading = false) }
-                            showNotification(result.message ?: "Thêm câu hỏi thất bại", NotificationType.ERROR)
+                            val msg = result.message ?: "Thêm câu hỏi thất bại"
+                            val type = if (msg.contains("Tổng điểm câu hỏi")) NotificationType.ERROR else NotificationType.ERROR
+                            showNotification(msg, type)
                         }
                     }
                 }
@@ -277,11 +403,21 @@ class TestQuestionManagerViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val uploadedUrl = try {
+                uploadSelectedFileAndGetUrl(testId)
+            } catch (e: Exception) {
+                resetUploadDialog()
+                showNotification("Upload file thất bại: ${e.message}", NotificationType.ERROR)
+                return@launch
+            } finally {
+                resetUploadDialog()
+            }
+
             val updated = existing.copy(
                 content = trimmedContent,
                 score = score,
                 questionType = existing.questionType,
-                mediaUrl = trimmedMediaUrl,
+                mediaUrl = uploadedUrl ?: trimmedMediaUrl,
                 timeLimit = timeLimit,
                 order = order,
                 updatedAt = Instant.now()
@@ -298,7 +434,9 @@ class TestQuestionManagerViewModel @Inject constructor(
                         }
                         is Resource.Error -> {
                             setState { copy(isLoading = false) }
-                            showNotification(result.message ?: "Cập nhật câu hỏi thất bại", NotificationType.ERROR)
+                            val msg = result.message ?: "Cập nhật câu hỏi thất bại"
+                            val type = if (msg.contains("Tổng điểm câu hỏi")) NotificationType.ERROR else NotificationType.ERROR
+                            showNotification(msg, type)
                         }
                     }
                 }

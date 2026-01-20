@@ -13,6 +13,7 @@ data class TestQuestionEntity(
     val content: String,
     val score: Double,
     val questionType: QuestionType,
+    val mediaUrl: String? = null,
     val timeLimit: Int,
     val order: Int,
     val createdAt: Instant,

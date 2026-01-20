@@ -1,9 +1,12 @@
 package com.example.datn.presentation.teacher.test.screens
 
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -12,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.datn.presentation.common.test.TestOptionEvent
@@ -19,6 +23,9 @@ import com.example.datn.presentation.dialogs.ConfirmationDialog
 import com.example.datn.presentation.teacher.test.components.AddEditTestOptionDialog
 import com.example.datn.presentation.teacher.test.components.TestOptionItem
 import com.example.datn.presentation.teacher.test.viewmodel.TestOptionViewModel
+import com.example.datn.presentation.teacher.test.viewmodel.TestOptionUploadViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +36,45 @@ fun TestOptionManagerScreen(
     viewModel: TestOptionViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val uploadViewModel: TestOptionUploadViewModel = hiltViewModel()
+    val uploadState by uploadViewModel.state.collectAsState()
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var imagePreviewUri by remember { mutableStateOf<Uri?>(null) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            // save for inline preview in dialog
+            imagePreviewUri = it
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val resolver = context.contentResolver
+                    val inputStream = resolver.openInputStream(it)
+                    val fileName = resolver.query(it, null, null, null, null)?.use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("_display_name")
+                        cursor.moveToFirst()
+                        cursor.getString(nameIndex)
+                    } ?: "image_upload"
+                    val fileSize = resolver.query(it, null, null, null, null)?.use { cursor ->
+                        val sizeIndex = cursor.getColumnIndex("_size")
+                        cursor.moveToFirst()
+                        cursor.getLong(sizeIndex)
+                    } ?: 0L
+
+                    if (inputStream != null && fileSize > 0) {
+                        uploadViewModel.uploadImage(questionId, fileName, inputStream, fileSize)
+                    }
+                } catch (_: Exception) { }
+            }
+        }
+    }
+
+    val openImagePicker: () -> Unit = {
+        imagePickerLauncher.launch("image/*")
+    }
 
     LaunchedEffect(questionId) {
         viewModel.setQuestionId(questionId)
@@ -195,7 +241,11 @@ fun TestOptionManagerScreen(
             AddEditTestOptionDialog(
                 editing = state.editingOption,
                 questionType = state.currentQuestionType,
-                onDismiss = { viewModel.onEvent(TestOptionEvent.DismissDialog) },
+                onDismiss = { 
+                    uploadViewModel.reset()
+                    imagePreviewUri = null
+                    viewModel.onEvent(TestOptionEvent.DismissDialog) 
+                },
                 onConfirm = { content, isCorrect, order, mediaUrl ->
                     if (state.editingOption == null) {
                         viewModel.onEvent(
@@ -219,7 +269,13 @@ fun TestOptionManagerScreen(
                             )
                         )
                     }
-                }
+                },
+                onSelectImage = openImagePicker,
+                uploadedUrl = uploadState.uploadedUrl,
+                selectedFileName = uploadState.selectedFileName,
+                uploadProgressPercent = uploadState.uploadProgressPercent,
+                isUploading = uploadState.isUploading,
+                imagePreviewUri = imagePreviewUri
             )
         }
 

@@ -210,9 +210,12 @@ class MiniGameService @Inject constructor() :
         Log.d(TAG, "Adding new question: ${question.content}")
 
         val existingQuestions = getQuestionsByMiniGame(question.miniGameId)
+        val currentMaxQ = existingQuestions.maxOfOrNull { it.order } ?: 0
         val desiredOrder = when {
-            question.order < 0 -> existingQuestions.size
-            question.order > existingQuestions.size -> existingQuestions.size
+            // If no order provided (<= 0), append to end using 1-based indexing
+            question.order <= 0 -> currentMaxQ + 1
+            // Clamp to end (max+1) if larger than allowed insert position
+            question.order > currentMaxQ + 1 -> currentMaxQ + 1
             else -> question.order
         }
 
@@ -254,9 +257,9 @@ class MiniGameService @Inject constructor() :
             val otherQuestions = getQuestionsByMiniGame(oldQuestion.miniGameId)
                 .filter { it.id != questionId }
 
-            val maxAllowedOrder = otherQuestions.size
+            val maxAllowedOrder = (otherQuestions.maxOfOrNull { it.order } ?: 0).coerceAtLeast(1)
             val clampedOrder = when {
-                question.order < 0 -> oldOrder
+                question.order < 1 -> oldOrder
                 question.order > maxAllowedOrder -> maxAllowedOrder
                 else -> question.order
             }
@@ -327,23 +330,90 @@ class MiniGameService @Inject constructor() :
     }
 
     suspend fun addMiniGameOption(option: MiniGameOption): MiniGameOption? = try {
+        // Load existing options to determine desired order and shifts (1-based)
+        val existing = getOptionsByQuestion(option.miniGameQuestionId)
+
+        val currentMaxO = existing.maxOfOrNull { it.order } ?: 0
+        val desiredOrder = when {
+            // If no order provided (<= 0), append to end using 1-based indexing
+            option.order <= 0 -> currentMaxO + 1
+            // Clamp to end (max+1) if larger than allowed insert position
+            option.order > currentMaxO + 1 -> currentMaxO + 1
+            else -> option.order
+        }
+
+        val toShift = existing.filter { it.order >= desiredOrder }
+
         val docRef = if (option.id.isNotEmpty()) optionRef.document(option.id) else optionRef.document()
         val now = Instant.now()
-        val data = option.copy(id = docRef.id, createdAt = now, updatedAt = now)
-        docRef.set(data).await()
+        val data = option.copy(
+            id = docRef.id,
+            order = desiredOrder,
+            createdAt = now,
+            updatedAt = now
+        )
+
+        firestore.runBatch { batch ->
+            toShift.forEach { ex ->
+                batch.update(optionRef.document(ex.id), "order", ex.order + 1)
+            }
+            batch.set(docRef, data)
+        }.await()
+
         data
     } catch (e: Exception) {
         Log.e(TAG, "❌ Error adding option", e)
         null
     }
 
-    suspend fun updateMiniGameOption(optionId: String, option: MiniGameOption): Boolean = try {
-        val updated = option.copy(id = optionId, updatedAt = Instant.now())
-        optionRef.document(optionId).set(updated).await()
-        true
-    } catch (e: Exception) {
-        Log.e(TAG, "❌ Error updating option: $optionId", e)
-        false
+    suspend fun updateMiniGameOption(optionId: String, option: MiniGameOption): Boolean {
+        try {
+            val doc = optionRef.document(optionId).get().await()
+            if (!doc.exists()) return false
+
+            val old = doc.internalToDomain(MiniGameOption::class.java)
+            val oldOrder = old.order
+
+            val others = getOptionsByQuestion(old.miniGameQuestionId).filter { it.id != optionId }
+            val maxAllowed = (others.maxOfOrNull { it.order } ?: 0).coerceAtLeast(1)
+            val clampedOrder = when {
+                option.order < 1 -> oldOrder
+                option.order > maxAllowed -> maxAllowed
+                else -> option.order
+            }
+
+            if (clampedOrder == oldOrder) {
+                val updated = option.copy(
+                    id = optionId,
+                    miniGameQuestionId = old.miniGameQuestionId,
+                    order = oldOrder,
+                    createdAt = old.createdAt,
+                    updatedAt = Instant.now()
+                )
+                optionRef.document(optionId).set(updated).await()
+                return true
+            }
+
+            firestore.runBatch { batch ->
+                others.find { it.order == clampedOrder }?.let { conflict ->
+                    batch.update(optionRef.document(conflict.id), "order", oldOrder)
+                }
+
+                val updated = option.copy(
+                    id = optionId,
+                    miniGameQuestionId = old.miniGameQuestionId,
+                    order = clampedOrder,
+                    createdAt = old.createdAt,
+                    updatedAt = Instant.now()
+                )
+                batch.set(optionRef.document(optionId), updated)
+            }.await()
+
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error updating option: $optionId", e)
+            return false
+        }
     }
 
     suspend fun deleteMiniGameOption(optionId: String): Boolean = try {

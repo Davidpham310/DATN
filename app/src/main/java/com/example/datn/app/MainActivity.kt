@@ -14,7 +14,7 @@ import com.example.datn.core.utils.network.NetworkChecker
 import com.example.datn.domain.repository.IAuthRepository
 import com.example.datn.presentation.navigation.AppNavGraph
 import dagger.hilt.android.AndroidEntryPoint
-import jakarta.inject.Inject
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {

@@ -4,6 +4,7 @@ import com.example.datn.core.base.BaseState
 import com.example.datn.domain.models.QuestionType
 import com.example.datn.domain.models.TestOption
 import com.example.datn.presentation.common.dialogs.ConfirmationDialogState
+import java.io.InputStream
 
 data class TestOptionState(
     override val isLoading: Boolean = false,
@@ -14,7 +15,10 @@ data class TestOptionState(
     val editingOption: TestOption? = null,
     val confirmDeleteState: ConfirmationDialogState<TestOption> = ConfirmationDialogState.empty(),
     val currentQuestionId: String = "",
-    val currentQuestionType: QuestionType? = null
+    val currentQuestionType: QuestionType? = null,
+    val selectedFileName: String? = null,
+    val selectedFileStream: InputStream? = null,
+    val selectedFileSize: Long = 0L
 ) : BaseState
 
 

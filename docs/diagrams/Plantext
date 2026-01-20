@@ -1,0 +1,370 @@
+@startuml
+' Database ER Diagram generated from Room entities (attributes and explicit keys only)
+skinparam linetype ortho
+hide circle
+hide methods
+hide stereotypes
+
+' =====================
+' Tables
+' =====================
+
+entity "class" as class {
+  *id : String
+  --
+  teacherId : String
+  name : String
+  classCode : String
+  gradeLevel : Int?
+  subject : String?
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "class_student" as class_student {
+  *classId : String
+  *studentId : String
+  --
+  enrollmentStatus : EnrollmentStatus
+  enrolledDate : Instant
+  approvedBy : String
+  rejectionReason : String
+  isLocked : Boolean
+}
+
+entity "conversation" as conversation {
+  *id : String
+  --
+  type : ConversationType
+  title : String?
+  lastMessageAt : Instant
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "conversation_participant" as conversation_participant {
+  *conversationId : String
+  *userId : String
+  --
+  joinedAt : Instant
+  lastViewedAt : Instant
+  isMuted : Boolean
+}
+
+entity "daily_study_time" as daily_study_time {
+  *id : String
+  --
+  studentId : String
+  date : LocalDate
+  durationSeconds : Long
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "lesson" as lesson {
+  *id : String
+  --
+  teacherId : String
+  classId : String
+  title : String
+  description : String?
+  contentLink : String?
+  order : Int
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "lesson_content" as lesson_content {
+  *id : String
+  --
+  lessonId : String
+  title : String
+  contentType : ContentType
+  content : String
+  order : Int
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "message" as message {
+  *id : String
+  --
+  senderId : String
+  recipientId : String
+  content : String
+  sentAt : Instant
+  isRead : Boolean
+  conversationId : String
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "minigame" as minigame {
+  *id : String
+  --
+  teacherId : String
+  lessonId : String
+  title : String
+  description : String
+  contentUrl : String?
+  level : Level
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "minigame_question" as minigame_question {
+  *id : String
+  --
+  miniGameId : String
+  content : String
+  questionType : QuestionType
+  score : Double
+  timeLimit : Long
+  order : Int
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "minigame_option" as minigame_option {
+  *id : String
+  --
+  miniGameQuestionId : String
+  content : String
+  isCorrect : Boolean
+  order : Int
+  mediaUrl : String?
+  hint : String?
+  pairId : String?
+  pairContent : String?
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "notification" as notification {
+  *id : String
+  --
+  userId : String
+  senderId : String?
+  type : NotificationType
+  title : String
+  content : String
+  referenceObjectId : String?
+  referenceObjectType : String?
+  isRead : Boolean
+  createdAt : Instant
+}
+
+entity "parent" as parent {
+  *id : String
+  --
+  userId : String
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "parent_student" as parent_student {
+  *parentId : String
+  *studentId : String
+  --
+  relationship : RelationshipType
+  linkedAt : Instant
+  isPrimaryGuardian : Boolean
+}
+
+entity "student" as student {
+  *id : String
+  --
+  userId : String
+  dateOfBirth : LocalDate
+  gradeLevel : String
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "student_lesson_progress" as student_lesson_progress {
+  *id : String
+  --
+  studentId : String
+  lessonId : String
+  progressPercentage : Int
+  lastAccessedContentId : String?
+  lastAccessedAt : Instant
+  isCompleted : Boolean
+  timeSpentSeconds : Long
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "student_minigame_result" as student_minigame_result {
+  *id : String
+  --
+  studentId : String
+  miniGameId : String
+  score : Double
+  maxScore : Double
+  completionStatus : CompletionStatus
+  submissionTime : Instant
+  durationSeconds : Long
+  attemptNumber : Int
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "student_minigame_answer" as student_minigame_answer {
+  *id : String
+  --
+  resultId : String
+  questionId : String
+  answer : String
+  isCorrect : Boolean
+  earnedScore : Double
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "student_test_result" as student_test_result {
+  *id : String
+  --
+  studentId : String
+  testId : String
+  score : Double
+  completionStatus : TestStatus
+  submissionTime : Instant
+  durationSeconds : Long
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "student_test_answers" as student_test_answers {
+  *id : String
+  --
+  resultId : String
+  questionId : String
+  answer : String
+  isCorrect : Boolean
+  earnedScore : Double
+  createdAt : Long
+  updatedAt : Long
+}
+
+entity "teacher" as teacher {
+  *id : String
+  --
+  userId : String
+  specialization : String
+  level : String
+  experienceYears : Int
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "test" as test {
+  *id : String
+  --
+  classId : String
+  lessonId : String
+  title : String
+  description : String?
+  totalScore : Double
+  startTime : Instant
+  endTime : Instant
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "test_question" as test_question {
+  *id : String
+  --
+  testId : String
+  content : String
+  score : Double
+  questionType : QuestionType
+  mediaUrl : String?
+  timeLimit : Int
+  order : Int
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "test_option" as test_option {
+  *id : String
+  --
+  testQuestionId : String
+  content : String
+  isCorrect : Boolean
+  order : Int
+  mediaUrl : String?
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+entity "user" as user {
+  *id : String
+  --
+  name : String
+  email : String
+  role : UserRole
+  avatarUrl : String?
+  isActive : Boolean
+  createdAt : Instant
+  updatedAt : Instant
+}
+
+' =====================
+' Relationships
+' =====================
+
+' Child (many) }o--|| Parent (one)
+
+class_student }o--|| class : classId
+class_student }o--|| student : studentId
+
+parent_student }o--|| parent : parentId
+parent_student }o--|| student : studentId
+
+lesson }o--|| class : classId
+lesson }o--|| teacher : teacherId
+
+lesson_content }o--|| lesson : lessonId
+
+class }o--|| teacher : teacherId
+
+message }o--|| conversation : conversationId
+message }o--|| user : senderId
+message }o--|| user : recipientId
+
+conversation_participant }o--|| conversation : conversationId
+conversation_participant }o--|| user : userId
+
+student }o--|| user : userId
+teacher }o--|| user : userId
+parent }o--|| user : userId
+
+test }o--|| class : classId
+test }o--|| lesson : lessonId
+test_question }o--|| test : testId
+test_option }o--|| test_question : testQuestionId
+
+student_test_result }o--|| student : studentId
+student_test_result }o--|| test : testId
+student_test_answers }o--|| student_test_result : resultId
+student_test_answers }o--|| test_question : questionId
+
+minigame }o--|| lesson : lessonId
+minigame }o--|| teacher : teacherId
+minigame_question }o--|| minigame : miniGameId
+minigame_option }o--|| minigame_question : miniGameQuestionId
+
+student_minigame_result }o--|| student : studentId
+student_minigame_result }o--|| minigame : miniGameId
+student_minigame_answer }o--|| student_minigame_result : resultId
+student_minigame_answer }o--|| minigame_question : questionId
+
+daily_study_time }o--|| student : studentId
+student_lesson_progress }o--|| student : studentId
+student_lesson_progress }o--|| lesson : lessonId
+
+notification }o--|| user : userId
+notification }o--|| user : senderId
+
+@enduml

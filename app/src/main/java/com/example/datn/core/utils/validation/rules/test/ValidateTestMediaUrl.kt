@@ -9,13 +9,17 @@ class ValidateTestMediaUrl : Validator<String?> {
         val value = input?.trim().orEmpty()
         if (value.isBlank()) return ValidationResult(true)
 
+        // Accept MinIO object keys (relative paths) or full URLs
+        val isObjectKey = value.startsWith("tests/") || value.startsWith("test_options/") || value.startsWith("lessons/")
+        if (isObjectKey) return ValidationResult(true)
+
         return try {
             val uri = URI(value)
             val scheme = uri.scheme?.lowercase()
-            if (scheme != "http" && scheme != "https") {
-                ValidationResult(false, "Media URL phải bắt đầu bằng http:// hoặc https://")
-            } else {
+            if (scheme == "http" || scheme == "https") {
                 ValidationResult(true)
+            } else {
+                ValidationResult(false, "Media URL không hợp lệ")
             }
         } catch (e: Exception) {
             ValidationResult(false, "Media URL không hợp lệ")
